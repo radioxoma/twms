@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-
 __all__ = [
+    "__main__"
     "twms",
     "bbox",
     "canvas",
     "correctify",
-    "drawing",
     "projections",
     "reproject",
 ]

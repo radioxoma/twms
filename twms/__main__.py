@@ -1,25 +1,9 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
-#    This file is part of twms.
-
-# This program is free software. It comes without any warranty, to
-# the extent permitted by applicable law. You can redistribute it
-# and/or modify it under the terms specified in COPYING.
-
-from __future__ import print_function
-
-import web
-import sys
-from twms import *
+#!/usr/bin/env python
 
 import sys, socket
+from twms import twms
+import web
 
-try:
-    import psyco
-
-    psyco.full()
-except ImportError:
-    pass
 
 OK = 200
 ERROR = 500
@@ -29,7 +13,7 @@ def handler(data):
     """
     A handler for web.py.
     """
-    resp, ctype, content = twms_main(data)
+    resp, ctype, content = twms.twms_main(data)
     web.header("Content-Type", ctype)
     return content
 
@@ -95,7 +79,7 @@ def main():
         sys.exit(1)
 
 
-application = web.application(urls, globals()).wsgifunc()  # mod_wsgi
 
 if __name__ == "__main__":
+    # application = web.application(urls, globals()).wsgifunc()  # mod_wsgi
     main()

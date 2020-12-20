@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-#    This file is part of twms.
-
-# This program is free software. It comes without any warranty, to
-# the extent permitted by applicable law. You can redistribute it
-# and/or modify it under the terms specified in COPYING.
-
 from urllib.request import urlopen
 import filecmp
 import time
@@ -12,13 +5,9 @@ import os
 import math
 import sys
 from io import BytesIO
-
-try:
-    from PIL import Image
-except ImportError:
-    import Image
-
 import time
+
+from PIL import Image
 
 import config
 import projections
@@ -78,7 +67,7 @@ def WMS(z, x, y, this_layer):
     local = (
         config.tiles_cache
         + this_layer["prefix"]
-        + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
     )
     tile_bbox = "bbox=%s,%s,%s,%s" % tuple(
         projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
@@ -136,7 +125,7 @@ def Tile(z, x, y, this_layer):
         local = (
             config.tiles_cache
             + this_layer["prefix"]
-            + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+            + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
         )
         if not os.path.exists("/".join(local.split("/")[:-1])):
             os.makedirs("/".join(local.split("/")[:-1]))

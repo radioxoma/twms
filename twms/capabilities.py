@@ -1,12 +1,5 @@
-# -*- coding: utf-8 -*-
-#    This file is part of twms.
-
-# This program is free software. It comes without any warranty, to
-# the extent permitted by applicable law. You can redistribute it
-# and/or modify it under the terms specified in COPYING.
-
 import config
-import projections
+from twms import projections
 
 
 def get(version, ref):

@@ -1,29 +1,15 @@
-# -*- coding: utf-8 -*-
-#    This file is part of twms.
-
-# This program is free software. It comes without any warranty, to
-# the extent permitted by applicable law. You can redistribute it
-# and/or modify it under the terms specified in COPYING.
-
-##
-##  PP - PrePare
-##  DL - DownLoading
-##  RD - ReaDy
-##
-
-
-import projections
-
-try:
-    from PIL import Image, ImageFilter
-except ImportError:
-    import Image, ImageFilter
-
 import urllib
 from io import BytesIO
 import datetime
 import sys
 import threading
+
+from PIL import Image, ImageFilter
+
+from twms import projections
+#  PP - PrePare
+#  DL - DownLoading
+#  RD - ReaDy
 
 
 def debug(st):

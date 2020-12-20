@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=twms
+Comment=GIS
+Type=Application
+Categories=ImageProcessing;Geoscience;Geography;
+Exec=python -m twms
+Terminal=true
+StartupNotify=true
+Icon=utilities-terminal
+GenericName=Tiny WMS/TMS server

@@ -1,70 +1,39 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
-#    This file is part of twms.
+#!/usr/bin/env python
 
-# This program is free software. It comes without any warranty, to
-# the extent permitted by applicable law. You can redistribute it
-# and/or modify it under the terms specified in COPYING.
-
-from __future__ import print_function, division
-
-try:
-    from PIL import Image, ImageOps, ImageColor
-except ImportError:
-    import Image, ImageOps, ImageColor
-
-import imp
 import os
-import math
 import sys
+import math
 import urllib
+import imp
 from io import BytesIO
 import time
 import datetime
 
+from PIL import Image, ImageOps, ImageColor
+
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-config_path = "/etc/twms/twms.conf"
+install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
+
+config_path = "twms/twms.conf"
+config = None
 if os.path.exists(config_path):
-    try:
-        config = imp.load_source("twms.config", config_path)
-    except:
-        config = imp.load_source("config", config_path)
+    config_path = os.path.join(install_path, config_path)
+    config = imp.load_source("config", os.path.realpath(config_path))
 else:
-    try:
-        config_path = os.path.join(os.path.dirname(__file__), "twms.conf")
-        config = imp.load_source("twms.config", config_path)
-    except:
-        config_path = os.path.join(os.path.realpath(sys.path[0]), "twms.conf")
-        config = imp.load_source(
-            "config", os.path.join(os.path.realpath(sys.path[0]), "twms.conf")
-        )
-    sys.stderr.write(
-        "Configuration file not found, using defaults from %s\n" % config_path
-    )
-    sys.stderr.flush()
+    print("No config")
+    quit()
 
 
 import correctify
 import capabilities
 import fetchers
 
-# import config
 import bbox
 import bbox as bbox_utils
 import projections
-import drawing
 import overview
-from gpxparse import GPXParser
 from reproject import reproject
-
-try:
-    import psyco
-
-    psyco.full()
-except ImportError:
-    pass
-
 
 OK = 200
 ERROR = 500
@@ -73,11 +42,11 @@ cached_objs = {}  # a dict. (layer, z, x, y): PIL image
 cached_hist_list = []
 
 formats = {
-    "image/gif": "GIF",
+    "image/gif":  "GIF",
     "image/jpeg": "JPEG",
-    "image/jpg": "JPEG",
-    "image/png": "PNG",
-    "image/bmp": "BMP",
+    "image/jpg":  "JPEG",
+    "image/png":  "PNG",
+    "image/bmp":  "BMP",
 }
 
 mimetypes = dict(zip(formats.values(), formats.keys()))
@@ -102,27 +71,6 @@ def twms_main(data):
     trackblend = float(data.get("trackblend", "0.5"))
     color = data.get("color", data.get("colour", "")).split(",")
     track = False
-    tracks = []
-    if len(gpx) == 0:
-        req_bbox = projections.from4326(
-            (27.6518898, 53.8683186, 27.6581944, 53.8720359), srs
-        )
-    else:
-        for g in gpx:
-            local_gpx = config.gpx_cache + "%s.gpx" % g
-            if not os.path.exists(config.gpx_cache):
-                os.makedirs(config.gpx_cache)
-            if not os.path.exists(local_gpx):
-                urllib.urlretrieve(
-                    "http://www.openstreetmap.org/trace/%s/data" % g, local_gpx
-                )
-            if not track:
-                track = GPXParser(local_gpx)
-                req_bbox = projections.from4326(track.bbox, srs)
-            else:
-                track = GPXParser(local_gpx)
-                req_bbox = bbox.add(req_bbox, projections.from4326(track.bbox, srs))
-            tracks.append(track)
 
     req_type = data.get("request", "GetMap")
     version = data.get("version", "1.1.1")
@@ -132,7 +80,7 @@ def twms_main(data):
         return (OK, content_type, resp)
 
     layer = data.get("layers", config.default_layers).split(",")
-    if ("layers" in data) and not layer[0]:
+    if "layers" in data and not layer[0]:
         layer = ["transparent"]
 
     if req_type == "GetCorrections":
@@ -173,15 +121,15 @@ def twms_main(data):
     width = 0
     height = 0
     resp_cache_path, resp_ext = "", ""
+    z = int(data.get("z", 1)) + 1
+    x = int(data.get("x", 0))
+    y = int(data.get("y", 0))
     if req_type == "GetTile":
         width = 256
         height = 256
         height = int(data.get("height", height))
         width = int(data.get("width", width))
         srs = data.get("srs", "EPSG:3857")
-        x = int(data.get("x", 0))
-        y = int(data.get("y", 0))
-        z = int(data.get("z", 1)) + 1
         if "cache_tile_responses" in dir(config) and not wkt and (len(gpx) == 0):
             if (
                 srs,
@@ -208,8 +156,8 @@ def twms_main(data):
             if layer[0] in config.layers:
                 if (
                     config.layers[layer[0]]["proj"] == srs
-                    and width is 256
-                    and height is 256
+                    and width == 256
+                    and height == 256
                     and not filt
                     and not force
                     and not correctify.has_corrections(config.layers[layer[0]])
@@ -217,17 +165,20 @@ def twms_main(data):
                     local = (
                         config.tiles_cache
                         + config.layers[layer[0]]["prefix"]
-                        + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+                        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
                     )
                     ext = config.layers[layer]["ext"]
                     adds = ["", "ups."]
                     for add in adds:
+                        # SAS.Planet cache implementaion?
+                        # print(local + add + ext)
                         if os.path.exists(local + add + ext):
-                            tile_file = open(local + add + ext, "r")
-                            resp = tile_file.read()
-                            return (OK, content_type, resp)
-        req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
+                            tile_file = open(local + add + ext, "r").read()
+                            return (OK, content_type, tile_file)
 
+    req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
+
+    # Indent?
     if data.get("bbox", None):
         req_bbox = tuple(map(float, data.get("bbox", req_bbox).split(",")))
 
@@ -235,8 +186,7 @@ def twms_main(data):
 
     req_bbox, flip_h = bbox.normalize(req_bbox)
     box = req_bbox
-    # print(req_bbox, file=sys.stderr)
-    # sys.stderr.flush()
+
 
     height = int(data.get("height", height))
     width = int(data.get("width", width))
@@ -307,36 +257,14 @@ def twms_main(data):
         imgs += 1.0
 
     ##Applying filters
-    result_img = filter.raster(result_img, filt, req_bbox, srs)
-
-    # print(wkt, file=sys.stderr)
-    # sys.stderr.flush()
-    if wkt:
-        result_img = drawing.wkt(
-            wkt,
-            result_img,
-            req_bbox,
-            srs,
-            color if len(color) > 0 else None,
-            trackblend,
-        )
-    if len(gpx) > 0:
-        last_color = None
-        c = iter(color)
-        for track in tracks:
-            try:
-                last_color = c.next()
-            except StopIteration:
-                pass
-            result_img = drawing.gpx(
-                track, result_img, req_bbox, srs, last_color, trackblend
-            )
+    # result_img = filter.raster(result_img, filt, req_bbox, srs)
 
     if flip_h:
         result_img = ImageOps.flip(result_img)
     image_content = BytesIO()
 
     if format == "JPEG":
+        result_img = result_img.convert("RGB")
         try:
             result_img.save(
                 image_content,
@@ -413,7 +341,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
         local = (
             config.tiles_cache
             + layer["prefix"]
-            + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+            + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
         )
         ext = layer["ext"]
         if "cache_ttl" in layer:
@@ -601,8 +529,8 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
                 im1 = Image.new("RGBA", (256, 256), ec)
 
             out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
-    if "filter" in layer:
-        out = filter.raster(out, layer["filter"], orig_bbox, request_proj)
+    # if "filter" in layer:
+    #     out = filter.raster(out, layer["filter"], orig_bbox, request_proj)
 
     ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
     out = out.crop(bbox_im)

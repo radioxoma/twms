@@ -1,25 +1,18 @@
-# -*- coding: utf-8 -*-
-#    This file is part of twms.
-
-# This program is free software. It comes without any warranty, to
-# the extent permitted by applicable law. You can redistribute it
-# and/or modify it under the terms specified in COPYING.
-
-import projections
 import os
-import config
+from twms import projections
+from twms import twms
 
 
 distance = lambda z, x, y, g: ((z - y) ** 2 + (x - g) ** 2) ** (0.5)
 
 
 def has_corrections(layer):
-    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     return os.path.exists(corrfile)
 
 
 def corr_wkt(layer):
-    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     corr = open(corrfile, "r")
     wkt = ""
     for line in corr:
@@ -30,7 +23,7 @@ def corr_wkt(layer):
 
 
 def rectify(layer, point):
-    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     srs = layer["proj"]
     if not os.path.exists(corrfile):
         return point
@@ -87,7 +80,7 @@ def rectify(layer, point):
 
 # print(rectify("yasat", (27.679068, 53.885122), ""))
 def r_bbox(layer, bbox):
-    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     srs = layer["proj"]
     if not os.path.exists(corrfile):
         return bbox

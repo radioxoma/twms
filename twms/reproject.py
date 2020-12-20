@@ -1,17 +1,7 @@
-# -*- coding: utf-8 -*-
-#    This file is part of twms.
-
-# This program is free software. It comes without any warranty, to
-# the extent permitted by applicable law. You can redistribute it
-# and/or modify it under the terms specified in COPYING.
-
-try:
-    from PIL import Image
-except ImportError:
-    import Image
-
-import projections
 import sys
+from PIL import Image
+
+from twms import projections
 
 
 def reproject(image, bbox, srs_from, srs_to):

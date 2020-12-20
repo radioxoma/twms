@@ -23,3 +23,10 @@ Conventions
 ===========
 
  - Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
+
+
+Running
+=======
+
+    $ pikaur -S python-webpy
+    $ python -m twms PORT

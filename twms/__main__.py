@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
-import sys, socket
-from twms import twms
+import sys
+import socket
+import urllib
 import web
+
+from twms import twms
 
 
 OK = 200
@@ -59,9 +62,6 @@ class mainhandler:
 def main():
     try:
         if sys.argv[1] == "josm":  # josm mode
-            import cgi
-            import urllib
-
             url, params = sys.argv[2].split("/?", 1)
             data = urllib.parse.parse_qs(params)
             for t in data.keys():

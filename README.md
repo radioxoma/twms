@@ -12,21 +12,23 @@ so GIS applications that support WMS protocol can access
 this tile set. Also, twms can act as a proxy and perform
 WMS requests to external services and serve the tile cache
 
-TODO
-====
 
- - Make fetchers work with proxy
- - Full reprojection support
- - Imagery realignment
+About this fork
+===============
+
+* [`http.server`](https://docs.python.org/3/library/http.server.html) from standard python library is used instead of [webpy](https://webpy.org/)
+* GlobalMapper Tiles cache format, compatible both with both [JOSM](https://josm.openstreetmap.de/) and [SAS.Planet](http://www.sasgis.org/sasplaneta/)
+* Functional regression - unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
+* Due to huge refactoring and removing half of the original code the changes ineligible for a pull request
+
+
+Running in Archlinux:
+
+    $ sudo pacman -S python-pillow python-pyproj
+    $ python -m twms 8080
+
 
 Conventions
 ===========
 
- - Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
-
-
-Running
-=======
-
-    $ pikaur -S python-webpy
-    $ python -m twms PORT
+* Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.

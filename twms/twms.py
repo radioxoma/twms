@@ -21,7 +21,7 @@ if os.path.exists(config_path):
     config_path = os.path.join(install_path, config_path)
     config = imp.load_source("config", os.path.realpath(config_path))
 else:
-    print("No config")
+    print("No config in '{}'".format(config_path))
     quit()
 
 
@@ -160,20 +160,17 @@ def twms_main(data):
                     and height == 256
                     and not filt
                     and not force
-                    and not correctify.has_corrections(config.layers[layer[0]])
-                ):
+                    and not correctify.has_corrections(config.layers[layer[0]])):
                     local = (
-                        config.tiles_cache
-                        + config.layers[layer[0]]["prefix"]
-                        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+                        config.tiles_cache + config.layers[layer[0]]["prefix"]
+                        # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+                        + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
                     )
-                    ext = config.layers[layer]["ext"]
+                    ext = config.layers[layer[0]]["ext"]
                     adds = ["", "ups."]
                     for add in adds:
-                        # SAS.Planet cache implementaion?
-                        # print(local + add + ext)
                         if os.path.exists(local + add + ext):
-                            tile_file = open(local + add + ext, "r").read()
+                            tile_file = open(local + add + ext, 'rb').read()
                             return (OK, content_type, tile_file)
 
     req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
@@ -339,9 +336,9 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
             return cached_objs[(layer["prefix"], z, x, y)]
     if layer.get("cached", True):
         local = (
-            config.tiles_cache
-            + layer["prefix"]
-            + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+            config.tiles_cache + layer["prefix"]
+            # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+            + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)  # Changed Z!
         )
         ext = layer["ext"]
         if "cache_ttl" in layer:

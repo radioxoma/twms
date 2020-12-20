@@ -65,9 +65,9 @@ def WMS(z, x, y, this_layer):
     width = 384  # using larger source size to rescale better in python
     height = 384
     local = (
-        config.tiles_cache
-        + this_layer["prefix"]
-        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+        config.tiles_cache + this_layer["prefix"]
+        # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+        + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
     )
     tile_bbox = "bbox=%s,%s,%s,%s" % tuple(
         projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
@@ -123,9 +123,9 @@ def Tile(z, x, y, this_layer):
     remote = this_layer["remote_url"] % d_tuple
     if this_layer.get("cached", True):
         local = (
-            config.tiles_cache
-            + this_layer["prefix"]
-            + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+            config.tiles_cache + this_layer["prefix"]
+            # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+            + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
         )
         if not os.path.exists("/".join(local.split("/")[:-1])):
             os.makedirs("/".join(local.split("/")[:-1]))

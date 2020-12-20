@@ -60,12 +60,13 @@ def main():
     try:
         if sys.argv[1] == "josm":  # josm mode
             import cgi
+            import urllib
 
             url, params = sys.argv[2].split("/?", 1)
-            data = cgi.parse_qs(params)
+            data = urllib.parse.parse_qs(params)
             for t in data.keys():
                 data[t] = data[t][0]
-            resp, ctype, content = twms_main(data)
+            resp, ctype, content = twms.twms_main(data)
             print(content)
             exit()
     except IndexError:

@@ -315,11 +315,13 @@ def twms_main(data):
 
 def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=False):
     """
-   Returns asked image.
-   again - is this a second pass on this tile?
-   trybetter - should we try to combine this tile from better ones?
-   real - should we return the tile even in not good quality?
-   """
+    Returns asked image.
+    again - is this a second pass on this tile?
+    trybetter - should we try to combine this tile from better ones?
+    real - should we return the tile even in not good quality?
+    """
+    TFetcher = fetchers.TileFetcher()
+
     x = x % (2 ** (z - 1))
     if y < 0 or y >= (2 ** (z - 1)):
         return None
@@ -409,7 +411,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
                     delta = datetime.datetime.now() - start_time
                     delta = delta.seconds + delta.microseconds / 1000000.0
                     if (config.deadline > delta) or (z < 4):
-                        im = fetchers.fetch(z, x, y, layer)  # Try fetching from outside
+                        im = TFetcher.fetch(z, x, y, layer)  # Try fetching from outside
                         if im:
                             im.is_ok = True
                             return im
@@ -441,7 +443,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
             delta = datetime.datetime.now() - start_time
             delta = delta.seconds + delta.microseconds / 1000000.0
             if (config.deadline > delta) or (z < 4):
-                im = fetchers.fetch(z, x, y, layer)  # Try fetching from outside
+                im = TFetcher.fetch(z, x, y, layer)  # Try fetching from outside
                 if im:
                     im.is_ok = True
                     return im

@@ -1,11 +1,13 @@
-from urllib.request import urlopen
-import filecmp
-import time
 import os
-import math
 import sys
+import math
+import time
+import filecmp
 from io import BytesIO
 import time
+from functools import wraps
+import urllib.request as request
+import http.cookiejar as http_cookiejar
 
 from PIL import Image
 
@@ -14,49 +16,97 @@ import projections
 import threading
 
 
-fetching_now = {}
-thread_responses = {}
-zhash_lock = {}
+USERAGENT = [(
+    "User-Agent",
+    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:45.0) Gecko/20100101 Firefox/45.0")]
 
 
-def fetch(z, x, y, this_layer):
-    zhash = repr((z, x, y, this_layer))
-    try:
-        zhash_lock[zhash] += 1
-    except KeyError:
-        zhash_lock[zhash] = 1
-    if zhash not in fetching_now:
-        atomthread = threading.Thread(
-            None, threadwrapper, None, (z, x, y, this_layer, zhash)
-        )
-        atomthread.start()
-        fetching_now[zhash] = atomthread
-    if fetching_now[zhash].is_alive():
-        fetching_now[zhash].join()
-    resp = thread_responses[zhash]
-    zhash_lock[zhash] -= 1
-    if not zhash_lock[zhash]:
-        del thread_responses[zhash]
-        del fetching_now[zhash]
-        del zhash_lock[zhash]
-    return resp
+def prepare_opener(tries=4, delay=3, backoff=2):
+    """Build opener with browser User-Agent and cookie support.
 
+    Retry HTTP request using an exponential backoff.
+    https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+    http://www.katasonov.com/ru/2014/10/python-urllib2-decorators-and-exceptions-fun/
 
-def threadwrapper(z, x, y, this_layer, zhash):
-    try:
-        thread_responses[zhash] = this_layer["fetch"](z, x, y, this_layer)
-    except OSError:
-        for i in range(20):
-            time.sleep(0.1)
+    :param int tries: number of times to try (not retry) before giving up
+    :param int delay: initial delay between retries in seconds
+    :param int backoff: backoff multiplier e.g. value of 2 will double the
+        delay each retry
+    """
+    cj = http_cookiejar.CookieJar()
+
+#     if use_proxy:
+#         proxy_info = {
+#             'user': 'login',
+#             'pass': 'passwd',
+#             'host': "proxyaddress",
+#             'port': 8080}
+#
+#         proxy_support = urllib.request.ProxyHandler({
+#             "http": "http://%(user)s:%(pass)s@%(host)s:%(port)d" % proxy_info})
+#         opener = urllib.request.build_opener(
+#             urllib.request.HTTPCookieProcessor(cj),
+#             # urllib2.HTTPHandler(debuglevel=1),  # Debug outpur
+#             proxy_support)
+
+    opener = request.build_opener(
+        request.HTTPCookieProcessor(cj))
+    opener.addheaders = USERAGENT
+
+    @wraps(opener.open)
+    def retry(*args, **kwargs):
+        mtries, mdelay = tries, delay
+        while mtries > 1:
             try:
-                thread_responses[zhash] = this_layer["fetch"](z, x, y, this_layer)
-                return
-            except OSError:
-                continue
-        thread_responses[zhash] = None
+                return opener.open(*args, **kwargs)
+            except request.URLError as e:
+                msg = "{}, Retrying in {} seconds...".format(e, mdelay)
+                print(msg)
+                time.sleep(mdelay)
+                mtries -= 1
+                mdelay *= backoff
+        return opener.open(*args, **kwargs)
+
+    return retry
 
 
-def WMS(z, x, y, this_layer):
+class TileFetcher(object):
+    def __init__(self):
+        self.fetching_now = {}
+        self.thread_responses = {}
+        self.zhash_lock = {}
+        self.opener = prepare_opener()
+
+    def fetch(self, z, x, y, this_layer):
+        zhash = repr((z, x, y, this_layer))
+        try:
+            self.zhash_lock[zhash] += 1
+        except KeyError:
+            self.zhash_lock[zhash] = 1
+        if zhash not in self.fetching_now:
+            atomthread = threading.Thread(
+                None, self.threadwrapper, None, (z, x, y, this_layer, zhash)
+            )
+            atomthread.start()
+            self.fetching_now[zhash] = atomthread
+        if self.fetching_now[zhash].is_alive():
+            self.fetching_now[zhash].join()
+        resp = self.thread_responses[zhash]
+        self.zhash_lock[zhash] -= 1
+        if not self.zhash_lock[zhash]:
+            del self.thread_responses[zhash]
+            del self.fetching_now[zhash]
+            del self.zhash_lock[zhash]
+        return resp
+
+    def threadwrapper(self, z, x, y, this_layer, zhash):
+        try:
+            self.thread_responses[zhash] = this_layer["fetch"](z, x, y, this_layer, self.opener)
+        except OSError:
+            self.thread_responses[zhash] = None
+
+
+def WMS(z, x, y, this_layer, opener):
     if "max_zoom" in this_layer:
         if z >= this_layer["max_zoom"]:
             return None
@@ -88,7 +138,7 @@ def WMS(z, x, y, this_layer):
                         return im
                 except (IOError, OSError):
                     return None
-    im = Image.open(BytesIO(urlopen(wms).read()))
+    im = Image.open(BytesIO(opener(wms).read()))
     if width != 256 and height != 256:
         im = im.resize((256, 256), Image.ANTIALIAS)
     im = im.convert("RGBA")
@@ -111,7 +161,7 @@ def WMS(z, x, y, this_layer):
     return im
 
 
-def Tile(z, x, y, this_layer):
+def Tile(z, x, y, this_layer, opener):
     global OSError, IOError
     d_tuple = z, x, y
     if "max_zoom" in this_layer:
@@ -141,7 +191,7 @@ def Tile(z, x, y, this_layer):
                 except (IOError, OSError):
                     return None
     try:
-        contents = urlopen(remote).read()
+        contents = opener(remote).read()
         im = Image.open(BytesIO(contents))
     except IOError:
         if this_layer.get("cached", True):

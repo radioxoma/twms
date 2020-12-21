@@ -33,7 +33,6 @@ import bbox
 import bbox as bbox_utils
 import projections
 import overview
-from reproject import reproject
 
 OK = 200
 ERROR = 500
@@ -557,5 +556,4 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
     elif (W != out.size[0]) or (H != out.size[1]):
         "just resize"
         out = out.resize((W, H), Image.ANTIALIAS)
-    # out = reproject(out, bbox, layer["proj"], request_proj)
     return out

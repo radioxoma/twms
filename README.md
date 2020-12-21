@@ -22,6 +22,27 @@ About this fork
 * Due to huge refactoring and removing half of the original code the changes ineligible for a pull request
 
 
+### Running TWMS
+
+This TWMS fork intended to be run locally, as default webserver not considered secure.
+
+    $ git clone https://github.com/radioxoma/twms.git
+    $ cd twms
+    # Edit `twms/twms.conf` and set `tiles_cache` path to `SAS.Planet/cache_gmt/`
+
+Install dependencies, i.e. for Archlinux package names will be as such:
+
+    $ sudo pacman -S python-pillow python-pyproj
+
+Run twms and check [http://127.0.0.1:8080](http://127.0.0.1:8080) page in browser for discovered imagery and links.
+
+    $ python -m twms 8080  # Default http.server
+
+Legacy webpy server preserved. If one needs it, install 'python-webpy' and run:
+
+    $ python -m twms.twmswebpy 8080
+
+
 ### Setting up SAS.Planet
 
 Settings > Options > Cache tab > Set *Default cache type* to *GlobalMapper Tiles*. So tile path will be like `SAS.Planet/cache_gmt/vesat/z{z}/{y}/{x}.jpg`, i.e. `SAS.Planet/cache_gmt/vesat/z1/0/0.jpg`.
@@ -35,34 +56,27 @@ Notes at 2020:
 
 JOSM uses Java cache (not a directory with tiles), so it can't be shared and useless. It also cannot be disabled. So we move it to RAM disk:
 
-    1. Set default cache path `~/.cache/JOSM/tiles` (property 'imagery.generic.loader.cachedir') to `/dev/shm/JOSM/tiles`. Or start JOSM with parameter `-Djosm.cache=/dev/shm/JOSM/tiles`.
-    2. Set 'imagery.cache.max_disk_size' to 64 Mb, should be enough
+1. Set default cache path `~/.cache/JOSM/tiles` (property 'imagery.generic.loader.cachedir') to `/dev/shm/JOSM/tiles`. Or start JOSM with parameter `-Djosm.cache=/dev/shm/JOSM/tiles`.
+2. Set 'imagery.cache.max_disk_size' to 64 Mb, should be enough
 
-JOSM supports `file://` uri pointing to 256x256 tiles in EPSG:3857 projection (like OSM, Bing or Google, but not Yandex as it uses EPSG:3395). So it's possible to make JOSM to load such tiles directly, without TWMS.
+
+#### TMS, WMS tiles via HTTP
+
+1. Check for a link on [http://127.0.0.1:8080](http://127.0.0.1:8080) web page
+2. Open JOSM Imagery > Imagery preferences > Press <button>+TMS</button>, *Selected entries* and paste link. Link examples:
+
+    tms:http://localhost:8080/vesat/{z}/{x}/{y}.jpg
+
+
+#### Tiles via `file://` without TWMS
+
+JOSM supports `file://` uri pointing to 256x256 tiles in EPSG:3857 projection (like OSM, Bing or Google, but not Yandex as it uses EPSG:3395). So it's possible to make JOSM loading tiles directly from disk, without running TWMS server.
+
+1. Check for a link on [http://127.0.0.1:8080](http://127.0.0.1:8080) web page
+2. Open JOSM Imagery > Imagery preferences > Press <button>+TMS</button>, *Selected entries* and paste link. Link examples:
 
     tms:file:///home/user/dev/gis/sasplanet/SAS.Planet/cache_gmt/vesat/z{z}/{y}/{x}.jpg
     tms[18]:file:///c:/SAS.Planet/cache_gmt/vesat/z{z}/{y}/{x}.jpg  # Windows
-
-
-### Running TWMS
-
-This TWMS fork intended to be run locally, as default webserver not considered secure.
-
-    $ git clone https://github.com/radioxoma/twms.git
-    $ cd twms
-    # Edit `twms/twms.conf` and set `tiles_cache` path to `SAS.Planet/cache_gmt/`
-
-Install dependencies, i.e. for Archlinux package names will be as such:
-
-    $ sudo pacman -S python-pillow python-pyproj
-
-Run twms and check [http://127.0.0.1:8080](http://127.0.0.1:8080) page in browser.
-
-    $ python -m twms 8080  # Default http.server
-
-Legacy webpy server preserved. If one needs it, install 'python-webpy' and run:
-
-    $ python -m twms.twmswebpy 8080
 
 
 Conventions

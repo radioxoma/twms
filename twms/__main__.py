@@ -45,6 +45,8 @@ class GetHandler(BaseHTTPRequestHandler):
 
 
 def main():
+    """Simple TWMS server.
+    """
     server = HTTPServer(('localhost', 8080), GetHandler)
     print("Starting TWMS server at http://{}:{} use <Ctrl-C> to stop".format(
         server.server_address[0], server.server_address[1]))

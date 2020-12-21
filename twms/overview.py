@@ -3,8 +3,7 @@ import projections
 
 
 def html(ref):
-    """
-    Gives overall information about twms server and its layers in HTML format.
+    """Available TMS layers summary.
     """
     resp = "<!doctype html>"
     resp += "<html><head><title>" + wms_name
@@ -22,17 +21,15 @@ def html(ref):
         )
         resp += layers[i]["name"]
         resp += (
-            "</h3><b>Bounding box:</b> "
-            + str(bbox)
-            + ' (show on <a href="http://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>'
-            % bbox
+            "</h3><b>Bounding box:</b> " + str(bbox)
+            + ' (show on <a href="http://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>' % bbox
             + ")<br />"
         )
         resp += "<b>Projection:</b> " + layers[i]["proj"] + "<br />"
         resp += "<b>WMS half-link:</b> " + ref + "?layers=" + i + "&amp;<br />"
-        resp += "<b>Tiles URL:</b> {}{}/!/!/!.{}<br />".format(ref, i, layers[i].get("ext", "jpg"))
-        resp += "<b>JOSM TMS URL:</b> tms:{}{}/{{z}}/{{x}}/{{y}}.{}<br />".format(ref, i, layers[i].get("ext", "jpg"))
-        
+        resp += "<b>TMS URL:</b> tms:{}{}/{{z}}/{{x}}/{{y}}.{}<br />".format(ref, i, layers[i].get("ext", "jpg"))
+        if layers[i]['proj'] == "EPSG:3857":
+            resp += "<b>File URI:</b> tms:file://{}{}/z{{z}}/{{y}}/{{x}}.{}".format(tiles_cache, layers[i]['prefix'], layers[i].get("ext", "jpg"))
         resp += "</td></tr>"
     resp += "</table></body></html>"
     return resp

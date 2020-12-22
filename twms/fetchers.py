@@ -217,3 +217,39 @@ def Tile(z, x, y, this_layer, opener):
         except IOError:
             pass
     return im
+
+
+def tile_to_quadkey(z, x, y):
+    """Transform tile coordinates to a quadkey.
+
+    GlobalMapper Tiles cache numeration starts from 0 level with one tile. On 1 level four tiles etc
+    Bing uses quadkey tile coordinates, so minimal cache level is 1 (four tiles). Single tile at zero level not addressed.
+
+    https://github.com/buckhx/QuadKey/blob/master/quadkey/tile_system.py
+
+    Examples
+    --------
+    >>> tile_to_quadkey(1,0,0)
+    '0'
+    >>> tile_to_quadkey(4, 9, 5)
+    '1203'
+    >>> tile_to_quadkey(16, 38354, 20861)
+    '1203010313232212'
+
+    Paramaters
+    ----------
+    :param int z: starts from zero
+    :return: Quadkey string
+    :rtype: str
+    """
+    quadkey = ""
+    for i in range(z):
+        bit = z - i
+        digit = ord('0')
+        mask = 1 << (bit - 1)
+        if (x & mask) != 0:
+            digit += 1
+        if (y & mask) != 0:
+            digit += 2
+        quadkey += chr(digit)
+    return quadkey

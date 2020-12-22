@@ -107,7 +107,7 @@ def twms_main(data):
 
     if layer == [""]:
         content_type = "text/html"
-        resp = overview.html(ref)
+        resp = overview.html()
         return (OK, content_type, resp)
 
     format = data.get("format", config.default_format).lower()

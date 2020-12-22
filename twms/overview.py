@@ -2,7 +2,7 @@ from config import *
 import projections
 
 
-def html(ref):
+def html():
     """Available TMS layers summary.
     """
     resp = "<!doctype html>"
@@ -14,11 +14,9 @@ def html(ref):
         bbox = layers[i].get(
             "data_bounding_box", projections.projs[layers[i]["proj"]]["bounds"]
         )
-        resp += '<tr><td><img src="'
-        resp += (
-            ref + "?layers=" + i + "&amp;bbox=%s,%s,%s,%s" % bbox
-            + '&amp;width=200&amp;format=image/png" width="200" /></td><td><h3>'
-        )
+        resp += "<tr><td><img src=\"?layers=" + i
+        resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" /></td><td><h3>" % bbox
+
         resp += layers[i]["name"]
         resp += (
             "</h3><b>Bounding box:</b> " + str(bbox)
@@ -26,8 +24,8 @@ def html(ref):
             + ")<br />"
         )
         resp += "<b>Projection:</b> " + layers[i]["proj"] + "<br />"
-        resp += "<b>WMS half-link:</b> " + ref + "?layers=" + i + "&amp;<br />"
-        resp += "<b>TMS URL:</b> tms:{}{}/{{z}}/{{x}}/{{y}}.{}<br />".format(ref, i, layers[i].get("ext", "jpg"))
+        resp += "<b>WMS half-link:</b> " + service_url + "?layers=" + i + "&amp;<br />"
+        resp += "<b>TMS URL:</b> tms:{}{}/{{z}}/{{x}}/{{y}}.{}<br />".format(service_url, i, layers[i].get("ext", "jpg"))
         if layers[i]['proj'] == "EPSG:3857":
             resp += "<b>File URI:</b> tms:file://{}{}/z{{z}}/{{y}}/{{x}}.{}".format(tiles_cache, layers[i]['prefix'], layers[i].get("ext", "jpg"))
         resp += "</td></tr>"

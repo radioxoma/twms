@@ -6,6 +6,7 @@ from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
 
 from twms import twms
+import config
 
 
 tileh = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
@@ -47,7 +48,10 @@ class GetHandler(BaseHTTPRequestHandler):
 def main():
     """Simple TWMS server.
     """
-    server = HTTPServer(('localhost', 8080), GetHandler)
+    # if len(sys.argv) > 1:
+    #     if sys.argv[1].isdigit():
+    #         port = int(sys.argv[1])
+    server = HTTPServer((config.host, config.port), GetHandler)
     print("Starting TWMS server at http://{}:{} use <Ctrl-C> to stop".format(
         server.server_address[0], server.server_address[1]))
     server.serve_forever()

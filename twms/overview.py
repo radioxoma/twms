@@ -5,21 +5,24 @@ import projections
 def html():
     """Available TMS layers summary.
     """
-    resp = "<!doctype html>"
-    resp += "<html><head><title>" + wms_name
-    resp += "</title></head><body><h2>"
-    resp += wms_name
-    resp += "</h2><table>"
+    resp = "<!doctype html><html>"
+    resp += "<head><title>" + wms_name + "</title></head><body>"
+    resp += "<h2>" + wms_name + "</h2>"
+    resp += "<table>"
     for i in layers:
         bbox = layers[i].get(
             "data_bounding_box", projections.projs[layers[i]["proj"]]["bounds"]
         )
         resp += "<tr><td><img src=\"?layers=" + i
-        resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" /></td><td><h3>" % bbox
+        resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" /></td><td>" % bbox
 
-        resp += layers[i]["name"]
+        if 'provider_url' in layers[i]:
+            resp += "<h3><a href=\"{}\">{}</a></h3>".format(layers[i]['provider_url'], layers[i]['name'])
+        else:
+            resp += "<h3>"+ layers[i]['name'] + "</h3>"
+
         resp += (
-            "</h3><b>Bounding box:</b> " + str(bbox)
+            "<b>Bounding box:</b> " + str(bbox)
             + ' (show on <a href="http://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>' % bbox
             + ")<br />"
         )

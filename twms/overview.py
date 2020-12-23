@@ -10,14 +10,12 @@ def html():
     resp += "<h2>" + wms_name + "</h2>"
     resp += "<table>"
     for i in layers:
-        bbox = layers[i].get(
-            "data_bounding_box", projections.projs[layers[i]["proj"]]["bounds"]
-        )
+        bbox = layers[i].get('data_bounding_box', projections.projs[layers[i]['proj']]['bounds'])
         resp += "<tr><td><img src=\"?layers=" + i
         resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" /></td><td>" % bbox
 
         if 'provider_url' in layers[i]:
-            resp += "<h3><a href=\"{}\">{}</a></h3>".format(layers[i]['provider_url'], layers[i]['name'])
+            resp += "<h3><a referrerpolicy=\"no-referrer\" title=\"Visit tile provider website\" href=\"{}\">{}</a></h3>".format(layers[i]['provider_url'], layers[i]['name'])
         else:
             resp += "<h3>"+ layers[i]['name'] + "</h3>"
 
@@ -28,9 +26,14 @@ def html():
         )
         resp += "<b>Projection:</b> " + layers[i]["proj"] + "<br />"
         resp += "<b>WMS half-link:</b> " + service_url + "?layers=" + i + "&amp;<br />"
-        resp += "<b>TMS URL:</b> tms:{}{}/{{z}}/{{x}}/{{y}}.{}<br />".format(service_url, i, layers[i].get("ext", "jpg"))
+
+        # Links for JOSM control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
+        # 127.0.0.1:8111 stands for local JOSM with remote control enabled
+        tms_url = "{}{}/{{z}}/{{x}}/{{y}}.{}".format(service_url, i, layers[i].get("ext", "jpg"))
+        resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layers[i]['name']}&type=tms&url={tms_url}\">{tms_url}</a><br />"
         if layers[i]['proj'] == "EPSG:3857":
-            resp += "<b>File URI:</b> tms:file://{}{}/z{{z}}/{{y}}/{{x}}.{}".format(tiles_cache, layers[i]['prefix'], layers[i].get("ext", "jpg"))
+            file_uri = "file://{}{}/z{{z}}/{{y}}/{{x}}.{}".format(tiles_cache, layers[i]['prefix'], layers[i].get("ext", "jpg"))
+            resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layers[i]['name']}&type=tms&url={file_uri}\">{file_uri}</a>"
         resp += "</td></tr>"
     resp += "</table></body></html>"
     return resp

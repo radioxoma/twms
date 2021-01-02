@@ -1,9 +1,5 @@
-#!/usr/bin/env python
-
 import os
 import sys
-import math
-import urllib
 import imp
 from io import BytesIO
 import time
@@ -33,6 +29,7 @@ import bbox
 import bbox as bbox_utils
 import projections
 import overview
+
 
 OK = 200
 ERROR = 500

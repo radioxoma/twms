@@ -1,4 +1,3 @@
-import sys
 from twms import projections
 
 

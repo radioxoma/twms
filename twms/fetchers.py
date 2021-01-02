@@ -1,10 +1,8 @@
 import os
 import sys
-import math
-import time
-import filecmp
 from io import BytesIO
 import time
+import threading
 from functools import wraps
 import urllib.request as request
 import http.cookiejar as http_cookiejar
@@ -13,7 +11,6 @@ from PIL import Image
 
 import config
 import projections
-import threading
 
 
 USERAGENT = [(

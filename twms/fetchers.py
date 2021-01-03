@@ -65,8 +65,7 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
                 #     mtries = 0
                 raise
             except request.URLError as e:
-                msg = "{}, Retrying in {} seconds...".format(e, mdelay)
-                print(msg)
+                print(f"{e}, Retrying '{args[0]}' in {mdelay} seconds...")
                 time.sleep(mdelay)
                 mtries -= 1
                 mdelay *= backoff
@@ -104,7 +103,6 @@ class TileFetcher(object):
             del self.fetching_now[zhash]
             del self.zhash_lock[zhash]
 
-        print(f"Fetching z{z},x{x},y{y} {self.layer['name']} - {type(resp)}")
         return resp
 
     def threadwrapper(self, z, x, y, this_layer, zhash):
@@ -150,6 +148,7 @@ class TileFetcher(object):
                             return im
                     except (IOError, OSError):
                         return None
+        print(f"Fetching z{z},x{x},y{y} {self.layer['name']} {wms}")
         im = Image.open(BytesIO(self.opener(wms).read()))
         if width != 256 and height != 256:
             im = im.resize((256, 256), Image.ANTIALIAS)
@@ -164,8 +163,7 @@ class TileFetcher(object):
                 when = time.localtime()
                 tne.write(
                     "%02d.%02d.%04d %02d:%02d:%02d"
-                    % (when[2], when[1], when[0], when[3], when[4], when[5])
-                )
+                    % (when[2], when[1], when[0], when[3], when[4], when[5]))
                 tne.close()
                 return False
             im.save(local + this_layer["ext"])
@@ -173,7 +171,6 @@ class TileFetcher(object):
         return im
 
     def tms(self, z, x, y, this_layer):
-        global OSError, IOError
         d_tuple = z, x, y
         if "max_zoom" in this_layer:
             if z >= this_layer["max_zoom"]:
@@ -202,6 +199,7 @@ class TileFetcher(object):
                     except (IOError, OSError):
                         return None
         try:
+            print(f"Fetching z{z},x{x},y{y} {self.layer['name']} {remote}")
             contents = self.opener(remote).read()
             im = Image.open(BytesIO(contents))
         except IOError:

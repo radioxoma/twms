@@ -3,7 +3,7 @@
 import sys
 import re
 import urllib
-from http.server import HTTPServer
+from http.server import ThreadingHTTPServer
 from http.server import BaseHTTPRequestHandler
 
 from twms import twms
@@ -15,6 +15,7 @@ tileh = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 
 
 class GetHandler(BaseHTTPRequestHandler):
+    IHandler = twms.ImageryHandler()  # Will be same for all instances
 
     def do_GET(self):
         """Parse GET tile request.
@@ -37,7 +38,7 @@ class GetHandler(BaseHTTPRequestHandler):
         else:
             data = dict(urllib.parse.parse_qsl(self.path[2:]))  # Strip /?
 
-        resp, ctype, content = twms.twms_main(data)
+        resp, ctype, content = self.IHandler.handler(data)
         self.send_response(200)
         self.send_header('Content-Type', ctype)
         self.end_headers()
@@ -60,7 +61,7 @@ def main():
     # if len(sys.argv) > 1:
     #     if sys.argv[1].isdigit():
     #         port = int(sys.argv[1])
-    server = HTTPServer((config.host, config.port), GetHandler)
+    server = ThreadingHTTPServer((config.host, config.port), GetHandler)
     print("Starting TWMS server at http://{}:{} use <Ctrl-C> to stop".format(
         server.server_address[0], server.server_address[1]))
     server.serve_forever()

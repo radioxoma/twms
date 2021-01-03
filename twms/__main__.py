@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import re
 import urllib
 from http.server import HTTPServer
@@ -43,6 +44,14 @@ class GetHandler(BaseHTTPRequestHandler):
         if ctype == 'text/html':
             content = content.encode('utf-8')
         self.wfile.write(content)
+
+    def log_message(self, format, *args):
+        """Disable logger."""
+        pass
+
+    def log_error(self, format, *args):
+        """Declare, because we had disabled 'log_message'."""
+        sys.stderr.write(format % args)
 
 
 def main():

@@ -90,7 +90,7 @@ class TileFetcher(object):
             self.zhash_lock[zhash] = 1
         if zhash not in self.fetching_now:
             atomthread = threading.Thread(
-                None, self.threadwrapper, None, (z, x, y, self.layer, zhash)
+                None, self.threadwrapper, None, (z, x, y, zhash)
             )
             atomthread.start()
             self.fetching_now[zhash] = atomthread
@@ -105,36 +105,34 @@ class TileFetcher(object):
 
         return resp
 
-    def threadwrapper(self, z, x, y, this_layer, zhash):
+    def threadwrapper(self, z, x, y, zhash):
         try:
-            if this_layer['fetch'] == 'tms':
-                self.thread_responses[zhash] = self.tms(z, x, y, this_layer)
-            elif this_layer['fetch'] == 'wms':
-                self.thread_responses[zhash] = self.wms(z, x, y, this_layer)
+            if self.layer['fetch'] == 'tms':
+                self.thread_responses[zhash] = self.tms(z, x, y)
+            elif self.layer['fetch'] == 'wms':
+                self.thread_responses[zhash] = self.wms(z, x, y)
             else:
                 raise ValueError("fetch must be 'tms' or 'wms'")
         except OSError:
             self.thread_responses[zhash] = None
 
-    def wms(self, z, x, y, this_layer):
-        if "max_zoom" in this_layer:
-            if z >= this_layer["max_zoom"]:
+    def wms(self, z, x, y):
+        if "max_zoom" in self.layer:
+            if z >= self.layer["max_zoom"]:
                 return None
-        wms = this_layer["remote_url"]
-        req_proj = this_layer.get("wms_proj", this_layer["proj"])
+        req_proj = self.layer.get("wms_proj", self.layer["proj"])
         width = 384  # using larger source size to rescale better in python
         height = 384
         local = (
-            config.tiles_cache + this_layer["prefix"]
-            # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+            config.tiles_cache + self.layer["prefix"]
             + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
         )
         tile_bbox = "bbox=%s,%s,%s,%s" % tuple(
             projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
         )
 
-        wms += tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
-        if this_layer.get("cached", True):
+        wms = self.layer["remote_url"] + tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
+        if self.layer.get("cached", True):
             if not os.path.exists("/".join(local.split("/")[:-1])):
                 os.makedirs("/".join(local.split("/")[:-1]))
             try:
@@ -144,7 +142,7 @@ class TileFetcher(object):
                     time.sleep(0.1)
                     try:
                         if not os.path.exists(local + "lock"):
-                            im = Image.open(local + this_layer["ext"])
+                            im = Image.open(local + self.layer["ext"])
                             return im
                     except (IOError, OSError):
                         return None
@@ -154,9 +152,9 @@ class TileFetcher(object):
             im = im.resize((256, 256), Image.ANTIALIAS)
         im = im.convert("RGBA")
 
-        if this_layer.get("cached", True):
+        if self.layer.get("cached", True):
             ic = Image.new(
-                "RGBA", (256, 256), this_layer.get("empty_color", config.default_background)
+                "RGBA", (256, 256), self.layer.get("empty_color", config.default_background)
             )
             if im.histogram() == ic.histogram():
                 tne = open(local + "tne", "wb")
@@ -166,23 +164,22 @@ class TileFetcher(object):
                     % (when[2], when[1], when[0], when[3], when[4], when[5]))
                 tne.close()
                 return False
-            im.save(local + this_layer["ext"])
+            im.save(local + self.layer["ext"])
             os.rmdir(local + "lock")
         return im
 
-    def tms(self, z, x, y, this_layer):
+    def tms(self, z, x, y):
         d_tuple = z, x, y
-        if "max_zoom" in this_layer:
-            if z >= this_layer["max_zoom"]:
+        if "max_zoom" in self.layer:
+            if z >= self.layer["max_zoom"]:
                 return None
-        if "transform_tile_number" in this_layer:
-            d_tuple = this_layer["transform_tile_number"](z, x, y)
+        if "transform_tile_number" in self.layer:
+            d_tuple = self.layer["transform_tile_number"](z, x, y)
 
-        remote = this_layer["remote_url"] % d_tuple
-        if this_layer.get("cached", True):
+        remote = self.layer["remote_url"] % d_tuple
+        if self.layer.get("cached", True):
             local = (
-                config.tiles_cache + this_layer["prefix"]
-                # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+                config.tiles_cache + self.layer["prefix"]
                 + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
             )
             if not os.path.exists("/".join(local.split("/")[:-1])):
@@ -194,7 +191,7 @@ class TileFetcher(object):
                     time.sleep(0.1)
                     try:
                         if not os.path.exists(local + "lock"):
-                            im = Image.open(local + this_layer["ext"])
+                            im = Image.open(local + self.layer["ext"])
                             return im
                     except (IOError, OSError):
                         return None
@@ -203,23 +200,24 @@ class TileFetcher(object):
             contents = self.opener(remote).read()
             im = Image.open(BytesIO(contents))
         except IOError:
-            if this_layer.get("cached", True):
+            if self.layer.get("cached", True):
                 os.rmdir(local + "lock")
             return False
-        if this_layer.get("cached", True):
+
+        if self.layer.get("cached", True):
             os.rmdir(local + "lock")
-            open(local + this_layer["ext"], "wb").write(contents)
-        if "dead_tile" in this_layer:
+            open(local + self.layer["ext"], "wb").write(contents)
+        if "dead_tile" in self.layer:
             try:
-                dt = open(this_layer["dead_tile"], "rb").read()
+                dt = open(self.layer["dead_tile"], "rb").read()
                 if contents == dt:
-                    if this_layer.get("cached", True):
+                    if self.layer.get("cached", True):
                         tne = open(local + "tne", "wb")
                         when = time.localtime()
                         tne.write(
                             "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5]))
                         tne.close()
-                        os.remove(local + this_layer["ext"])
+                        os.remove(local + self.layer["ext"])
                 return False
             except IOError:
                 pass

@@ -6,6 +6,8 @@ import threading
 from functools import wraps
 import urllib.request as request
 import http.cookiejar as http_cookiejar
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context  # Disable for gismap.by
 
 from PIL import Image
 
@@ -13,12 +15,12 @@ import config
 import projections
 
 
-USERAGENT = [(
-    "User-Agent",
-    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:45.0) Gecko/20100101 Firefox/45.0")]
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0",
+    "Connection": "Keep-Alive"}
 
 
-def prepare_opener(tries=4, delay=3, backoff=2):
+def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
     """Build opener with browser User-Agent and cookie support.
 
     Retry HTTP request using an exponential backoff.
@@ -29,6 +31,7 @@ def prepare_opener(tries=4, delay=3, backoff=2):
     :param int delay: initial delay between retries in seconds
     :param int backoff: backoff multiplier e.g. value of 2 will double the
         delay each retry
+    :param dict headers: Update opener headers (add new and spoof existing).
     """
     cj = http_cookiejar.CookieJar()
 
@@ -46,9 +49,9 @@ def prepare_opener(tries=4, delay=3, backoff=2):
 #             # urllib2.HTTPHandler(debuglevel=1),  # Debug outpur
 #             proxy_support)
 
-    opener = request.build_opener(
-        request.HTTPCookieProcessor(cj))
-    opener.addheaders = USERAGENT
+    opener = request.build_opener(request.HTTPCookieProcessor(cj))
+    hdrs = {**DEFAULT_HEADERS, **headers}
+    opener.addheaders = list(hdrs.items())
 
     @wraps(opener.open)
     def retry(*args, **kwargs):
@@ -56,10 +59,12 @@ def prepare_opener(tries=4, delay=3, backoff=2):
         while mtries > 1:
             try:
                 return opener.open(*args, **kwargs)
-            except request.URLError as e:
+            except request.HTTPError as e:
                 print(f"e.code is '{e.code}'")
                 # if e.code == 404:
                 #     mtries = 0
+                raise
+            except request.URLError as e:
                 msg = "{}, Retrying in {} seconds...".format(e, mdelay)
                 print(msg)
                 time.sleep(mdelay)
@@ -71,21 +76,22 @@ def prepare_opener(tries=4, delay=3, backoff=2):
 
 
 class TileFetcher(object):
-    def __init__(self):
+    def __init__(self, layer):
+        self.layer = layer
+        self.opener = prepare_opener(headers=self.layer.get('headers', dict()))
         self.fetching_now = {}
         self.thread_responses = {}
         self.zhash_lock = {}
-        self.opener = prepare_opener()
 
-    def fetch(self, z, x, y, this_layer):
-        zhash = repr((z, x, y, this_layer))
+    def fetch(self, z, x, y):
+        zhash = repr((z, x, y, self.layer))
         try:
             self.zhash_lock[zhash] += 1
         except KeyError:
             self.zhash_lock[zhash] = 1
         if zhash not in self.fetching_now:
             atomthread = threading.Thread(
-                None, self.threadwrapper, None, (z, x, y, this_layer, zhash)
+                None, self.threadwrapper, None, (z, x, y, self.layer, zhash)
             )
             atomthread.start()
             self.fetching_now[zhash] = atomthread
@@ -97,6 +103,8 @@ class TileFetcher(object):
             del self.thread_responses[zhash]
             del self.fetching_now[zhash]
             del self.zhash_lock[zhash]
+
+        print(f"Fetching z{z},x{x},y{y} {self.layer['name']} - {type(resp)}")
         return resp
 
     def threadwrapper(self, z, x, y, this_layer, zhash):

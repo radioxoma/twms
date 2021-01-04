@@ -44,9 +44,15 @@ class ImageryHandler(object):
         Do main TWMS work.
         data - dictionary of params.
         returns (error_code, content_type, resp)
-        """
-        start_time = datetime.datetime.now()
 
+        http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
+
+        http://127.0.0.1:8080/?request=GetCapabilities&
+        http://127.0.0.1:8080/?request=GetCapabilities&version=1.0.0
+        """
+        # WMS keys must be case insensitive, values must not
+        data = {k.lower(): v for k, v in data.items()}
+        start_time = datetime.datetime.now()
         content_type = "text/html"
         resp = ""
         srs = data.get("srs", "EPSG:4326")
@@ -61,6 +67,7 @@ class ImageryHandler(object):
         req_type = data.get("request", "GetMap")
         version = data.get("version", "1.1.1")
         ref = data.get("ref", config.service_url)
+
         if req_type == "GetCapabilities":
             content_type, resp = capabilities.get(version, ref)
             return (OK, content_type, resp)

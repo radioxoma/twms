@@ -37,7 +37,7 @@ class GetHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type', content_type)
         self.end_headers()
-        if content_type in ('text/html', 'text/plain'):
+        if 'text/' in content_type or 'xml' in content_type:
             content = content.encode('utf-8')
         self.wfile.write(content)
 

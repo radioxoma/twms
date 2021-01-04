@@ -334,7 +334,7 @@ class ImageryHandler(object):
         H, W = size
 
         max_zoom = layer.get("max_zoom", config.default_max_zoom)
-        min_zoom = layer.get("min_zoom", 1)
+        min_zoom = layer.get("min_zoom", config.default_min_zoom)
 
         zoom = bbox_utils.zoom_for_bbox(
             bbox, size, layer, min_zoom, max_zoom, (config.max_height, config.max_width)
@@ -452,11 +452,8 @@ class ImageryHandler(object):
                             os.remove(f)
 
             gpt_image = False
-            try:
-                # Create local cache directory if not exist
-                os.makedirs("/".join(local.split("/")[:-1]))
-            except OSError:
-                pass
+            os.makedirs("/".join(local.split("/")[:-1]), exist_ok=True)
+
             if not os.path.exists(local + "tne") and not os.path.exists(local + "lock"):
                 if os.path.exists(local + ext):  # First, look for tile in cache
                     try:
@@ -511,7 +508,7 @@ class ImageryHandler(object):
                 if not again:
                     if "fetch" in layer:
                         delta = datetime.datetime.now() - start_time
-                        delta = delta.seconds + delta.microseconds / 1000000.0
+                        delta = delta.seconds + delta.microseconds / 1000000
                         if (config.deadline > delta) or (z < 4):
                             im = self.fetchers_pool['prefix'].fetch(z, x, y)  # Try fetching from outside
                             if im:

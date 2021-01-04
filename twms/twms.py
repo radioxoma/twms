@@ -4,6 +4,7 @@ import imp
 from io import BytesIO
 import time
 import datetime
+from http import HTTPStatus
 
 from PIL import Image, ImageOps, ImageColor
 
@@ -26,10 +27,6 @@ import bbox as bbox_utils
 import projections
 import overview
 import mimetypes
-
-
-OK = 200
-ERROR = 500
 
 
 class ImageryHandler(object):
@@ -70,7 +67,7 @@ class ImageryHandler(object):
 
         if req_type == "GetCapabilities":
             content_type, resp = capabilities.get(version, ref)
-            return (OK, content_type, resp)
+            return (HTTPStatus.OK, content_type, resp)
 
         layer = data.get("layers", config.default_layers).split(",")
         if "layers" in data and not layer[0]:
@@ -87,7 +84,7 @@ class ImageryHandler(object):
                 for point in points:
                     resp += "%s,%s;" % tuple(correctify.rectify(config.layers[lay], point))
                 resp += "\n"
-            return (OK, content_type, resp)
+            return (HTTPStatus.OK, content_type, resp)
 
         force = data.get("force", "")
         if force != "":
@@ -101,7 +98,7 @@ class ImageryHandler(object):
 
         if layer == [""]:
             resp = overview.html()
-            return OK, 'text/html', resp
+            return HTTPStatus.OK, 'text/html', resp
 
         content_type = 'image/jpeg'  # Default content type of image to serve
         try:
@@ -109,7 +106,7 @@ class ImageryHandler(object):
             # https://docs.geoserver.org/stable/en/user/services/wms/outputformats.html
             content_type = data['format']
             if content_type not in mimetypes.types_map.values():
-                return ERROR, 'text/plain', f"Invalid image format '{content_type}' requested"
+                return HTTPStatus.INTERNAL_SERVER_ERROR, 'text/plain', f"Invalid image format '{content_type}' requested"
         except KeyError:
             pass
         try:
@@ -151,7 +148,7 @@ class ImageryHandler(object):
                         resp_ext,
                     )
                     if os.path.exists(resp_cache_path):
-                        return (OK, content_type, open(resp_cache_path, "r").read())
+                        return (HTTPStatus.OK, content_type, open(resp_cache_path, "r").read())
             if len(layer) == 1:
                 if layer[0] in config.layers:
                     if (
@@ -171,7 +168,7 @@ class ImageryHandler(object):
                         for add in adds:
                             if os.path.exists(local + add + ext):
                                 tile_file = open(local + add + ext, 'rb').read()
-                                return (OK, content_type, tile_file)
+                                return (HTTPStatus.OK, content_type, tile_file)
 
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
 
@@ -306,7 +303,7 @@ class ImageryHandler(object):
                 )
                 sys.stderr.flush()
 
-        return (OK, content_type, resp)
+        return (HTTPStatus.OK, content_type, resp)
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
         orig_bbox = bbox

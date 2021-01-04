@@ -1,5 +1,4 @@
 import os
-import sys
 from io import BytesIO
 import time
 import threading
@@ -146,7 +145,8 @@ class TileFetcher(object):
                             return im
                     except (IOError, OSError):
                         return None
-        print(f"Fetching z{z},x{x},y{y} {self.layer['name']} {wms}")
+
+        print(f"Fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
         im = Image.open(BytesIO(self.opener(wms).read()))
         if width != 256 and height != 256:
             im = im.resize((256, 256), Image.ANTIALIAS)
@@ -196,7 +196,7 @@ class TileFetcher(object):
                     except (IOError, OSError):
                         return None
         try:
-            print(f"Fetching z{z},x{x},y{y} {self.layer['name']} {remote}")
+            print(f"Fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
             contents = self.opener(remote).read()
             im = Image.open(BytesIO(contents))
         except IOError:

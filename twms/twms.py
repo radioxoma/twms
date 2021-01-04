@@ -25,20 +25,11 @@ import fetchers
 import bbox as bbox_utils
 import projections
 import overview
+import mimetypes
 
 
 OK = 200
 ERROR = 500
-
-formats = {
-    "image/gif":  "GIF",
-    "image/jpeg": "JPEG",
-    "image/jpg":  "JPEG",
-    "image/png":  "PNG",
-    "image/bmp":  "BMP",
-}
-
-mimetypes = dict(zip(formats.values(), formats.keys()))
 
 
 class ImageryHandler(object):
@@ -102,16 +93,23 @@ class ImageryHandler(object):
         filt = tuple(filt)
 
         if layer == [""]:
-            content_type = "text/html"
             resp = overview.html()
-            return (OK, content_type, resp)
+            return OK, 'text/html', resp
 
-        format = data.get("format", config.default_format).lower()
-        format = formats.get("image/" + format, format)
-        format = formats.get(format, format)
-        if format not in formats.values():
-            return (ERROR, content_type, "Invalid format")
-        content_type = mimetypes[format]
+        content_type = 'image/jpeg'  # Default content type of image to serve
+        try:
+            # Get requested content type from standard WMS 'format' parameter,
+            # https://docs.geoserver.org/stable/en/user/services/wms/outputformats.html
+            content_type = data['format']
+            if content_type not in mimetypes.types_map.values():
+                return ERROR, 'text/plain', f"Invalid image format '{content_type}' requested"
+        except KeyError:
+            pass
+        try:
+            # Get content type by link extension
+            content_type = mimetypes.types_map[data['ext']]
+        except KeyError:
+            pass
 
         width = 0
         height = 0
@@ -133,11 +131,11 @@ class ImageryHandler(object):
                         width,
                         height,
                         force,
-                        format,
+                        content_type,
                 ) in config.cache_tile_responses:
 
                     resp_cache_path, resp_ext = config.cache_tile_responses[
-                        (srs, tuple(layer), filt, width, height, force, format)
+                        (srs, tuple(layer), filt, width, height, force, content_type)
                     ]
                     resp_cache_path = resp_cache_path + "/%s/%s/%s.%s" % (
                         z - 1,
@@ -250,37 +248,36 @@ class ImageryHandler(object):
         if flip_h:
             result_img = ImageOps.flip(result_img)
         image_content = BytesIO()
-
-        if format == "JPEG":
+        if content_type == "image/jpeg":
             result_img = result_img.convert("RGB")
             try:
                 result_img.save(
                     image_content,
-                    format,
+                    'JPEG',
                     quality=config.output_quality,
                     progressive=config.output_progressive,
                 )
             except IOError:
-                result_img.save(image_content, format, quality=config.output_quality)
-        elif format == "PNG":
+                result_img.save(image_content, 'JPEG', quality=config.output_quality)
+        elif content_type == "image/png":
             result_img.save(
                 image_content,
-                format,
+                'PNG',
                 progressive=config.output_progressive,
                 optimize=config.output_optimize,
             )
-        elif format == "GIF":
+        elif content_type == "image/gif":
             result_img.save(
                 image_content,
-                format,
+                'GIF',
                 quality=config.output_quality,
                 progressive=config.output_progressive,
             )
-        else:  ## workaround for GIF
+        else:  # E.g. GIF
             result_img = result_img.convert("RGB")
             result_img.save(
                 image_content,
-                format,
+                content_type.split('/')[1],
                 quality=config.output_quality,
                 progressive=config.output_progressive,
             )

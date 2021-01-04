@@ -10,8 +10,8 @@ from twms import twms
 import config
 
 
-tileh = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
-# mainh = re.compile(r"/(.*)")
+tile_hyperlink = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
+# main_hyperlink = re.compile(r"/(.*)")
 
 
 class GetHandler(BaseHTTPRequestHandler):
@@ -20,29 +20,24 @@ class GetHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Parse GET tile request.
         """
-        th = re.fullmatch(tileh, self.path)
-        if th:
-            if th.group(5):
-                fmt = th.group(5).strip('.').lower()
-            else:
-                fmt = 'jpeg'
+        tileh = re.fullmatch(tile_hyperlink, self.path)
+        if tileh:
             data = {
                 'request': 'GetTile',
-                'layers': th.group(1),
-                'z': th.group(2),
-                'x': th.group(3),
-                'y': th.group(4),
-                'format': fmt,
-            }
+                'layers': tileh.group(1),
+                'z': tileh.group(2),
+                'x': tileh.group(3),
+                'y': tileh.group(4),
+                'ext': tileh.group(5)}  # File extension
             # rest = m.group(6)
         else:
             data = dict(urllib.parse.parse_qsl(self.path[2:]))  # Strip /?
 
-        resp, ctype, content = self.IHandler.handler(data)
+        resp, content_type, content = self.IHandler.handler(data)
         self.send_response(200)
-        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Type', content_type)
         self.end_headers()
-        if ctype == 'text/html':
+        if content_type in ('text/html', 'text/plain'):
             content = content.encode('utf-8')
         self.wfile.write(content)
 

@@ -342,11 +342,10 @@ class TWMSMain(object):
                 im1 = self.tile_image(layer, zoom, x, y, start_time, real=True)
                 if im1:
                     if (layer["prefix"], zoom, x, y) not in self.cached_objs:
-                        if im1.is_ok:
-                            self.cached_objs[(layer["prefix"], zoom, x, y)] = im1
-                            self.cached_hist_list.append((layer["prefix"], zoom, x, y))
-                            # print((layer["prefix"], zoom, x, y), self.cached_objs[(layer["prefix"], zoom, x, y)], file=sys.stderr)
-                            # sys.stderr.flush()
+                        self.cached_objs[(layer["prefix"], zoom, x, y)] = im1
+                        self.cached_hist_list.append((layer["prefix"], zoom, x, y))
+                        # print((layer["prefix"], zoom, x, y), self.cached_objs[(layer["prefix"], zoom, x, y)], file=sys.stderr)
+                        # sys.stderr.flush()
                     if len(self.cached_objs) >= config.max_ram_cached_tiles:
                         del self.cached_objs[self.cached_hist_list.pop(0)]
                         # print("Removed tile from cache", file=sys.stderr)
@@ -354,7 +353,6 @@ class TWMSMain(object):
                 else:
                     ec = ImageColor.getcolor(
                         layer.get("empty_color", config.default_background), "RGBA")
-                    # ec = (ec[0],ec[1],ec[2],0)
                     im1 = Image.new("RGBA", (256, 256), ec)
                 out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
 
@@ -437,12 +435,11 @@ class TWMSMain(object):
                 if os.path.exists(tile_path):  # First, look for the tile in cache
                     try:
                         im1 = Image.open(tile_path)
-                        im1.is_ok = True
                         print(f"tile_image: load {tile_path}")
                         return im1
                     except OSError:
                         print(f"tile_image: broken tile '{tile_path}'")
-                        # os.remove(local + ext)  # # Cached tile is broken - remove it
+                        # os.remove(tile_path)  # Cached tile is broken - remove it
                         raise
 
                 # Second, try to glue image of better ones
@@ -452,7 +449,6 @@ class TWMSMain(object):
                     # if os.path.exists(local + "ups." + ext):
                     #     try:
                     #         im = Image.open(local + "ups." + ext)
-                    #         im.is_ok = True
                     #         return im
                     #     except OSError:
                     #         pass
@@ -477,7 +473,6 @@ class TWMSMain(object):
                                     #         im.save(local + "ups." + ext)
                                     #     except OSError:
                                     #         pass
-                                    im.is_ok = True
                                     return im
                 if not again:
                     if 'fetch' in layer:
@@ -486,7 +481,6 @@ class TWMSMain(object):
                             print(f"tile_image: invoke fetcher for z{z}/x{x}/y{y}")
                             im = self.fetchers_pool['prefix'].fetch(z, x, y)  # Try fetching from outside
                             if im:
-                                im.is_ok = True
                                 return im
             if real and (z > 1):
                 im = self.tile_image(layer, z - 1, int(x // 2), int(y // 2), start_time, again=False, trybetter=False, real=True)
@@ -500,7 +494,6 @@ class TWMSMain(object):
                         )
                     )
                     im = im.resize((256, 256), Image.BILINEAR)
-                    im.is_ok = False
                     return im
         else:
             if 'fetch' in layer:
@@ -509,5 +502,4 @@ class TWMSMain(object):
                 if (config.deadline > seconds_spent) or (z < 4):
                     im = self.fetchers_pool['prefix'].fetch(z, x, y)  # Try fetching from outside
                     if im:
-                        im.is_ok = True
                         return im

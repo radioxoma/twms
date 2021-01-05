@@ -89,8 +89,7 @@ class TileFetcher(object):
             self.zhash_lock[zhash] = 1
         if zhash not in self.fetching_now:
             atomthread = threading.Thread(
-                None, self.threadwrapper, None, (z, x, y, zhash)
-            )
+                None, self.threadwrapper, None, (z, x, y, zhash))
             atomthread.start()
             self.fetching_now[zhash] = atomthread
         if self.fetching_now[zhash].is_alive():
@@ -116,35 +115,33 @@ class TileFetcher(object):
             self.thread_responses[zhash] = None
 
     def wms(self, z, x, y):
+        # Untested, probably broken
         if "max_zoom" in self.layer:
             if z >= self.layer["max_zoom"]:
                 return None
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
         width = 384  # using larger source size to rescale better in python
         height = 384
-        local = (
-            config.tiles_cache + self.layer["prefix"]
-            + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
-        )
         tile_bbox = "bbox=%s,%s,%s,%s" % tuple(
             projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
         )
 
         wms = self.layer["remote_url"] + tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
-        # if self.layer.get("cached", True):
-        #     if not os.path.exists("/".join(local.split("/")[:-1])):
-        #         os.makedirs("/".join(local.split("/")[:-1]))
-        #     try:
-        #         os.mkdir(local + "lock")
-        #     except OSError:
-        #         for i in range(20):
-        #             time.sleep(0.1)
-        #             try:
-        #                 if not os.path.exists(local + "lock"):
-        #                     im = Image.open(local + self.layer["ext"])
-        #                     return im
-        #             except (OSError, OSError):
-        #                 return None
+        if self.layer.get("cached", True):
+            # "Global Mapper Tiles" cache path style
+            tile_path = config.tiles_cache + self.layer["prefix"] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer["ext"])
+            partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
+            lock_path = partial_path + '.lock'
+            tne_path = partial_path + '.tne'
+
+            os.makedirs(os.path.dirname(tile_path), exist_ok=True)
+
+            if 'cache_ttl' in self.layer:
+                for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
+                    fp = partial_path + ex
+                    if os.path.exists(fp):
+                        if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
+                            os.remove(fp)
 
         print(f"\twms: fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
         im = Image.open(BytesIO(self.opener(wms).read()))
@@ -153,30 +150,30 @@ class TileFetcher(object):
         im = im.convert("RGBA")
 
         if self.layer.get("cached", True):
-            ic = Image.new(
-                "RGBA", (256, 256), self.layer.get("empty_color", config.default_background)
-            )
+            ic = Image.new("RGBA", (256, 256), self.layer.get("empty_color", config.default_background))
             if im.histogram() == ic.histogram():
-                with open(local + 'tne', 'w') as f:
+                with open(tne_path, "w") as f:
                     when = time.localtime()
-                    f.write(
-                        "%02d.%02d.%04d %02d:%02d:%02d"
-                        % (when[2], when[1], when[0], when[3], when[4], when[5]))
+                    timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (
+                    when[2], when[1], when[0], when[3], when[4], when[5])
+                    f.write(timestamp)
                 return False
-            im.save(local + self.layer["ext"])
+            im.save(tile_path)
             # os.rmdir(local + "lock")
         return im
 
     def tms(self, z, x, y):
-        """Fetch tile, write to cache. Do not read cache.
-        FIXME: duplicated functional in twms.py
+        """Fetch tile, r/w cache.
+
+        Cache is structured according to tile coordinates.
+        Projection specified in config file.
 
         Normally returns Pillimage
         Returns None, if no image can be served from cache or from remote.
         """
         d_tuple = z, x, y
 
-        # TODO: Conform JOSM tms links
+        # TODO: Conform JOSM tms links zoom restrictions
         if "max_zoom" in self.layer:
             if z >= self.layer["max_zoom"]:
                 return None
@@ -190,17 +187,22 @@ class TileFetcher(object):
 
             os.makedirs(os.path.dirname(tile_path), exist_ok=True)
 
-            # try:
-            #     os.mkdir(lock_path)
-            # except OSError:
-            #     for i in range(20):
-            #         time.sleep(0.1)
+            if 'cache_ttl' in self.layer:
+                for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
+                    fp = partial_path + ex
+                    if os.path.exists(fp):
+                        if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
+                            os.remove(fp)
 
-            # Don't read tile if lockfile exists
-            # if os.path.exists(tile_path):
-            #     if not os.path.exists(lock_path):
-            #         print(f"Loading {tile_path}")
-            #         return Image.open(tile_path)
+            # if not os.path.exists(tne_path):
+            if os.path.exists(tile_path):  # First, look for the tile in cache
+                try:
+                    im1 = Image.open(tile_path)
+                    print(f"\ttms: load {tile_path}")
+                    return im1
+                except OSError:
+                    print(f"\ttms: remove broken tile '{tile_path}'")
+                    os.remove(tile_path)  # Cached tile is broken - remove it
 
         # Tile not in cache, fetching
         if "transform_tile_number" in self.layer:
@@ -208,12 +210,12 @@ class TileFetcher(object):
         remote = self.layer["remote_url"] % d_tuple
 
         try:
-            print(f"\ttms: fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
+            print(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
             contents = self.opener(remote).read()
             im = Image.open(BytesIO(contents))
         except OSError:
             # if self.layer.get("cached", True):
-            #     os.rmdir(local + '.lock')
+            #     os.rmdir(lock_path)
             return None
 
         # Save something in cache
@@ -224,9 +226,10 @@ class TileFetcher(object):
                     with open(self.layer["dead_tile"], "rb") as f:
                         dt = f.read()
                     if contents == dt:
-                        with open(tne_path, "wb") as f:
+                        with open(tne_path, "w") as f:
                             when = time.localtime()
-                            f.write("%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5]))
+                            timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5])
+                            f.write(timestamp)
                     return False
                 except OSError:
                     pass

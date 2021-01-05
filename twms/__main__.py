@@ -3,6 +3,7 @@
 import sys
 import re
 import urllib
+import mimetypes
 from http.server import ThreadingHTTPServer
 from http.server import BaseHTTPRequestHandler
 
@@ -21,13 +22,18 @@ class GetHandler(BaseHTTPRequestHandler):
         """
         tileh = re.fullmatch(tile_hyperlink, self.path)
         if tileh:
-            data = {
+            try:
+                # Guess image format by link extension
+                content_type = mimetypes.types_map[tileh.group(5)]
+            except KeyError:
+                content_type = 'image/jpeg'
+            data = {  # Construct WMS-like request
                 'request': 'GetTile',
                 'layers': tileh.group(1),
                 'z': tileh.group(2),
                 'x': tileh.group(3),
                 'y': tileh.group(4),
-                'ext': tileh.group(5)}  # File extension
+                'format': content_type}
             # rest = m.group(6)
         else:
             data = dict(urllib.parse.parse_qsl(self.path[2:]))  # Strip /?

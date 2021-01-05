@@ -37,10 +37,10 @@ class TWMSMain(object):
         self.fetchers_pool = dict()
 
     def handler(self, data):
-        """
-        Do main TWMS work.
+        """Do main TWMS work. Some WMS implementation.
+
         data - dictionary of params.
-        returns (error_code, content_type, resp)
+        returns (HTTP_code, content_type, resp)
 
         http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
 
@@ -148,11 +148,7 @@ class TWMSMain(object):
                             and not filt
                             and not force
                             and not correctify.has_corrections(config.layers[layer[0]])):
-                        local = (
-                                config.tiles_cache + config.layers[layer[0]]["prefix"]
-                                # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
-                                + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
-                        )
+                        local = config.tiles_cache + config.layers[layer[0]]["prefix"] + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
                         ext = config.layers[layer[0]]["ext"]
                         adds = ["", "ups."]
                         for add in adds:
@@ -168,7 +164,6 @@ class TWMSMain(object):
             req_bbox = tuple(map(float, data.get("bbox", req_bbox).split(",")))
 
         req_bbox = projections.to4326(req_bbox, srs)
-
         req_bbox, flip_h = bbox_utils.normalize(req_bbox)
         box = req_bbox
 
@@ -188,9 +183,7 @@ class TWMSMain(object):
             wkt = correctify.corr_wkt(config.layers[ll]) + wkt
             srs = config.layers[ll]["proj"]
         try:
-            result_img = self.getimg(
-                box, srs, (height, width), config.layers[ll], start_time, force
-            )
+            result_img = self.getimg(box, srs, (height, width), config.layers[ll], start_time, force)
         except KeyError:
             result_img = Image.new("RGBA", (width, height))
 
@@ -295,6 +288,7 @@ class TWMSMain(object):
         return HTTPStatus.OK, content_type, resp
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
+        """Run fetcher for a given bbox."""
         orig_bbox = bbox
         ## Making 4-corner maximal bbox
         bbox_p = projections.from4326(bbox, request_proj)
@@ -314,9 +308,6 @@ class TWMSMain(object):
                 bb4.append(correctify.rectify(layer, point))
             bbox_4 = bb4
         bbox = bbox_utils.expand_to_point(bbox, bbox_4)
-        # print(bbox)
-        # print(orig_bbox)
-
         H, W = size
 
         max_zoom = layer.get("max_zoom", config.default_max_zoom)
@@ -325,7 +316,6 @@ class TWMSMain(object):
         zoom = bbox_utils.zoom_for_bbox(
             bbox, size, layer, min_zoom, max_zoom, (config.max_height, config.max_width)
         )
-        lo1, la1, lo2, la2 = bbox
         from_tile_x, from_tile_y, to_tile_x, to_tile_y = projections.tile_by_bbox(
             bbox, zoom, layer["proj"]
         )
@@ -349,7 +339,6 @@ class TWMSMain(object):
         out = Image.new("RGBA", (x, y))
         for x in range(from_tile_x, to_tile_x + 1):
             for y in range(to_tile_y, from_tile_y + 1):
-                got_image = False
                 im1 = self.tile_image(layer, zoom, x, y, start_time, real=True)
                 if im1:
                     if (layer["prefix"], zoom, x, y) not in self.cached_objs:
@@ -400,11 +389,14 @@ class TWMSMain(object):
         return out
 
     def tile_image(self, layer, z, x, y, start_time, again=False, trybetter=True, real=False):
-        """
-        Returns asked image.
+        """Returns asked tile (from cache, fetcher, or recursively rescaled).
+
         again - is this a second pass on this tile?
         trybetter - should we try to combine this tile from better ones?
         real - should we return the tile even in not good quality?
+
+        dsc.downscale?
+        ups.upscale?
         """
         # Dedicated fetcher for each imagery layer - if one fetcher hangs,
         # others should be responsive
@@ -423,50 +415,48 @@ class TWMSMain(object):
         if "prefix" in layer:
             if (layer["prefix"], z, x, y) in self.cached_objs:
                 return self.cached_objs[(layer["prefix"], z, x, y)]
+
+        # Working with cache
         if layer.get("cached", True):
-            local = (
-                config.tiles_cache + layer["prefix"]
-                # + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
-                + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)  # Changed Z!
-            )
-            ext = layer["ext"]
-            if "cache_ttl" in layer:
-                for ex in [ext, "dsc." + ext, "ups." + ext, "tne"]:
-                    f = local + ex
-                    if os.path.exists(f):
-                        if os.stat(f).st_mtime < (time.time() - layer["cache_ttl"]):
-                            os.remove(f)
+            # "Global Mapper Tiles" cache path style
+            tile_path = config.tiles_cache + layer["prefix"] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, layer["ext"])
+            partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
+            lock_path = partial_path + '.lock'
+            tne_path = partial_path + '.tne'
 
-            os.makedirs("/".join(local.split("/")[:-1]), exist_ok=True)
+            os.makedirs(os.path.dirname(tile_path), exist_ok=True)
 
-            if not os.path.exists(local + "tne") and not os.path.exists(local + "lock"):
-                if os.path.exists(local + ext):  # First, look for tile in cache
+            if 'cache_ttl' in layer:
+                for ex in [ext, ".dsc." + ext, ".ups." + ext, ".tne"]:
+                    fp = partial_path + ex
+                    if os.path.exists(fp):
+                        if os.stat(fp).st_mtime < (time.time() - layer["cache_ttl"]):
+                            os.remove(fp)
+
+            if not os.path.exists(tne_path):
+                if os.path.exists(tile_path):  # First, look for the tile in cache
                     try:
-                        im1 = Image.open(local + ext)
+                        im1 = Image.open(tile_path)
                         im1.is_ok = True
-                        print(f"Loading {local + ext}")
+                        print(f"tile_image: load {tile_path}")
                         return im1
                     except OSError:
-                        if os.path.exists(local + "lock"):
-                            return None
-                        else:
-                            os.remove(local + ext)  # # Cached tile is broken - remove it
+                        print(f"tile_image: broken tile '{tile_path}'")
+                        # os.remove(local + ext)  # # Cached tile is broken - remove it
+                        raise
 
-                if (
-                    layer["scalable"]
-                    and (z < layer.get("max_zoom", config.default_max_zoom))
-                    and trybetter
-                ):  # Second, try to glue image of better ones
-                    if os.path.exists(local + "ups." + ext):
-                        try:
-                            im = Image.open(local + "ups." + ext)
-                            im.is_ok = True
-                            return im
-                        except OSError:
-                            pass
-                    ec = ImageColor.getcolor(
-                        layer.get("empty_color", config.default_background), "RGBA"
-                    )
+                # Second, try to glue image of better ones
+                if layer["scalable"] and (z < layer.get("max_zoom", config.default_max_zoom)) and trybetter:
+                    print("tile_image: scaling tile")
+                    # # Load upscaled images
+                    # if os.path.exists(local + "ups." + ext):
+                    #     try:
+                    #         im = Image.open(local + "ups." + ext)
+                    #         im.is_ok = True
+                    #         return im
+                    #     except OSError:
+                    #         pass
+                    ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
                     ec = (ec[0], ec[1], ec[2], 0)
                     im = Image.new("RGBA", (512, 512), ec)
                     im1 = self.tile_image(layer, z + 1, x * 2, y * 2, start_time)
@@ -475,42 +465,31 @@ class TWMSMain(object):
                         if im2:
                             im3 = self.tile_image(layer, z + 1, x * 2, y * 2 + 1, start_time)
                             if im3:
-                                im4 = self.tile_image(
-                                    layer, z + 1, x * 2 + 1, y * 2 + 1, start_time
-                                )
+                                im4 = self.tile_image(layer, z + 1, x * 2 + 1, y * 2 + 1, start_time)
                                 if im4:
                                     im.paste(im1, (0, 0))
                                     im.paste(im2, (256, 0))
                                     im.paste(im3, (0, 256))
                                     im.paste(im4, (256, 256))
                                     im = im.resize((256, 256), Image.ANTIALIAS)
-                                    if layer.get("cached", True):
-                                        try:
-                                            im.save(local + "ups." + ext)
-                                        except OSError:
-                                            pass
+                                    # if layer.get("cached", True):
+                                    #     try:
+                                    #         im.save(local + "ups." + ext)
+                                    #     except OSError:
+                                    #         pass
                                     im.is_ok = True
                                     return im
                 if not again:
-                    if "fetch" in layer:
-                        delta = datetime.datetime.now() - start_time
-                        delta = delta.seconds + delta.microseconds / 1000000
-                        if (config.deadline > delta) or (z < 4):
+                    if 'fetch' in layer:
+                        seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
+                        if (config.deadline > seconds_spent) or (z < 4):
+                            print(f"tile_image: invoke fetcher for z{z}/x{x}/y{y}")
                             im = self.fetchers_pool['prefix'].fetch(z, x, y)  # Try fetching from outside
                             if im:
                                 im.is_ok = True
                                 return im
             if real and (z > 1):
-                im = self.tile_image(
-                    layer,
-                    z - 1,
-                    int(x / 2),
-                    int(y / 2),
-                    start_time,
-                    again=False,
-                    trybetter=False,
-                    real=True,
-                )
+                im = self.tile_image(layer, z - 1, int(x // 2), int(y // 2), start_time, again=False, trybetter=False, real=True)
                 if im:
                     im = im.crop(
                         (
@@ -524,10 +503,10 @@ class TWMSMain(object):
                     im.is_ok = False
                     return im
         else:
-            if "fetch" in layer:
-                delta = datetime.datetime.now() - start_time
-                delta = delta.seconds + delta.microseconds / 1000000
-                if (config.deadline > delta) or (z < 4):
+            if 'fetch' in layer:
+                print("tile_image: fetching an uncached layer")
+                seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
+                if (config.deadline > seconds_spent) or (z < 4):
                     im = self.fetchers_pool['prefix'].fetch(z, x, y)  # Try fetching from outside
                     if im:
                         im.is_ok = True

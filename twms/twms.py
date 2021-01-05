@@ -4,6 +4,7 @@ import imp
 from io import BytesIO
 import time
 import datetime
+import mimetypes
 from http import HTTPStatus
 
 from PIL import Image, ImageOps, ImageColor
@@ -20,18 +21,17 @@ else:
     quit()
 
 
-import correctify
-import capabilities
-import fetchers
-import bbox as bbox_utils
-import projections
-import overview
-import mimetypes
+from twms import correctify
+from twms import capabilities
+from twms import fetchers
+from twms import bbox as bbox_utils
+from twms import projections
+from twms import overview
 
 
-class ImageryHandler(object):
+class TWMSMain(object):
     def __init__(self):
-        super(ImageryHandler, self).__init__()
+        super(TWMSMain, self).__init__()
         self.cached_objs = {}  # a dict. (layer, z, x, y): PIL image
         self.cached_hist_list = list()
         self.fetchers_pool = dict()
@@ -47,19 +47,13 @@ class ImageryHandler(object):
         http://127.0.0.1:8080/?request=GetCapabilities&
         http://127.0.0.1:8080/?request=GetCapabilities&version=1.0.0
         """
-        # WMS keys must be case insensitive, values must not
+        # WMS request keys must be case insensitive, values must not
         data = {k.lower(): v for k, v in data.items()}
         start_time = datetime.datetime.now()
-        content_type = "text/html"
-        resp = ""
+
         srs = data.get("srs", "EPSG:4326")
-        gpx = data.get("gpx", "").split(",")
-        if gpx == [""]:
-            gpx = []
         wkt = data.get("wkt", "")
-        trackblend = float(data.get("trackblend", "0.5"))
-        color = data.get("color", data.get("colour", "")).split(",")
-        track = False
+        # color = data.get("color", data.get("colour", "")).split(",")
 
         req_type = data.get("request", "GetMap")
         version = data.get("version", "1.1.1")
@@ -67,24 +61,23 @@ class ImageryHandler(object):
 
         if req_type == "GetCapabilities":
             content_type, resp = capabilities.get(version, ref)
-            return (HTTPStatus.OK, content_type, resp)
+            return HTTPStatus.OK, content_type, resp
 
         layer = data.get("layers", config.default_layers).split(",")
         if "layers" in data and not layer[0]:
             layer = ["transparent"]
 
         if req_type == "GetCorrections":
-            points = data.get("points", data.get("POINTS", "")).split("=")
-            resp = ""
+            points = data.get('points', '').split('=')
             points = [a.split(",") for a in points]
             points = [(float(a[0]), float(a[1])) for a in points]
 
-            req.content_type = "text/plain"
+            resp = ""
             for lay in layer:
                 for point in points:
                     resp += "%s,%s;" % tuple(correctify.rectify(config.layers[lay], point))
                 resp += "\n"
-            return (HTTPStatus.OK, content_type, resp)
+            return HTTPStatus.OK, 'text/plain', resp
 
         force = data.get("force", "")
         if force != "":
@@ -100,6 +93,7 @@ class ImageryHandler(object):
             resp = overview.html()
             return HTTPStatus.OK, 'text/html', resp
 
+        # Serving imagery
         content_type = 'image/jpeg'  # Default content type of image to serve
         try:
             # Get requested content type from standard WMS 'format' parameter,
@@ -127,7 +121,7 @@ class ImageryHandler(object):
             height = int(data.get("height", height))
             width = int(data.get("width", width))
             srs = data.get("srs", "EPSG:3857")
-            if "cache_tile_responses" in dir(config) and not wkt and (len(gpx) == 0):
+            if "cache_tile_responses" in dir(config) and not wkt:
                 if (
                         srs,
                         tuple(layer),
@@ -246,7 +240,7 @@ class ImageryHandler(object):
                 result_img = Image.blend(im2, result_img, 0.5)
             imgs += 1.0
 
-        ##Applying filters
+        # Applying filters
         # result_img = filter.raster(result_img, filt, req_bbox, srs)
 
         if flip_h:
@@ -288,7 +282,6 @@ class ImageryHandler(object):
         resp = image_content.getvalue()
         if resp_cache_path:
             try:
-                "trying to create local cache directory, if it doesn't exist"
                 os.makedirs("/".join(resp_cache_path.split("/")[:-1]))
             except OSError:
                 pass
@@ -298,12 +291,12 @@ class ImageryHandler(object):
                 a.close()
             except (OSError, OSError):
                 print(
-                    "error saving response answer to file %s." % (resp_cache_path),
+                    "error saving response answer to file %s." % resp_cache_path,
                     file=sys.stderr,
                 )
                 sys.stderr.flush()
 
-        return (HTTPStatus.OK, content_type, resp)
+        return HTTPStatus.OK, content_type, resp
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
         orig_bbox = bbox
@@ -417,7 +410,7 @@ class ImageryHandler(object):
         trybetter - should we try to combine this tile from better ones?
         real - should we return the tile even in not good quality?
         """
-        # Dedicated fetcher for each imagery layer - if one layer hangs,
+        # Dedicated fetcher for each imagery layer - if one fetcher hangs,
         # others should be responsive
         if layer['prefix'] not in self.fetchers_pool:
             self.fetchers_pool['prefix'] = fetchers.TileFetcher(layer)
@@ -537,7 +530,7 @@ class ImageryHandler(object):
         else:
             if "fetch" in layer:
                 delta = datetime.datetime.now() - start_time
-                delta = delta.seconds + delta.microseconds / 1000000.0
+                delta = delta.seconds + delta.microseconds / 1000000
                 if (config.deadline > delta) or (z < 4):
                     im = self.fetchers_pool['prefix'].fetch(z, x, y)  # Try fetching from outside
                     if im:

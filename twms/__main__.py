@@ -9,13 +9,12 @@ from http.server import BaseHTTPRequestHandler
 from twms import twms
 import config
 
-
 tile_hyperlink = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 # main_hyperlink = re.compile(r"/(.*)")
 
 
 class GetHandler(BaseHTTPRequestHandler):
-    IHandler = twms.ImageryHandler()  # Will be same for all instances
+    TWMS = twms.TWMSMain()  # Will be same for all instances
 
     def do_GET(self):
         """Parse GET tile request.
@@ -33,7 +32,7 @@ class GetHandler(BaseHTTPRequestHandler):
         else:
             data = dict(urllib.parse.parse_qsl(self.path[2:]))  # Strip /?
 
-        resp, content_type, content = self.IHandler.handler(data)
+        resp, content_type, content = self.TWMS.handler(data)
         self.send_response(200)
         self.send_header('Content-Type', content_type)
         self.end_headers()

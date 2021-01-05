@@ -7,6 +7,8 @@ import mimetypes
 from http import HTTPStatus
 
 from PIL import Image, ImageOps, ImageColor
+# from PIL import ImageFile
+# ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
@@ -280,20 +282,20 @@ class TWMSMain(object):
             for y in range(to_tile_y, from_tile_y + 1):
                 im1 = self.tile_image(layer, zoom, x, y, start_time, real=True)
                 if im1:
-                    if (layer["prefix"], zoom, x, y) not in self.cached_objs:
+                    if (layer['prefix'], zoom, x, y) not in self.cached_objs:
                         self.cached_objs[(layer["prefix"], zoom, x, y)] = im1
                         self.cached_hist_list.append((layer["prefix"], zoom, x, y))
-                        # print((layer["prefix"], zoom, x, y), self.cached_objs[(layer["prefix"], zoom, x, y)], file=sys.stderr)
-                        # sys.stderr.flush()
                     if len(self.cached_objs) >= config.max_ram_cached_tiles:
                         del self.cached_objs[self.cached_hist_list.pop(0)]
-                        # print("Removed tile from cache", file=sys.stderr)
-                        # sys.stderr.flush()
                 else:
                     ec = ImageColor.getcolor(
                         layer.get("empty_color", config.default_background), "RGBA")
                     im1 = Image.new("RGBA", (256, 256), ec)
-                out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
+                try:
+                    out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
+                except AttributeError:
+                    # Probably invalid picture
+                    pass
 
         ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
         out = out.crop(bbox_im)

@@ -261,7 +261,7 @@ class ImageryHandler(object):
                     quality=config.output_quality,
                     progressive=config.output_progressive,
                 )
-            except IOError:
+            except OSError:
                 result_img.save(image_content, 'JPEG', quality=config.output_quality)
         elif content_type == "image/png":
             result_img.save(
@@ -296,7 +296,7 @@ class ImageryHandler(object):
                 a = open(resp_cache_path, "w")
                 a.write(resp)
                 a.close()
-            except (OSError, IOError):
+            except (OSError, OSError):
                 print(
                     "error saving response answer to file %s." % (resp_cache_path),
                     file=sys.stderr,
@@ -448,7 +448,6 @@ class ImageryHandler(object):
                         if os.stat(f).st_mtime < (time.time() - layer["cache_ttl"]):
                             os.remove(f)
 
-            gpt_image = False
             os.makedirs("/".join(local.split("/")[:-1]), exist_ok=True)
 
             if not os.path.exists(local + "tne") and not os.path.exists(local + "lock"):
@@ -456,8 +455,9 @@ class ImageryHandler(object):
                     try:
                         im1 = Image.open(local + ext)
                         im1.is_ok = True
+                        print(f"Loading {local + ext}")
                         return im1
-                    except IOError:
+                    except OSError:
                         if os.path.exists(local + "lock"):
                             return None
                         else:
@@ -473,7 +473,7 @@ class ImageryHandler(object):
                             im = Image.open(local + "ups." + ext)
                             im.is_ok = True
                             return im
-                        except IOError:
+                        except OSError:
                             pass
                     ec = ImageColor.getcolor(
                         layer.get("empty_color", config.default_background), "RGBA"
@@ -498,7 +498,7 @@ class ImageryHandler(object):
                                     if layer.get("cached", True):
                                         try:
                                             im.save(local + "ups." + ext)
-                                        except IOError:
+                                        except OSError:
                                             pass
                                     im.is_ok = True
                                     return im

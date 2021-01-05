@@ -143,7 +143,7 @@ class TileFetcher(object):
                         if not os.path.exists(local + "lock"):
                             im = Image.open(local + self.layer["ext"])
                             return im
-                    except (IOError, OSError):
+                    except (OSError, OSError):
                         return None
 
         print(f"Fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
@@ -169,58 +169,72 @@ class TileFetcher(object):
         return im
 
     def tms(self, z, x, y):
+        """
+        FIXME: duplicated functional in twms.py
+
+        Normally returns Pillimage
+        Returns None, if no image can be served from cache or from remote.
+        """
         d_tuple = z, x, y
+
+        # TODO: Conform JOSM tms links
         if "max_zoom" in self.layer:
             if z >= self.layer["max_zoom"]:
                 return None
+
+        if self.layer.get("cached", True):
+            # "Global Mapper Tiles" cache path style
+            tile_path = config.tiles_cache + self.layer["prefix"] + "/z{:.0f}/{:.0f}/{:.0f}.jpg".format(z - 1, y, x)#, self.layer["ext"])
+            lockdir_path = tile_path + '.lock'
+            tne_path = tile_path + '.tne'
+            os.makedirs(os.path.dirname(tile_path), exist_ok=True)
+
+            # try:
+            #     os.mkdir(lockdir_path)
+            # except OSError:
+            #     for i in range(20):
+            #         time.sleep(0.1)
+
+            # Don't read tile if lockfile exists
+            # if os.path.exists(tile_path):
+            #     if not os.path.exists(lockdir_path):
+            #         print(f"Loading {tile_path}")
+            #         return Image.open(tile_path)
+
+        # Tile not in cache, fetching
         if "transform_tile_number" in self.layer:
             d_tuple = self.layer["transform_tile_number"](z, x, y)
-
         remote = self.layer["remote_url"] % d_tuple
-        if self.layer.get("cached", True):
-            local = (
-                config.tiles_cache + self.layer["prefix"]
-                + "/z{:.0f}/{:.0f}/{:.0f}.".format(z - 1, y, x)
-            )
-            if not os.path.exists("/".join(local.split("/")[:-1])):
-                os.makedirs("/".join(local.split("/")[:-1]))
-            try:
-                os.mkdir(local + "lock")
-            except OSError:
-                for i in range(20):
-                    time.sleep(0.1)
-                    try:
-                        if not os.path.exists(local + "lock"):
-                            im = Image.open(local + self.layer["ext"])
-                            return im
-                    except (IOError, OSError):
-                        return None
+
         try:
             print(f"Fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
             contents = self.opener(remote).read()
             im = Image.open(BytesIO(contents))
-        except IOError:
-            if self.layer.get("cached", True):
-                os.rmdir(local + "lock")
-            return False
+        except OSError:
+            # if self.layer.get("cached", True):
+            #     os.rmdir(local + '.lock')
+            return None
 
+        # Save something in cache
         if self.layer.get("cached", True):
-            os.rmdir(local + "lock")
-            open(local + self.layer["ext"], "wb").write(contents)
-        if "dead_tile" in self.layer:
-            try:
-                dt = open(self.layer["dead_tile"], "rb").read()
-                if contents == dt:
-                    if self.layer.get("cached", True):
-                        tne = open(local + "tne", "wb")
-                        when = time.localtime()
-                        tne.write(
-                            "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5]))
-                        tne.close()
-                        os.remove(local + self.layer["ext"])
-                return False
-            except IOError:
-                pass
+            # Sometimes server returns file instead of empty HTTP response
+            if 'dead_tile' in self.layer:
+                try:
+                    with open(self.layer["dead_tile"], "rb") as f:
+                        dt = f.read()
+                    if contents == dt:
+                        with open(tne_path, "wb") as f:
+                            when = time.localtime()
+                            tne.write("%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5]))
+                    return False
+                except OSError:
+                    pass
+            else:
+                # os.rmdir(lockdir_path)
+                # All well, save tile to cache
+                print(f"Saving {tile_path}")
+                with open(tile_path, "wb") as f:
+                    f.write(contents)
         return im
 
 

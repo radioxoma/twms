@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 """
-Legacy webpy-based server.
+Deprecated webpy-based server.
 """
 
 import sys
 from twms import twms
+import urllib
 import web
 
 

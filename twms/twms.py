@@ -111,10 +111,11 @@ class TWMSMain(object):
 
         width = 0
         height = 0
-        resp_cache_path, resp_ext = "", ""
-        z = int(data.get("z", 1)) + 1
+        resp_cache_path = ''
+        z = int(data.get("z", 1)) + 1  # FIXME: why +1?
         x = int(data.get("x", 0))
         y = int(data.get("y", 0))
+
         if req_type == "GetTile":
             width = 256
             height = 256
@@ -131,18 +132,13 @@ class TWMSMain(object):
                         force,
                         content_type,
                 ) in config.cache_tile_responses:
-
                     resp_cache_path, resp_ext = config.cache_tile_responses[
-                        (srs, tuple(layer), filt, width, height, force, content_type)
-                    ]
-                    resp_cache_path = resp_cache_path + "/%s/%s/%s.%s" % (
-                        z - 1,
-                        x,
-                        y,
-                        resp_ext,
-                    )
+                        (srs, tuple(layer), filt, width, height, force, content_type)]
+                    resp_cache_path = resp_cache_path + "/%s/%s/%s.%s" % (z - 1, x, y, resp_ext)
                     if os.path.exists(resp_cache_path):
-                        return (HTTPStatus.OK, content_type, open(resp_cache_path, "r").read())
+                        with open(resp_cache_path, "r") as f:
+                            resp = f.read()
+                        return HTTPStatus.OK, content_type, resp
             if len(layer) == 1:
                 if layer[0] in config.layers:
                     if (
@@ -161,8 +157,9 @@ class TWMSMain(object):
                         adds = ["", "ups."]
                         for add in adds:
                             if os.path.exists(local + add + ext):
-                                tile_file = open(local + add + ext, 'rb').read()
-                                return (HTTPStatus.OK, content_type, tile_file)
+                                with open(local + add + ext, 'rb') as f:
+                                    tile_file = f.read()
+                                return HTTPStatus.OK, content_type, tile_file
 
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
 
@@ -175,11 +172,11 @@ class TWMSMain(object):
         req_bbox, flip_h = bbox_utils.normalize(req_bbox)
         box = req_bbox
 
-        height = int(data.get("height", height))
         width = int(data.get("width", width))
+        height = int(data.get("height", height))
         width = min(width, config.max_width)
         height = min(height, config.max_height)
-        if (width == 0) and (height == 0):
+        if width == 0 and height == 0:
             width = 350
 
         imgs = 1.0
@@ -286,9 +283,8 @@ class TWMSMain(object):
             except OSError:
                 pass
             try:
-                a = open(resp_cache_path, "w")
-                a.write(resp)
-                a.close()
+                with open(resp_cache_path, "wb") as f:
+                    f.write(resp)
             except (OSError, OSError):
                 print(
                     "error saving response answer to file %s." % resp_cache_path,

@@ -157,12 +157,11 @@ class TileFetcher(object):
                 "RGBA", (256, 256), self.layer.get("empty_color", config.default_background)
             )
             if im.histogram() == ic.histogram():
-                tne = open(local + "tne", "wb")
-                when = time.localtime()
-                tne.write(
-                    "%02d.%02d.%04d %02d:%02d:%02d"
-                    % (when[2], when[1], when[0], when[3], when[4], when[5]))
-                tne.close()
+                with open(local + 'tne', 'w') as f:
+                    when = time.localtime()
+                    f.write(
+                        "%02d.%02d.%04d %02d:%02d:%02d"
+                        % (when[2], when[1], when[0], when[3], when[4], when[5]))
                 return False
             im.save(local + self.layer["ext"])
             os.rmdir(local + "lock")

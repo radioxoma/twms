@@ -13,7 +13,8 @@ def has_corrections(layer):
 
 def corr_wkt(layer):
     corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
-    corr = open(corrfile, "r")
+    with open(corrfile, "r") as f:
+        corr = f.read()
     wkt = ""
     for line in corr:
         d, c, b, a, user, ts = line.split()
@@ -27,7 +28,8 @@ def rectify(layer, point):
     srs = layer["proj"]
     if not os.path.exists(corrfile):
         return point
-    corr = open(corrfile, "r")
+    with open(corrfile, "r") as f:
+        corr = f.read()
     lons, lats = point
     loni, lati, lona, lata = projections.projs[projections.proj_alias.get(srs, srs)][
         "bounds"

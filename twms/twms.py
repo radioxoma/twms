@@ -44,6 +44,7 @@ class TWMSMain(object):
         returns (HTTP_code, content_type, resp)
 
         http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
+        https://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
 
         http://127.0.0.1:8080/?request=GetCapabilities&
         http://127.0.0.1:8080/?request=GetCapabilities&version=1.0.0
@@ -76,7 +77,7 @@ class TWMSMain(object):
             resp = ""
             for lay in layer:
                 for point in points:
-                    resp += "%s,%s;" % tuple(correctify.rectify(config.layers[lay], point))
+                    resp += "%s,%s;" % (correctify.rectify(config.layers[lay], point))
                 resp += "\n"
             return HTTPStatus.OK, 'text/plain', resp
 
@@ -85,14 +86,8 @@ class TWMSMain(object):
             force = force.split(",")
         force = tuple(force)
 
-        filt = data.get("filt", "")
-        if filt != "":
-            filt = filt.split(",")
-        filt = tuple(filt)
-
         if layer == [""]:
-            resp = overview.html()
-            return HTTPStatus.OK, 'text/html', resp
+            return HTTPStatus.OK, 'text/html', overview.html()
 
         # Serving imagery
         content_type = 'image/jpeg'  # Default content type of image to serve
@@ -123,7 +118,6 @@ class TWMSMain(object):
                     layer[0] in config.layers,
                     srs == config.layers[layer[0]]['proj'],
                     width == height == 256,
-                    not filt,
                     not force,
                     not correctify.has_corrections(config.layers[layer[0]]))):
                 tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(
@@ -207,8 +201,6 @@ class TWMSMain(object):
                 result_img = Image.blend(im2, result_img, 0.5)
             imgs += 1.0
 
-        # Applying filters
-        # result_img = filter.raster(result_img, filt, req_bbox, srs)
         if flip_h:
             result_img = ImageOps.flip(result_img)
 

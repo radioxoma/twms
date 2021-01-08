@@ -1,6 +1,7 @@
 import os
 from io import BytesIO
 import time
+import hashlib
 import threading
 from functools import wraps
 import urllib.request as request
@@ -147,14 +148,13 @@ class TileFetcher(object):
         if self.layer.get("cached", True):
             ic = Image.new("RGBA", (256, 256), self.layer.get("empty_color", config.default_background))
             if im.histogram() == ic.histogram():
-                with open(tne_path, "w") as f:
+                with open(tne_path, 'w') as f:
                     when = time.localtime()
                     timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (
                     when[2], when[1], when[0], when[3], when[4], when[5])
                     f.write(timestamp)
                 return False
             im.save(tile_path)
-            # os.rmdir(local + "lock")
         return im
 
     def tms(self, z, x, y):
@@ -162,10 +162,10 @@ class TileFetcher(object):
 
         Cache is structured according to tile coordinates.
         Actual tile image projection specified in config file.
+        https://wiki.openstreetmap.org/wiki/MBTiles
 
-        Normally returns Pill image
-        :rtype:: PIL Image. Otherwise None, if no image can be served
-            from cache or from remote.
+        :rtype: :py:class:`~PIL.Image.Image`. Otherwise None, if
+            no image can be served from cache or from remote.
         """
         d_tuple = z, x, y
 
@@ -174,9 +174,10 @@ class TileFetcher(object):
             if z >= self.layer["max_zoom"]:
                 return None
 
+        # Option one: trying cache
         if self.layer.get("cached", True):
             # "Global Mapper Tiles" cache path style
-            tile_path = config.tiles_cache + self.layer["prefix"] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer["ext"])
+            tile_path = config.tiles_cache + self.layer['prefix'] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer['ext'])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
             lock_path = partial_path + '.lock'
             tne_path = partial_path + '.tne'
@@ -190,51 +191,53 @@ class TileFetcher(object):
                         if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
                             os.remove(fp)
 
-            # if not os.path.exists(tne_path):
-            if os.path.exists(tile_path):  # First, look for the tile in cache
-                try:
-                    im1 = Image.open(tile_path)
-                    print(f"\ttms: load {tile_path}")
-                    return im1
-                except OSError:
-                    print(f"\ttms: remove broken tile '{tile_path}'")
-                    os.remove(tile_path)  # Cached tile is broken - remove it
+            if not os.path.exists(tne_path):
+                if os.path.exists(tile_path):  # First, look for the tile in cache
+                    try:
+                        im1 = Image.open(tile_path)
+                        print(f"\ttms: load {tile_path}")
+                        return im1
+                    except OSError:
+                        print(f"\ttms: remove broken tile from cache '{tile_path}'")
+                        os.remove(tile_path)  # Cached tile is broken - remove it
 
-        # Tile not in cache, fetching
+        # Option two: tile not in cache, fetching
         if "transform_tile_number" in self.layer:
             d_tuple = self.layer["transform_tile_number"](z, x, y)
         remote = self.layer["remote_url"] % d_tuple
 
         try:
             print(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
-            contents = self.opener(remote).read()
-            im = Image.open(BytesIO(contents))
+            im_bytes = self.opener(remote).read()
+            im = Image.open(BytesIO(im_bytes))
         except OSError:
-            # if self.layer.get("cached", True):
-            #     os.rmdir(lock_path)
             return None
 
         # Save something in cache
         if self.layer.get("cached", True):
             # Sometimes server returns file instead of empty HTTP response
             if 'dead_tile' in self.layer:
-                try:
-                    with open(self.layer["dead_tile"], "rb") as f:
-                        dt = f.read()
-                    if contents == dt:
+                # Compare bytestring with dead tile hash
+                if len(im_bytes) == self.layer['dead_tile']['size']:
+                    hasher = hashlib.md5()
+                    hasher.update(im_bytes)
+                    if hasher.hexdigest() == self.layer['dead_tile']['md5']:
+                        # Tile is recognized as empty
+                        # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
+                        # SASPlanet writes empty files with '.tne' ext
+                        print(f"tms: dead tile z{z}/x{x}/y{y} '{tne_path}'")
                         with open(tne_path, "w") as f:
                             when = time.localtime()
                             timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5])
+                            # "08.01.2021 17:58:17"
                             f.write(timestamp)
-                    return False
-                except OSError:
-                    pass
+                        return None
             else:
                 # os.rmdir(lock_path)
                 # All well, save tile to cache
                 print(f"\ttms: saving {tile_path}")
                 with open(tile_path, "wb") as f:
-                    f.write(contents)
+                    f.write(im_bytes)
         return im
 
 

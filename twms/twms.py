@@ -383,7 +383,7 @@ class TWMSMain(object):
                 if 'fetch' in layer:
                     seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
                     if (config.deadline > seconds_spent) or (z < 4):
-                        print(f"tile_image: invoke fetcher for z{z}/x{x}/y{y}")
+                        print(f"tile_image: invoke fetcher for {layer['prefix']}/z{z}/x{x}/y{y}")
                         im = self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching from outside
                         if im:
                             return im

@@ -10,8 +10,8 @@ ssl._create_default_https_context = ssl._create_unverified_context  # Disable fo
 
 from PIL import Image
 
+from twms import projections
 import config
-import projections
 
 
 DEFAULT_HEADERS = {
@@ -20,7 +20,7 @@ DEFAULT_HEADERS = {
 
 
 def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
-    """Build opener with browser User-Agent and cookie support.
+    """Build HTTP opener with custom headers (User-Agent) and cookie support.
 
     Retry HTTP request using an exponential backoff.
     https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
@@ -78,7 +78,7 @@ class TileFetcher(object):
         self.layer = layer
         self.opener = prepare_opener(headers=self.layer.get('headers', dict()))
         self.fetching_now = {}
-        self.thread_responses = {}
+        self.thread_responses = {}  # Dicts are thread safe
         self.zhash_lock = {}
 
     def fetch(self, z, x, y):
@@ -89,7 +89,7 @@ class TileFetcher(object):
             self.zhash_lock[zhash] = 1
         if zhash not in self.fetching_now:
             atomthread = threading.Thread(
-                None, self.threadwrapper, None, (z, x, y, zhash))
+                None, self.threadworker, None, (z, x, y, zhash))
             atomthread.start()
             self.fetching_now[zhash] = atomthread
         if self.fetching_now[zhash].is_alive():
@@ -103,16 +103,12 @@ class TileFetcher(object):
 
         return resp
 
-    def threadwrapper(self, z, x, y, zhash):
-        try:
-            if self.layer['fetch'] == 'tms':
-                self.thread_responses[zhash] = self.tms(z, x, y)
-            elif self.layer['fetch'] == 'wms':
-                self.thread_responses[zhash] = self.wms(z, x, y)
-            else:
-                raise ValueError("fetch must be 'tms' or 'wms'")
-        except OSError:
-            self.thread_responses[zhash] = None
+    def threadworker(self, z, x, y, zhash):
+        if self.layer['fetch'] not in ('tms', 'wms'):
+            raise ValueError("fetch must be 'tms' or 'wms'")
+
+        # Call fetcher by it's name
+        self.thread_responses[zhash] = getattr(self, self.layer['fetch'])(z, x, y)
 
     def wms(self, z, x, y):
         # Untested, probably broken
@@ -122,9 +118,8 @@ class TileFetcher(object):
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
         width = 384  # using larger source size to rescale better in python
         height = 384
-        tile_bbox = "bbox=%s,%s,%s,%s" % tuple(
-            projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
-        )
+        tile_bbox = "bbox=%s,%s,%s,%s" % (
+            projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj))
 
         wms = self.layer["remote_url"] + tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
         if self.layer.get("cached", True):
@@ -163,13 +158,14 @@ class TileFetcher(object):
         return im
 
     def tms(self, z, x, y):
-        """Fetch tile, r/w cache.
+        """Fetch tile by coordinates, r/w cache.
 
         Cache is structured according to tile coordinates.
-        Projection specified in config file.
+        Actual tile image projection specified in config file.
 
-        Normally returns Pillimage
-        Returns None, if no image can be served from cache or from remote.
+        Normally returns Pill image
+        :rtype:: PIL Image. Otherwise None, if no image can be served
+            from cache or from remote.
         """
         d_tuple = z, x, y
 
@@ -243,7 +239,7 @@ class TileFetcher(object):
 
 
 def tile_to_quadkey(z, x, y):
-    """Transform tile coordinates to a quadkey.
+    """Transform tile coordinates to a Bing quadkey.
 
     GlobalMapper Tiles cache numeration starts from 0 level with one tile. On 1 level four tiles etc
     Bing uses quadkey tile coordinates, so minimal cache level is 1 (four tiles). Single tile at zero level not addressed.

@@ -116,28 +116,26 @@ class TWMSMain(object):
             height = 256
             height = int(data.get("height", height))
             width = int(data.get("width", width))
-            srs = data.get("srs", "EPSG:3857")
-            if len(layer) == 1:
-                # Try to return tile as is, if possible
-                if layer[0] in config.layers:
-                    if (config.layers[layer[0]]["proj"] == srs
-                        and width == 256
-                        and height == 256
-                        and not filt
-                        and not force
-                        and not correctify.has_corrections(config.layers[layer[0]])):
-                        tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(
-                            z - 1, y, x, config.layers[layer[0]]['ext'])
-                        if os.path.exists(tile_path):
-                            # Not returning HTTP 404
-                            with open(tile_path, 'rb') as f:
-                                tile_file = f.read()
-                            print(f"handler: load '{tile_path}'")
-                            return HTTPStatus.OK, content_type, tile_file
+            srs = data.get('srs', 'EPSG:3857')
+            # Try to return tile as is, if possible
+            if all((
+                    len(layer) == 1,
+                    layer[0] in config.layers,
+                    srs == config.layers[layer[0]]['proj'],
+                    width == height == 256,
+                    not filt,
+                    not force,
+                    not correctify.has_corrections(config.layers[layer[0]]))):
+                tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(
+                    z - 1, y, x, config.layers[layer[0]]['ext'])
+                if os.path.exists(tile_path):
+                    # Not returning HTTP 404
+                    with open(tile_path, 'rb') as f:
+                        print(f"handler: load '{tile_path}'")
+                        return HTTPStatus.OK, content_type, f.read()
 
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
 
-        # Indent?
         if data.get("bbox", None):
             req_bbox = tuple(map(float, data.get("bbox", req_bbox).split(",")))
 
@@ -149,7 +147,7 @@ class TWMSMain(object):
         height = int(data.get("height", height))
         width = min(width, config.max_width)
         height = min(height, config.max_height)
-        if width == 0 and height == 0:
+        if width == height == 0:
             width = 350
 
         imgs = 1.0

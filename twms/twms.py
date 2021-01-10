@@ -31,6 +31,8 @@ from twms import overview
 
 
 class TWMSMain(object):
+    """Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
+    """
     def __init__(self):
         super(TWMSMain, self).__init__()
         self.cached_objs = {}  # a dict. (layer, z, x, y): PIL image

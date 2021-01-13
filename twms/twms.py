@@ -122,7 +122,7 @@ class TWMSMain(object):
                     width == height == 256,
                     not force,
                     not correctify.has_corrections(config.layers[layer[0]]))):
-                tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(
+                tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(
                     z - 1, y, x, config.layers[layer[0]]['ext'])
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404

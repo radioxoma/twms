@@ -130,7 +130,7 @@ class TileFetcher(object):
         wms = self.layer["remote_url"] + tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
         if self.layer.get("cached", True):
             # "Global Mapper Tiles" cache path style
-            tile_path = config.tiles_cache + self.layer["prefix"] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer["ext"])
+            tile_path = config.tiles_cache + self.layer["prefix"] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer["ext"])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
             lock_path = partial_path + '.lock'
             tne_path = partial_path + '.tne'
@@ -186,7 +186,7 @@ class TileFetcher(object):
         # Option one: trying cache
         if self.layer.get("cached", True):
             # "Global Mapper Tiles" cache path style
-            tile_path = config.tiles_cache + self.layer['prefix'] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer['ext'])
+            tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer['ext'])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
             # lock_path = partial_path + '.lock'
             tne_path = partial_path + '.tne'

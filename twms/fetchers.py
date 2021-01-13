@@ -95,20 +95,13 @@ class TileFetcher(object):
             self.fetching_now[zhash] = atomthread
         if self.fetching_now[zhash].is_alive():
             self.fetching_now[zhash].join()
-        image = self.thread_responses[zhash]
+        resp = self.thread_responses[zhash]
         self.zhash_lock[zhash] -= 1
         if not self.zhash_lock[zhash]:
             del self.thread_responses[zhash]
             del self.fetching_now[zhash]
             del self.zhash_lock[zhash]
-
-        # Catching invalid pictures
-        try:
-            image.load()  # Validate image
-            return image
-        except (OSError, AttributeError):
-            print("TileFetcher: Corrupted tile")
-            return None
+        return resp
 
     def threadworker(self, z, x, y, zhash):
         if self.layer['fetch'] not in ('tms', 'wms'):
@@ -204,13 +197,13 @@ class TileFetcher(object):
             if not os.path.exists(tne_path):
                 if os.path.exists(tile_path):  # First, look for the tile in cache
                     try:
-                        im1 = Image.open(tile_path)
-                        im1.load()
+                        im = Image.open(tile_path)
+                        im.load()
                         print(f"\ttms: load {tile_path}")
-                        return im1
                     except OSError:
                         print(f"\ttms: found broken tile in cache '{tile_path}'")
                         # os.remove(tile_path)  # Cached tile is broken - remove it
+                        return None
 
         # Option two: tile not in cache, fetching
         if 'remote_url' in self.layer:
@@ -223,10 +216,13 @@ class TileFetcher(object):
                 im_bytes = self.opener(remote).read()
                 if im_bytes:
                     im = Image.open(BytesIO(im_bytes))
+                    im.load()  # Validate image
                 else:
                     print(f"tms: zero response tile z{z}/x{x}/y{y}")
                     return None
-            except OSError:
+            except (OSError, AttributeError):
+                # Catching invalid pictures
+                print("tms: downloaded corrupted image")
                 return None
 
             # Save something in cache

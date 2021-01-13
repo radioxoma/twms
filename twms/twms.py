@@ -104,7 +104,7 @@ class TWMSMain(object):
 
         width = 0
         height = 0
-        z = int(data.get("z", 1)) + 1  # FIXME: why +1?
+        z = int(data.get("z", 0))
         x = int(data.get("x", 0))
         y = int(data.get("y", 0))
         if req_type == "GetTile":
@@ -123,7 +123,7 @@ class TWMSMain(object):
                     not force,
                     not correctify.has_corrections(config.layers[layer[0]]))):
                 tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(
-                    z - 1, y, x, config.layers[layer[0]]['ext'])
+                    z, x, y, config.layers[layer[0]]['ext'])
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404
                     with open(tile_path, 'rb') as f:
@@ -332,8 +332,8 @@ class TWMSMain(object):
         if layer['prefix'] not in self.fetchers_pool:
             self.fetchers_pool[layer['prefix']] = fetchers.TileFetcher(layer)
 
-        x = x % (2 ** (z - 1))
-        if y < 0 or y >= (2 ** (z - 1)):
+        x = x % (2 ** z)
+        if y < 0 or y >= (2 ** z):
             return None
         if not bbox_utils.bbox_is_in(
             projections.bbox_by_tile(z, x, y, layer["proj"]),
@@ -347,7 +347,7 @@ class TWMSMain(object):
         # Working with cache
         if layer.get("cached", True):
             # Second, try to glue image of better ones
-            if layer["scalable"] and (z < layer.get("max_zoom", config.default_max_zoom)) and trybetter:
+            if layer["scalable"] and (z <= layer.get("max_zoom", config.default_max_zoom)) and trybetter:
                 print("tile_image: scaling tile")
                 # # Load upscaled images
                 # if os.path.exists(local + "ups." + ext):
@@ -385,8 +385,8 @@ class TWMSMain(object):
                     if (config.deadline > seconds_spent) or (z < 4):
                         print(f"tile_image: invoke fetcher for {layer['prefix']}/z{z}/x{x}/y{y}")
                         return self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching img from outside
-            if real and (z > 1):
-                im = self.tile_image(layer, z - 1, int(x // 2), int(y // 2), start_time, again=False, trybetter=False, real=True)
+            if real and (z > 0):
+                im = self.tile_image(layer, z, int(x // 2), int(y // 2), start_time, again=False, trybetter=False, real=True)
                 if im:
                     im = im.crop(
                         (

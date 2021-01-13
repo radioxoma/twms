@@ -107,6 +107,7 @@ class TileFetcher(object):
             image.load()  # Validate image
             return image
         except (OSError, AttributeError):
+            print("TileFetcher: Corrupted tile")
             return None
 
     def threadworker(self, z, x, y, zhash):
@@ -119,7 +120,7 @@ class TileFetcher(object):
     def wms(self, z, x, y):
         # Untested, probably broken
         if "max_zoom" in self.layer:
-            if z >= self.layer["max_zoom"]:
+            if z > self.layer["max_zoom"]:
                 return None
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
         width = 384  # using larger source size to rescale better in python
@@ -130,7 +131,7 @@ class TileFetcher(object):
         wms = self.layer["remote_url"] + tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
         if self.layer.get("cached", True):
             # "Global Mapper Tiles" cache path style
-            tile_path = config.tiles_cache + self.layer["prefix"] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer["ext"])
+            tile_path = config.tiles_cache + self.layer["prefix"] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z, x, y, self.layer['ext'])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
             lock_path = partial_path + '.lock'
             tne_path = partial_path + '.tne'
@@ -180,13 +181,14 @@ class TileFetcher(object):
 
         # TODO: Conform JOSM tms links zoom restrictions
         if "max_zoom" in self.layer:
-            if z >= self.layer["max_zoom"]:
+            if z > self.layer["max_zoom"]:
+                print("Zoom limit")
                 return None
 
         # Option one: trying cache
         if self.layer.get("cached", True):
             # "Global Mapper Tiles" cache path style
-            tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer['ext'])
+            tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z, x, y, self.layer['ext'])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
             # lock_path = partial_path + '.lock'
             tne_path = partial_path + '.tne'

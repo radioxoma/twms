@@ -6,7 +6,6 @@ def point_is_in(bbox, point):
     Check whether EPSG:4326 point is in bbox
     """
     # bbox = normalize(bbox)[0]
-
     return (
         point[0] >= bbox[0]
         and point[0] <= bbox[2]
@@ -71,7 +70,6 @@ def normalize(bbox):
     """
     Normalise EPSG:4326 bbox order. Returns normalized bbox, and whether it was flipped on horizontal axis.
     """
-
     flip_h = False
     bbox = list(bbox)
     while bbox[0] < -180.0:
@@ -91,7 +89,6 @@ def zoom_for_bbox(bbox, size, layer, min_zoom=1, max_zoom=18, max_size=(10000, 1
     """
     Calculate a best-fit zoom level
     """
-
     h, w = size
     for i in range(min_zoom, max_zoom):
         cx1, cy1, cx2, cy2 = projections.tile_by_bbox(bbox, i, layer["proj"])

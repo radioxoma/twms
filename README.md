@@ -6,7 +6,7 @@ Serve map tiles to the WMS-enabled applications. Also, twms can act as a proxy t
 ## About this fork
 
 * [`http.server`](https://docs.python.org/3/library/http.server.html) from standard python library is used instead of [webpy](https://webpy.org/)
-* *Tile Map Service (TMS)* cache format, compatible both with both [JOSM](https://josm.openstreetmap.de/) and [SAS.Planet](http://www.sasgis.org/sasplaneta/)
+* Сache format, compatible with [JOSM](https://josm.openstreetmap.de/), [SAS.Planet](http://www.sasgis.org/sasplaneta/), Leaflet.
 * Functional regression - unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
 * [JOSM remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) support
 * Due to huge refactoring and removing half of the original code the changes ineligible for a pull request
@@ -20,7 +20,7 @@ Install dependencies and clone repo:
     $ git clone https://github.com/radioxoma/twms.git
     $ cd twms
 
-Edit `twms/twms.conf` and set `tiles_cache` path to your `SAS.Planet/cache_tms/`. 
+Edit `twms/twms.conf` and set `tiles_cache` path to your `SAS.Planet/cache_ma/`. 
 
 Run TWMS and check [http://127.0.0.1:8080](http://127.0.0.1:8080) page in browser for discovered imagery and links. This fork intended to be run locally, as python webserver from standard library not considered secure.
 
@@ -29,7 +29,7 @@ Run TWMS and check [http://127.0.0.1:8080](http://127.0.0.1:8080) page in browse
 
 ## Setting up SAS.Planet
 
-SAS.Planet works fine with [wine](https://www.winehq.org/). Open "Settings > Options > Cache tab > Set *Default cache type* to *Tile Map Service (TMS)*". So tile path will be like `SAS.Planet/cache_tms/vesat/{z}/{x}/{y}.jpg`, i.e. `SAS.Planet/cache_tms/vesat/1/0/0.jpg`.
+SAS.Planet works fine with [wine](https://www.winehq.org/). Open "Settings > Options > Cache tab > Set *Default cache type* to *Mobile atlas creator (MOBAC)*". So tile path will be like `SAS.Planet/cache_ma/vesat/{z}/{x}/{y}.jpg`, i.e. `SAS.Planet/cache_ma/vesat/1/0/0.jpg`.
 
 Download some tiles with SAS.Planet, which can be served later by TWMS.
 
@@ -59,5 +59,5 @@ JOSM supports `file://` URI pointing to 256x256 tiles in EPSG:3857 projection (l
 2. Open JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries* and paste link. E.g.:
 
 
-    tms:file:///home/user/dev/gis/sasplanet/SAS.Planet/cache_tms/vesat/{z}/{x}/{y}.jpg
-    tms[18]:file:///c:/SAS.Planet/cache_tms/vesat/{z}/{x}/{y}.jpg  # Windows
+    tms:file:///home/user/dev/gis/sasplanet/SAS.Planet/cache_ma/vesat/{z}/{x}/{y}.jpg
+    tms[18]:file:///c:/SAS.Planet/cache_ma/vesat/{z}/{x}/{y}.jpg  # Windows

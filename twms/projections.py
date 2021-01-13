@@ -194,7 +194,7 @@ def coords_by_tile(z, x, y, srs="EPSG:3857"):
     """
     Converts (z,x,y) to coordinates of corner of srs-projected tile
     """
-    z -= 1
+    # z -= 1  # Should I remove it?
     normalized_tile = (x / (2.0 ** z), 1.0 - (y / (2.0 ** z)))
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
     maxp = [
@@ -216,7 +216,7 @@ def tile_by_coords(xxx_todo_changeme, zoom, srs="EPSG:3857"):
     srs - text string, specifying projection of tile pyramid
     """
     (lon, lat) = xxx_todo_changeme
-    zoom -= 1
+    # zoom -= 1
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
     point = from4326((lon, lat), srs)
     point = [point[0] - projected_bounds[0], point[1] - projected_bounds[1]]

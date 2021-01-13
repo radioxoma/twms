@@ -283,11 +283,7 @@ class TWMSMain(object):
                     ec = ImageColor.getcolor(
                         layer.get("empty_color", config.default_background), "RGBA")
                     im1 = Image.new("RGBA", (256, 256), ec)
-                try:
-                    out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
-                except AttributeError:
-                    # Probably invalid picture
-                    pass
+                out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
 
         ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
         out = out.crop(bbox_im)
@@ -328,6 +324,8 @@ class TWMSMain(object):
 
         dsc.downscale?
         ups.upscale?
+
+        Function must return None if image is invalid  or unavailable
         """
         # Dedicated fetcher for each imagery layer - if one fetcher hangs,
         # others should be responsive
@@ -340,8 +338,7 @@ class TWMSMain(object):
         if not bbox_utils.bbox_is_in(
             projections.bbox_by_tile(z, x, y, layer["proj"]),
             layer.get("data_bounding_box", config.default_bbox),
-            fully=False,
-        ):
+            fully=False):
             return None
         if "prefix" in layer:
             if (layer["prefix"], z, x, y) in self.cached_objs:
@@ -382,13 +379,12 @@ class TWMSMain(object):
                                 #         pass
                                 return im
             if not again:
+                # What if again?
                 if 'fetch' in layer:
                     seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
                     if (config.deadline > seconds_spent) or (z < 4):
                         print(f"tile_image: invoke fetcher for {layer['prefix']}/z{z}/x{x}/y{y}")
-                        im = self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching from outside
-                        if im:
-                            return im
+                        return self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching img from outside
             if real and (z > 1):
                 im = self.tile_image(layer, z - 1, int(x // 2), int(y // 2), start_time, again=False, trybetter=False, real=True)
                 if im:
@@ -407,6 +403,4 @@ class TWMSMain(object):
                 print("tile_image: fetching an uncached layer")
                 seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
                 if (config.deadline > seconds_spent) or (z < 4):
-                    im = self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching from outside
-                    if im:
-                        return im
+                    return self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching from outside

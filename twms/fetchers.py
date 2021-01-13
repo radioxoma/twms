@@ -95,14 +95,19 @@ class TileFetcher(object):
             self.fetching_now[zhash] = atomthread
         if self.fetching_now[zhash].is_alive():
             self.fetching_now[zhash].join()
-        resp = self.thread_responses[zhash]
+        image = self.thread_responses[zhash]
         self.zhash_lock[zhash] -= 1
         if not self.zhash_lock[zhash]:
             del self.thread_responses[zhash]
             del self.fetching_now[zhash]
             del self.zhash_lock[zhash]
 
-        return resp
+        # Catching invalid pictures
+        try:
+            image.load()  # Validate image
+            return image
+        except (OSError, AttributeError):
+            return None
 
     def threadworker(self, z, x, y, zhash):
         if self.layer['fetch'] not in ('tms', 'wms'):
@@ -140,7 +145,11 @@ class TileFetcher(object):
                             os.remove(fp)
 
         print(f"\twms: fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
-        im = Image.open(BytesIO(self.opener(wms).read()))
+        im_bytes = self.opener(wms).read()
+        if im_bytes:
+            im = Image.open(BytesIO(im_bytes))
+        else:
+            return None
         if width != 256 and height != 256:
             im = im.resize((256, 256), Image.ANTIALIAS)
         im = im.convert("RGBA")
@@ -179,7 +188,7 @@ class TileFetcher(object):
             # "Global Mapper Tiles" cache path style
             tile_path = config.tiles_cache + self.layer['prefix'] + "/z{:.0f}/{:.0f}/{:.0f}.{}".format(z - 1, y, x, self.layer['ext'])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
-            lock_path = partial_path + '.lock'
+            # lock_path = partial_path + '.lock'
             tne_path = partial_path + '.tne'
 
             os.makedirs(os.path.dirname(tile_path), exist_ok=True)
@@ -195,6 +204,7 @@ class TileFetcher(object):
                 if os.path.exists(tile_path):  # First, look for the tile in cache
                     try:
                         im1 = Image.open(tile_path)
+                        im1.load()
                         print(f"\ttms: load {tile_path}")
                         return im1
                     except OSError:
@@ -202,14 +212,18 @@ class TileFetcher(object):
                         os.remove(tile_path)  # Cached tile is broken - remove it
 
         # Option two: tile not in cache, fetching
-        if "transform_tile_number" in self.layer:
+        if 'transform_tile_number' in self.layer:
             d_tuple = self.layer["transform_tile_number"](z, x, y)
-        remote = self.layer["remote_url"] % d_tuple
+        remote = self.layer['remote_url'] % d_tuple
 
         try:
             print(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
             im_bytes = self.opener(remote).read()
-            im = Image.open(BytesIO(im_bytes))
+            if im_bytes:
+                im = Image.open(BytesIO(im_bytes))
+            else:
+                print(f"tms: zero response tile z{z}/x{x}/y{y}")
+                return None
         except OSError:
             return None
 
@@ -238,6 +252,7 @@ class TileFetcher(object):
                 print(f"\ttms: saving {tile_path}")
                 with open(tile_path, "wb") as f:
                     f.write(im_bytes)
+
         return im
 
 

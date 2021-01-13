@@ -1,6 +1,6 @@
 # twms web map server
 
-Serve map tiles to the WMS-enabled applications. Also, twms can act as a proxy to external resources.
+Serve local map tiles and act like a proxy for external resources.
 
 
 ## About this fork

@@ -130,7 +130,7 @@ class TileFetcher(object):
 
         wms = self.layer["remote_url"] + tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
         if self.layer.get("cached", True):
-            # "Global Mapper Tiles" cache path style
+            # MOBAC cache path style
             tile_path = config.tiles_cache + self.layer["prefix"] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z, x, y, self.layer['ext'])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
             lock_path = partial_path + '.lock'
@@ -186,15 +186,14 @@ class TileFetcher(object):
                 return None
 
         # Option one: trying cache
-        if self.layer.get("cached", True):
-            # "Global Mapper Tiles" cache path style
+        if self.layer.get('cached', True):
+            # MOBAC cache path style
             tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z, x, y, self.layer['ext'])
             partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
             # lock_path = partial_path + '.lock'
             tne_path = partial_path + '.tne'
 
             os.makedirs(os.path.dirname(tile_path), exist_ok=True)
-
             if 'cache_ttl' in self.layer:
                 for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
                     fp = partial_path + ex
@@ -210,52 +209,53 @@ class TileFetcher(object):
                         print(f"\ttms: load {tile_path}")
                         return im1
                     except OSError:
-                        print(f"\ttms: remove broken tile from cache '{tile_path}'")
-                        os.remove(tile_path)  # Cached tile is broken - remove it
+                        print(f"\ttms: found broken tile in cache '{tile_path}'")
+                        # os.remove(tile_path)  # Cached tile is broken - remove it
 
         # Option two: tile not in cache, fetching
-        if 'transform_tile_number' in self.layer:
-            d_tuple = self.layer["transform_tile_number"](z, x, y)
-        remote = self.layer['remote_url'] % d_tuple
+        if 'remote_url' in self.layer:
+            if 'transform_tile_number' in self.layer:
+                d_tuple = self.layer["transform_tile_number"](z, x, y)
+            remote = self.layer['remote_url'] % d_tuple
 
-        try:
-            print(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
-            im_bytes = self.opener(remote).read()
-            if im_bytes:
-                im = Image.open(BytesIO(im_bytes))
-            else:
-                print(f"tms: zero response tile z{z}/x{x}/y{y}")
+            try:
+                print(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
+                im_bytes = self.opener(remote).read()
+                if im_bytes:
+                    im = Image.open(BytesIO(im_bytes))
+                else:
+                    print(f"tms: zero response tile z{z}/x{x}/y{y}")
+                    return None
+            except OSError:
                 return None
-        except OSError:
-            return None
 
-        # Save something in cache
-        if self.layer.get("cached", True):
-            # Sometimes server returns file instead of empty HTTP response
-            if 'dead_tile' in self.layer:
-                # Compare bytestring with dead tile hash
-                if len(im_bytes) == self.layer['dead_tile']['size']:
-                    hasher = hashlib.md5()
-                    hasher.update(im_bytes)
-                    if hasher.hexdigest() == self.layer['dead_tile']['md5']:
-                        # Tile is recognized as empty
-                        # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
-                        # SASPlanet writes empty files with '.tne' ext
-                        print(f"tms: dead tile z{z}/x{x}/y{y} '{tne_path}'")
-                        with open(tne_path, "w") as f:
-                            when = time.localtime()
-                            timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5])
-                            # "08.01.2021 17:58:17"
-                            f.write(timestamp)
-                        return None
-            else:
-                # os.rmdir(lock_path)
-                # All well, save tile to cache
-                print(f"\ttms: saving {tile_path}")
-                with open(tile_path, "wb") as f:
-                    f.write(im_bytes)
+            # Save something in cache
+            if self.layer.get('cached', True):
+                # Sometimes server returns file instead of empty HTTP response
+                if 'dead_tile' in self.layer:
+                    # Compare bytestring with dead tile hash
+                    if len(im_bytes) == self.layer['dead_tile']['size']:
+                        hasher = hashlib.md5()
+                        hasher.update(im_bytes)
+                        if hasher.hexdigest() == self.layer['dead_tile']['md5']:
+                            # Tile is recognized as empty
+                            # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
+                            # SASPlanet writes empty files with '.tne' ext
+                            print(f"tms: dead tile z{z}/x{x}/y{y} '{tne_path}'")
+                            with open(tne_path, "w") as f:
+                                when = time.localtime()
+                                timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5])
+                                # "08.01.2021 17:58:17"
+                                f.write(timestamp)
+                            return None
+                else:
+                    # os.rmdir(lock_path)
+                    # All well, save tile to cache
+                    print(f"\ttms: saving {tile_path}")
+                    with open(tile_path, "wb") as f:
+                        f.write(im_bytes)
 
-        return im
+            return im
 
 
 def tile_to_quadkey(z, x, y):

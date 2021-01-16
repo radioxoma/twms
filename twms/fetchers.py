@@ -260,6 +260,7 @@ def tile_to_quadkey(z, x, y):
     GlobalMapper Tiles cache numeration starts from 0 level with one tile. On 1 level four tiles etc
     Bing uses quadkey tile coordinates, so minimal cache level is 1 (four tiles). Single tile at zero level not addressed.
 
+    https://docs.microsoft.com/en-us/bingmaps/articles/bing-maps-tile-system
     https://github.com/buckhx/QuadKey/blob/master/quadkey/tile_system.py
 
     Examples

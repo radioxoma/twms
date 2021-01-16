@@ -47,7 +47,9 @@ class TWMSMain(object):
 
         WMS http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
         TMS https://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
-        WMTS Web Map Tile Service Implementation Standard 2010-04-06 1.0.0
+        WMTS
+            Web Map Tile Service Implementation Standard 2010-04-06 1.0.0
+            http://www.opengeospatial.org/standards/wmts
             https://sampleserver6.arcgisonline.com/arcgis/rest/services/WorldTimeZones/MapServer/WMTS
 
         http://127.0.0.1:8080/?request=GetCapabilities&

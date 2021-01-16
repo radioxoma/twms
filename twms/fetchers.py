@@ -83,16 +83,17 @@ class TileFetcher(object):
         self.zhash_lock = {}
 
     def fetch(self, z, x, y):
+        """Return None if no image can be served."""
         zhash = repr((z, x, y, self.layer))
         try:
             self.zhash_lock[zhash] += 1
         except KeyError:
             self.zhash_lock[zhash] = 1
         if zhash not in self.fetching_now:
-            atomthread = threading.Thread(
+            thread = threading.Thread(
                 None, self.threadworker, None, (z, x, y, zhash))
-            atomthread.start()
-            self.fetching_now[zhash] = atomthread
+            thread.start()
+            self.fetching_now[zhash] = thread
         if self.fetching_now[zhash].is_alive():
             self.fetching_now[zhash].join()
         resp = self.thread_responses[zhash]

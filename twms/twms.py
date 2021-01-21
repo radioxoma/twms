@@ -5,6 +5,7 @@ from io import BytesIO
 import datetime
 import mimetypes
 from http import HTTPStatus
+import logging
 
 from PIL import Image, ImageOps, ImageColor
 # from PIL import ImageFile
@@ -131,7 +132,7 @@ class TWMSMain(object):
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404
                     with open(tile_path, 'rb') as f:
-                        print(f"handler: load '{tile_path}'")
+                        logging.debug(f"handler: load '{tile_path}'")
                         return HTTPStatus.OK, content_type, f.read()
 
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
@@ -271,8 +272,7 @@ class TWMSMain(object):
         )
         x = 256 * (to_tile_x - from_tile_x + 1)
         y = 256 * (from_tile_y - to_tile_y + 1)
-        # print(x, y, file=sys.stderr)
-        # sys.stderr.flush()
+
         out = Image.new("RGBA", (x, y))
         for x in range(from_tile_x, to_tile_x + 1):
             for y in range(to_tile_y, from_tile_y + 1):
@@ -352,7 +352,7 @@ class TWMSMain(object):
         if layer.get("cached", True):
             # Second, try to glue image of better ones
             if layer["scalable"] and (z <= layer.get("max_zoom", config.default_max_zoom)) and trybetter:
-                print("tile_image: scaling tile")
+                logging.info("tile_image: scaling tile")
                 # # Load upscaled images
                 # if os.path.exists(local + "ups." + ext):
                 #     try:
@@ -387,7 +387,7 @@ class TWMSMain(object):
                 if 'fetch' in layer:
                     seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
                     if (config.deadline > seconds_spent) or (z < 4):
-                        print(f"tile_image: invoke fetcher for {layer['prefix']}/z{z}/x{x}/y{y}")
+                        logging.debug(f"tile_image: invoke fetcher for {layer['prefix']}/z{z}/x{x}/y{y}")
                         return self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching img from outside
             if real and (z > 0):
                 im = self.tile_image(layer, z, int(x // 2), int(y // 2), start_time, again=False, trybetter=False, real=True)
@@ -404,7 +404,7 @@ class TWMSMain(object):
                     return im
         else:
             if 'fetch' in layer:
-                print("tile_image: fetching an uncached layer")
+                logging.info("tile_image: fetching an uncached layer")
                 seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
                 if (config.deadline > seconds_spent) or (z < 4):
                     return self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching from outside

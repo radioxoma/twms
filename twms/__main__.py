@@ -1,11 +1,19 @@
 #!/usr/bin/env python
 
+"""
+debug - tile file operations
+info - tile fetching or constructing
+warning - HTTP errors
+"""
+
 import sys
 import re
 import urllib
 import mimetypes
 from http.server import ThreadingHTTPServer
 from http.server import BaseHTTPRequestHandler
+import logging
+logging.basicConfig(level=logging.INFO)
 
 from twms import twms
 import config

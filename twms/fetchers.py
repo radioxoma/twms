@@ -4,6 +4,7 @@ import time
 import hashlib
 import threading
 from functools import wraps
+import logging
 import urllib.request as request
 import http.cookiejar as http_cookiejar
 import ssl
@@ -60,12 +61,12 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
             try:
                 return opener.open(*args, **kwargs)
             except request.HTTPError as e:
-                print(f"e.code is '{e.code}'")
+                logging.warning(f"e.code is '{e.code}'")
                 # if e.code == 404:
                 #     mtries = 0
                 raise
             except request.URLError as e:
-                print(f"{e}, Retrying '{args[0]}' in {mdelay} seconds...")
+                logging.debug(f"{e}, Retrying '{args[0]}' in {mdelay} seconds...")
                 time.sleep(mdelay)
                 mtries -= 1
                 mdelay *= backoff
@@ -139,7 +140,7 @@ class TileFetcher(object):
                         if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
                             os.remove(fp)
 
-        print(f"\twms: fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
+        logging.info(f"\twms: fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
         im_bytes = self.opener(wms).read()
         if im_bytes:
             im = Image.open(BytesIO(im_bytes))
@@ -176,7 +177,7 @@ class TileFetcher(object):
         # TODO: Conform JOSM tms links zoom restrictions
         if "max_zoom" in self.layer:
             if z > self.layer["max_zoom"]:
-                print("Zoom limit")
+                logging.debug("Zoom limit")
                 return None
 
         # Option one: trying cache
@@ -200,9 +201,9 @@ class TileFetcher(object):
                     try:
                         im = Image.open(tile_path)
                         im.load()
-                        print(f"\ttms: load {tile_path}")
+                        logging.debug(f"\ttms: load {tile_path}")
                     except OSError:
-                        print(f"\ttms: found broken tile in cache '{tile_path}'")
+                        logging.warning(f"\ttms: found broken tile in cache '{tile_path}'")
                         # os.remove(tile_path)  # Cached tile is broken - remove it
                         return None
 
@@ -213,17 +214,17 @@ class TileFetcher(object):
             remote = self.layer['remote_url'] % d_tuple
 
             try:
-                print(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
+                logging.info(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
                 im_bytes = self.opener(remote).read()
                 if im_bytes:
                     im = Image.open(BytesIO(im_bytes))
                     im.load()  # Validate image
                 else:
-                    print(f"tms: zero response tile z{z}/x{x}/y{y}")
+                    logging.warning(f"tms: zero response for tile z{z}/x{x}/y{y}")
                     return None
             except (OSError, AttributeError):
                 # Catching invalid pictures
-                print("tms: downloaded corrupted image")
+                logging.warning(f"tms: no image z{z}/x{x}/y{y} {remote}")
                 return None
 
             # Save something in cache
@@ -238,7 +239,7 @@ class TileFetcher(object):
                             # Tile is recognized as empty
                             # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
                             # SASPlanet writes empty files with '.tne' ext
-                            print(f"tms: dead tile z{z}/x{x}/y{y} '{tne_path}'")
+                            logging.warning(f"tms: dead tile z{z}/x{x}/y{y} '{tne_path}'")
                             with open(tne_path, "w") as f:
                                 when = time.localtime()
                                 timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5])
@@ -248,7 +249,7 @@ class TileFetcher(object):
                 else:
                     # os.rmdir(lock_path)
                     # All well, save tile to cache
-                    print(f"\ttms: saving {tile_path}")
+                    logging.debug(f"\ttms: saving {tile_path}")
                     with open(tile_path, "wb") as f:
                         f.write(im_bytes)
 

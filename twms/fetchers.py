@@ -215,7 +215,6 @@ class TileFetcher(object):
                 if 'transform_tile_number' in self.layer:
                     d_tuple = self.layer["transform_tile_number"](z, x, y)
                 remote = self.layer['remote_url'] % d_tuple
-
                 try:
                     logging.info(f"tms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
                     remote_resp = self.opener(remote)
@@ -250,12 +249,11 @@ class TileFetcher(object):
                             logging.warning(f"tms: TNE dead tile z{z}/x{x}/y{y} '{tne_path}'")
                             Path(tne_path, exist_ok=True).touch()
                             return None
-                else:
-                    # os.rmdir(lock_path)
-                    # All well, save tile to cache
-                    logging.debug(f"tms: saving {tile_path}")
-                    with open(tile_path, "wb") as f:
-                        f.write(remote_bytes)
+
+                # All well, save tile to cache
+                logging.info(f"tms: saving {tile_path}")
+                with open(tile_path, "wb") as f:
+                    f.write(remote_bytes)
 
                 return im
 
@@ -266,21 +264,25 @@ class TileFetcher(object):
         https://khms0.google.com/kh/v=889?x=39595&y=20473&z=16
         https://khms3.google.com/kh/v=889?x=39595&y=20472&z=16
         """
-        if not self.layer['remote_url']:
-            resp = self.opener("https://maps.googleapis.com/maps/api/js").read().decode('utf-8')
-            match = re.search(r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp)
-            if not match.group(1):
-                logging.error(f"Cannot parse 'v=' from {maps_googleapis_js}")
-                return None
-            self.layer['remote_url'] = "https://khms0.google.com/kh/v=" + match.group(1) + "?x=%s&y=%s&z=%s"
-            logging.info(f"Setting new {self.layer['name']} URI {self.layer['remote_url']}")
+        if 'remote_url' not in self.layer:
+            try:
+                resp = self.opener("https://maps.googleapis.com/maps/api/js").read().decode('utf-8')
+                if resp:
+                    match = re.search(r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp)
+                    if not match.group(1):
+                        logging.error(f"Cannot parse 'v=' from {maps_googleapis_js}")
+                        raise ValueError(f"Cannot parse 'v=' from {maps_googleapis_js}")
+                    self.layer['remote_url'] = "https://khms0.google.com/kh/v=" + match.group(1) + "?x=%s&y=%s&z=%s"
+                    logging.info(f"Setting new {self.layer['name']} URI {self.layer['remote_url']}")
+            except request.URLError:
+                pass
 
         # URI version can expiry, reset if no image
         # Though it is not only possible cause of None response
-        resp = self.tms(z, x, y)
-        if not resp:
-            self.layer['remote_url'] = None
-        return  resp
+        im = self.tms(z, x, y)
+        if 'remote_url' in self.layer and not im:
+            del self.layer['remote_url']
+        return  im
 
 
 def tile_to_quadkey(z, x, y):

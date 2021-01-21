@@ -1,6 +1,7 @@
 import os
 from io import BytesIO
 import time
+import re
 import hashlib
 import threading
 from functools import wraps
@@ -106,7 +107,7 @@ class TileFetcher(object):
         return resp
 
     def threadworker(self, z, x, y, zhash):
-        if self.layer['fetch'] not in ('tms', 'wms'):
+        if self.layer['fetch'] not in ('tms', 'wms', 'tms_google_sat'):
             raise ValueError("fetch must be 'tms' or 'wms'")
 
         # Call fetcher by it's name
@@ -254,6 +255,29 @@ class TileFetcher(object):
                         f.write(im_bytes)
 
             return im
+
+    def tms_google_sat(self, z, x, y):
+        """Construct template URI with version from JS API.
+
+        May be use different servers in future:
+        https://khms0.google.com/kh/v=889?x=39595&y=20473&z=16
+        https://khms3.google.com/kh/v=889?x=39595&y=20472&z=16
+        """
+        if not self.layer['remote_url']:
+            resp = self.opener("https://maps.googleapis.com/maps/api/js").read().decode('utf-8')
+            match = re.search(r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp)
+            if not match.group(1):
+                logging.error(f"Cannot parse 'v=' from {maps_googleapis_js}")
+                return None
+            self.layer['remote_url'] = "https://khms0.google.com/kh/v=" + match.group(1) + "?x=%s&y=%s&z=%s"
+            logging.info(f"Setting new {self.layer['name']} URI {self.layer['remote_url']}")
+
+        # URI version can expiry, reset if no image
+        # Though it is not only possible cause of None response
+        resp = self.tms(z, x, y)
+        if not resp:
+            self.layer['remote_url'] = None
+        return  resp
 
 
 def tile_to_quadkey(z, x, y):

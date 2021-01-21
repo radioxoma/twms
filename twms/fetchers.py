@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from io import BytesIO
 import time
 import re
@@ -8,6 +9,7 @@ from functools import wraps
 import logging
 import urllib.request as request
 import http.cookiejar as http_cookiejar
+from http import HTTPStatus
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context  # Disable for gismap.by
 
@@ -62,7 +64,8 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
             try:
                 return opener.open(*args, **kwargs)
             except request.HTTPError as e:
-                logging.warning(f"e.code is '{e.code}'")
+                logging.warning(f"HTTP status is '{e.status}'")
+                print(e)
                 # if e.code == 404:
                 #     mtries = 0
                 raise
@@ -141,7 +144,7 @@ class TileFetcher(object):
                         if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
                             os.remove(fp)
 
-        logging.info(f"\twms: fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
+        logging.info(f"wms: fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
         im_bytes = self.opener(wms).read()
         if im_bytes:
             im = Image.open(BytesIO(im_bytes))
@@ -181,80 +184,80 @@ class TileFetcher(object):
                 logging.debug("Zoom limit")
                 return None
 
-        # Option one: trying cache
-        if self.layer.get('cached', True):
-            # MOBAC cache path style
-            tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z, x, y, self.layer['ext'])
-            partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
-            # lock_path = partial_path + '.lock'
-            tne_path = partial_path + '.tne'
+        # MOBAC cache path style
+        tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(z, x, y, self.layer['ext'])
+        partial_path, ext = os.path.splitext(tile_path)  # 'ext' with leading dot
+        tne_path = partial_path + '.tne'
 
-            os.makedirs(os.path.dirname(tile_path), exist_ok=True)
-            if 'cache_ttl' in self.layer:
-                for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
-                    fp = partial_path + ex
-                    if os.path.exists(fp):
-                        if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
-                            os.remove(fp)
+        os.makedirs(os.path.dirname(tile_path), exist_ok=True)
+        if 'cache_ttl' in self.layer:
+            # for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
+            for fp in (tile_path, tne_path):
+                if os.path.exists(fp):
+                    if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
+                        logging.info(f"TTL reached for {fp}")
+                        # os.remove(fp)
 
-            if not os.path.exists(tne_path):
-                if os.path.exists(tile_path):  # First, look for the tile in cache
-                    try:
-                        im = Image.open(tile_path)
-                        im.load()
-                        logging.debug(f"\ttms: load {tile_path}")
-                    except OSError:
-                        logging.warning(f"\ttms: found broken tile in cache '{tile_path}'")
-                        # os.remove(tile_path)  # Cached tile is broken - remove it
+        if not os.path.exists(tne_path):
+            # Option one look for the tile in the cache
+            if os.path.exists(tile_path):
+                try:
+                    im = Image.open(tile_path)
+                    im.load()
+                    logging.debug(f"tms: load {tile_path}")
+                    return im
+                except OSError:
+                    logging.warning(f"tms: found broken tile in cache '{tile_path}'")
+                    # os.remove(tile_path)  # Cached tile is broken - remove it
+
+            # Option two: tile not in cache, fetching
+            if 'remote_url' in self.layer:
+                if 'transform_tile_number' in self.layer:
+                    d_tuple = self.layer["transform_tile_number"](z, x, y)
+                remote = self.layer['remote_url'] % d_tuple
+
+                try:
+                    logging.info(f"tms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
+                    remote_resp = self.opener(remote)
+                    remote_bytes = remote_resp.read()
+                    if remote_bytes:
+                        im = Image.open(BytesIO(remote_bytes))
+                        im.load()  # Validate image
+                    else:
+                        logging.warning(f"tms: zero response for tile z{z}/x{x}/y{y} '{tne_path}'")
+                        Path(tne_path, exist_ok=True).touch()
+                        # if remote_resp.status == HTTPStatus.NOT_FOUND:
+                        #
+                        # else:
+                        #     logging.warning(remote_resp)
                         return None
-
-        # Option two: tile not in cache, fetching
-        if 'remote_url' in self.layer:
-            if 'transform_tile_number' in self.layer:
-                d_tuple = self.layer["transform_tile_number"](z, x, y)
-            remote = self.layer['remote_url'] % d_tuple
-
-            try:
-                logging.info(f"\ttms: FETCHING z{z}/x{x}/y{y} {self.layer['name']} {remote}")
-                im_bytes = self.opener(remote).read()
-                if im_bytes:
-                    im = Image.open(BytesIO(im_bytes))
-                    im.load()  # Validate image
-                else:
-                    logging.warning(f"tms: zero response for tile z{z}/x{x}/y{y}")
+                except (OSError, AttributeError):
+                    # Catching invalid pictures
+                    logging.warning(f"tms: no image z{z}/x{x}/y{y} {remote}")
                     return None
-            except (OSError, AttributeError):
-                # Catching invalid pictures
-                logging.warning(f"tms: no image z{z}/x{x}/y{y} {remote}")
-                return None
 
-            # Save something in cache
-            if self.layer.get('cached', True):
+                # Save something in cache
                 # Sometimes server returns file instead of empty HTTP response
                 if 'dead_tile' in self.layer:
                     # Compare bytestring with dead tile hash
-                    if len(im_bytes) == self.layer['dead_tile']['size']:
+                    if len(remote_bytes) == self.layer['dead_tile']['size']:
                         hasher = hashlib.md5()
-                        hasher.update(im_bytes)
+                        hasher.update(remote_bytes)
                         if hasher.hexdigest() == self.layer['dead_tile']['md5']:
                             # Tile is recognized as empty
                             # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
                             # SASPlanet writes empty files with '.tne' ext
-                            logging.warning(f"tms: dead tile z{z}/x{x}/y{y} '{tne_path}'")
-                            with open(tne_path, "w") as f:
-                                when = time.localtime()
-                                timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (when[2], when[1], when[0], when[3], when[4], when[5])
-                                # "08.01.2021 17:58:17"
-                                f.write(timestamp)
+                            logging.warning(f"tms: TNE dead tile z{z}/x{x}/y{y} '{tne_path}'")
+                            Path(tne_path, exist_ok=True).touch()
                             return None
                 else:
                     # os.rmdir(lock_path)
                     # All well, save tile to cache
-                    logging.debug(f"\ttms: saving {tile_path}")
+                    logging.debug(f"tms: saving {tile_path}")
                     with open(tile_path, "wb") as f:
-                        f.write(im_bytes)
+                        f.write(remote_bytes)
 
-            return im
+                return im
 
     def tms_google_sat(self, z, x, y):
         """Construct template URI with version from JS API.

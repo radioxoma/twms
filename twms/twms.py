@@ -352,7 +352,7 @@ class TWMSMain(object):
         if layer.get("cached", True):
             # Second, try to glue image of better ones
             if layer["scalable"] and (z <= layer.get("max_zoom", config.default_max_zoom)) and trybetter:
-                logging.info("tile_image: scaling tile")
+                logging.info(f"tile_image: scaling tile z{z}/x{x}/y{y}")
                 # # Load upscaled images
                 # if os.path.exists(local + "ups." + ext):
                 #     try:

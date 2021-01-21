@@ -14,6 +14,7 @@ from http.server import ThreadingHTTPServer
 from http.server import BaseHTTPRequestHandler
 import logging
 logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 
 from twms import twms
 import config

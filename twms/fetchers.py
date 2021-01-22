@@ -181,11 +181,14 @@ class TileFetcher(object):
         :rtype: :py:class:`~PIL.Image.Image`. Otherwise None, if
             no image can be served from cache or from remote.
         """
+        need_fetch = False
+        tile_parsed = False
+        tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
 
         # TODO: Conform JOSM tms links zoom restrictions
-        if "max_zoom" in self.layer:
-            if z > self.layer["max_zoom"]:
+        if 'max_zoom' in self.layer:
+            if z > self.layer['max_zoom']:
                 logging.debug(f"{tile_id}: zoom limit")
                 return None
 
@@ -193,91 +196,96 @@ class TileFetcher(object):
         tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer['ext'])
         partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
         tne_path = partial_path + '.tne'
-
         os.makedirs(os.path.dirname(tile_path), exist_ok=True)
+
+        # Do not delete, only replace if tile exists!
+        if os.path.exists(tne_path):
+            tne_lifespan = time.time() - os.stat(tne_path).st_mtime
+            if tne_lifespan > config.cache_tne_ttl:
+                logging.info(f"{tile_id}: TTL tne reached {tne_path}")
+                need_fetch = True
         if 'cache_ttl' in self.layer:
             # for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
-            for fp in (tile_path, tne_path):
-                if os.path.exists(fp):
-                    tile_lifespan = time.time() - os.stat(fp).st_mtime
-                    tile_lifespan_h = tile_lifespan / 60 / 60
-                    logging.debug(f"{tile_id}: lifespan {tile_lifespan_h:.0f} h {fp}")
-                    if tile_lifespan > self.layer["cache_ttl"]:
-                        logging.info(f"{tile_id}: TTL reached for {fp}")
-                        # Do not delete, only replace if tile exists!
-                        # os.remove(fp)
-
-        if not os.path.exists(tne_path):
-            # Option one: look for the tile in the cache
-            # This branch for layers with 'cache_ttl'
             if os.path.exists(tile_path):
-                try:
-                    im = Image.open(tile_path)
-                    im.load()
-                    logging.info(f"{tile_id}: cache tms {tile_path}")
-                    return im
-                except OSError:
-                    logging.warning(f"{tile_id}: failed to parse image from cache '{tile_path}'")
-                    # os.remove(tile_path)  # Cached tile is broken - remove it
+                tile_lifespan = time.time() - os.stat(tile_path).st_mtime
+                # tile_lifespan_h = tile_lifespan / 60 / 60
+                # logging.debug(f"{tile_id}: lifespan {tile_lifespan_h:.0f} h {fp}")
+                if tile_lifespan > self.layer["cache_ttl"]:
+                    logging.info(f"{tile_id}: TTL tile reached for {tile_path}")
+                    need_fetch = True
 
-            # Option two: tile not in cache, fetching
-            if 'remote_url' in self.layer:
-                if 'transform_tile_number' in self.layer:
-                    remote = self.layer['remote_url'] % self.layer["transform_tile_number"](z, x, y)
+        if not os.path.exists(tile_path) and not os.path.exists(tne_path):
+            need_fetch = True
+
+        # Fetching image
+        if need_fetch and 'remote_url' in self.layer:
+            if 'transform_tile_number' in self.layer:
+                remote = self.layer['remote_url'] % self.layer["transform_tile_number"](z, x, y)
+            else:
+                remote = self.layer['remote_url'] % (z, x, y)
+            try:
+                # Got response, need to verify content
+                logging.info(f"{tile_id}: FETCHING {remote}")
+                remote_resp = self.opener(remote)
+                remote_bytes = remote_resp.read()
+                if remote_bytes:
+                    try:
+                        im = Image.open(BytesIO(remote_bytes))
+                        im.load()  # Validate image
+                        tile_parsed = True
+                    except (OSError, AttributeError):
+                        # Catching invalid pictures
+                        logging.warning(f"{tile_id}: failed to parse fetched image {remote}")
                 else:
-                    remote = self.layer['remote_url'] % (z, x, y)
+                    logging.warning(f"{tile_id}: TNE - empty tile marked '{tne_path}'")
+                    Path(tne_path, exist_ok=True).touch()
+            except request.HTTPError as err:
+                # Heuristic: TNE or server is defending tiles
+                # HTTP 403 must be inspected manually
+                logging.error('\n'.join([str(k) for k in (err, err.headers, err.read().decode('utf-8'))]))
+                if err.status == HTTPStatus.NOT_FOUND:
+                    logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
+                    Path(tne_path, exist_ok=True).touch()
+            except request.URLError as err:
+                # Nothing we can do: no connection, cannot guess TNE or not
+                logging.error(f"{tile_id} URLError '{err}'")
 
-                try:
-                    # Got response, need to verify content
-                    logging.info(f"{tile_id}: FETCHING {remote}")
-                    remote_resp = self.opener(remote)
-                    remote_bytes = remote_resp.read()
-                    if remote_bytes:
-                        try:
-                            im = Image.open(BytesIO(remote_bytes))
-                            im.load()  # Validate image
-                        except (OSError, AttributeError):
-                            # Catching invalid pictures
-                            logging.warning(f"{tile_id}: failed to parse fetched image {remote}")
-                            return None
-                    else:
-                        logging.warning(f"{tile_id}: TNE - empty tile '{tne_path}'")
+            # Save something in cache
+            # Sometimes server returns file instead of empty HTTP response
+            if 'dead_tile' in self.layer:
+                # Compare bytestring with dead tile hash
+                if len(remote_bytes) == self.layer['dead_tile']['size']:
+                    hasher = hashlib.md5()
+                    hasher.update(remote_bytes)
+                    if hasher.hexdigest() == self.layer['dead_tile']['md5']:
+                        # Tile is recognized as empty
+                        # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
+                        # SASPlanet writes empty files with '.tne' ext
+                        logging.warning(f"{tile_id}: TNE - dead tile '{tne_path}'")
                         Path(tne_path, exist_ok=True).touch()
-                        return None
-                except request.HTTPError as err:
-                    # Heuristic: TNE or server is defending tiles
-                    # HTTP 403 must be inspected manually
-                    logging.error('\n'.join([str(k) for k in (err, err.headers, err.read().decode('utf-8'))]))
-                    if err.status == HTTPStatus.NOT_FOUND:
-                        logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
-                        Path(tne_path, exist_ok=True).touch()
-                    return None
-                except request.URLError as err:
-                    # Nothing we can do: no connection, cannot guess TNE or not
-                    logging.error(f"{tile_id} URLError '{err}'")
-                    return None
+                        tile_dead = True
 
-                # Save something in cache
-                # Sometimes server returns file instead of empty HTTP response
-                if 'dead_tile' in self.layer:
-                    # Compare bytestring with dead tile hash
-                    if len(remote_bytes) == self.layer['dead_tile']['size']:
-                        hasher = hashlib.md5()
-                        hasher.update(remote_bytes)
-                        if hasher.hexdigest() == self.layer['dead_tile']['md5']:
-                            # Tile is recognized as empty
-                            # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
-                            # SASPlanet writes empty files with '.tne' ext
-                            logging.warning(f"{tile_id}: TNE dead tile '{tne_path}'")
-                            Path(tne_path, exist_ok=True).touch()
-                            return None
-
+            logging.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
+            if tile_parsed and not tile_dead:
                 # All well, save tile to cache
                 logging.info(f"{tile_id}: saving {tile_path}")
                 with open(tile_path, "wb") as f:
                     f.write(remote_bytes)
-
+                if os.path.exists(tne_path):
+                    os.remove(tne_path)
                 return im
+
+        # If TTL is ok or fetching failed
+        if os.path.exists(tile_path):
+            try:
+                im = Image.open(tile_path)
+                im.load()
+                logging.info(f"{tile_id}: cache tms {tile_path}")
+                return im
+            except OSError:
+                logging.warning(f"{tile_id}: failed to parse image from cache '{tile_path}'")
+                # os.remove(tile_path)  # Cached tile is broken - remove it
+        logging.warning(f"{tile_id}: unreachable tms tile {tne_path}")
 
     def tms_google_sat(self, z, x, y):
         """Construct template URI with version from JS API.

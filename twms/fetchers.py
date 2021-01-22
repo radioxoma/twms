@@ -199,18 +199,22 @@ class TileFetcher(object):
             # for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
             for fp in (tile_path, tne_path):
                 if os.path.exists(fp):
-                    if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
+                    tile_lifespan = time.time() - os.stat(fp).st_mtime
+                    tile_lifespan_h = tile_lifespan / 60 / 60
+                    logging.debug(f"{tile_id}: lifespan {tile_lifespan_h:.0f} h {fp}")
+                    if tile_lifespan > self.layer["cache_ttl"]:
                         logging.info(f"{tile_id}: TTL reached for {fp}")
+                        # Do not delete, only replace if tile exists!
                         # os.remove(fp)
 
         if not os.path.exists(tne_path):
             # Option one: look for the tile in the cache
-            # This branch is unreachable, due to cache hit in 'TWMSMain.handler()'
+            # This branch for layers with 'cache_ttl'
             if os.path.exists(tile_path):
                 try:
                     im = Image.open(tile_path)
                     im.load()
-                    logging.debug(f"{tile_id}: loading {tile_path}")
+                    logging.info(f"{tile_id}: cache tms {tile_path}")
                     return im
                 except OSError:
                     logging.warning(f"{tile_id}: failed to parse image from cache '{tile_path}'")

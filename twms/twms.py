@@ -123,18 +123,18 @@ class TWMSMain(object):
             if all((
                     len(layer) == 1,
                     layer[0] in config.layers,
+                    'cache_ttl' not in config.layers[layer[0]],  # Need to check time in fetcher
                     srs == config.layers[layer[0]]['proj'],
                     width == height == 256,
                     not force,
                     not correctify.has_corrections(config.layers[layer[0]]))):
                 tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/{:.0f}/{:.0f}/{:.0f}{}".format(
                     z, x, y, config.layers[layer[0]]['ext'])
-                logging.debug(f"z{z}/x{x}/y{y} searching in cache {tile_path}")
+                logging.debug(f"{layer[0]} z{z}/x{x}/y{y} query cache {tile_path}")
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404
                     logging.info(f"{layer[0]} z{z}/x{x}/y{y} cache hit {tile_path}")
                     with open(tile_path, 'rb') as f:
-                        logging.debug(f"handler: load '{tile_path}'")
                         # Note: image file validation performed only in TileFetcher
                         return HTTPStatus.OK, content_type, f.read()
 
@@ -187,12 +187,12 @@ class TWMSMain(object):
                         for tg in range(-delta, delta):
                             for tb in range(-delta, delta):
                                 if (
-                                        (ec[0] + tr) >= 0
-                                        and (ec[0] + tr) < 256
-                                        and (ec[1] + tr) >= 0
-                                        and (ec[1] + tr) < 256
-                                        and (ec[2] + tr) >= 0
-                                        and (ec[2] + tr) < 256
+                                    (ec[0] + tr) >= 0
+                                    and (ec[0] + tr) < 256
+                                    and (ec[1] + tr) >= 0
+                                    and (ec[1] + tr) < 256
+                                    and (ec[2] + tr) >= 0
+                                    and (ec[2] + tr) < 256
                                 ):
                                     sec.add((ec[0] + tr, ec[1] + tg, ec[2] + tb, ec[3]))
                 i2l = im2.load()
@@ -205,7 +205,7 @@ class TWMSMain(object):
                 im2 = im2.resize(result_img.size, Image.ANTIALIAS)
             im2 = Image.composite(im2, result_img, im2.split()[3])  # imgs/(imgs+1.))
 
-            if "noblend" in force:
+            if 'noblend' in force:
                 result_img = im2
             else:
                 result_img = Image.blend(im2, result_img, 0.5)

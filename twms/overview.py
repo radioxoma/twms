@@ -36,10 +36,10 @@ def html():
         # Links for JOSM control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
         # 127.0.0.1:8111 stands for local JOSM with remote control enabled
         # "&valid - georeference = true" to hide annoying message
-        tms_url = f"{service_url}{i}/{{z}}/{{x}}/{{y}}.{layers[i].get('ext', 'jpg')}"
+        tms_url = f"{service_url}{i}/{{z}}/{{x}}/{{y}}{layers[i].get('ext', default_ext)}"
         resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layers[i]['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}\">{tms_url}</a><br />"
         if layers[i]['proj'] == "EPSG:3857":
-            file_uri = f"file://{tiles_cache}{layers[i]['prefix']}/{{z}}/{{y}}/{{x}}.{layers[i].get('ext', 'jpg')}"
+            file_uri = f"file://{tiles_cache}{layers[i]['prefix']}/{{z}}/{{x}}/{{y}}{layers[i].get('ext', default_ext)}"
             resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layers[i]['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={file_uri}\">{file_uri}</a>"
         resp += "</div>"
 

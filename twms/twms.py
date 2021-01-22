@@ -127,12 +127,15 @@ class TWMSMain(object):
                     width == height == 256,
                     not force,
                     not correctify.has_corrections(config.layers[layer[0]]))):
-                tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/{:.0f}/{:.0f}/{:.0f}.{}".format(
+                tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/{:.0f}/{:.0f}/{:.0f}{}".format(
                     z, x, y, config.layers[layer[0]]['ext'])
+                logging.debug(f"z{z}/x{x}/y{y} searching in cache {tile_path}")
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404
+                    logging.info(f"{layer[0]} z{z}/x{x}/y{y} cache hit {tile_path}")
                     with open(tile_path, 'rb') as f:
                         logging.debug(f"handler: load '{tile_path}'")
+                        # Note: image file validation performed only in TileFetcher
                         return HTTPStatus.OK, content_type, f.read()
 
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
@@ -354,9 +357,9 @@ class TWMSMain(object):
             if layer["scalable"] and (z <= layer.get("max_zoom", config.default_max_zoom)) and trybetter:
                 logging.info(f"tile_image: scaling tile z{z}/x{x}/y{y}")
                 # # Load upscaled images
-                # if os.path.exists(local + "ups." + ext):
+                # if os.path.exists(local + "ups" + ext):
                 #     try:
-                #         im = Image.open(local + "ups." + ext)
+                #         im = Image.open(local + "ups" + ext)
                 #         return im
                 #     except OSError:
                 #         pass
@@ -378,7 +381,7 @@ class TWMSMain(object):
                                 im = im.resize((256, 256), Image.ANTIALIAS)
                                 # if layer.get("cached", True):
                                 #     try:
-                                #         im.save(local + "ups." + ext)
+                                #         im.save(local + "ups" + ext)
                                 #     except OSError:
                                 #         pass
                                 return im

@@ -172,11 +172,15 @@ class TileFetcher(object):
     def tms(self, z, x, y):
         """Fetch tile by coordinates, r/w cache.
 
-        TNE - tile not exist.
+        TNE - tile not exist (got HTTP 404 or default tile for empty zones aka "dead tile")
 
         Cache is structured according to tile coordinates.
         Actual tile image projection specified in config file.
-        https://wiki.openstreetmap.org/wiki/MBTiles
+        
+        MBTiles
+            https://wiki.openstreetmap.org/wiki/MBTiles
+            https://github.com/mapbox/mbtiles-spec
+            https://docs.mapbox.com/help/glossary/mbtiles/
 
         :rtype: :py:class:`~PIL.Image.Image`. Otherwise None, if
             no image can be served from cache or from remote.
@@ -238,9 +242,8 @@ class TileFetcher(object):
                         tile_parsed = True
                     except (OSError, AttributeError):
                         # Catching invalid pictures
-                        logging.error(f"{tile_id}: TNE - failed to parse fetched image {tne_path}")
-                        logging.debug(f"{tile_id}: Not image Parsing error {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}")
-                        Path(tne_path, exist_ok=True).touch()
+                        logging.error(f"{tile_id}: failed to parse response as image {tne_path}")
+                        logging.debug(f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}")
                         # try:
                         #     logging.debug(remote_bytes.decode('utf-8'))
                         # except UnicodeDecodeError:
@@ -249,17 +252,13 @@ class TileFetcher(object):
                         #     with open('err.htm', mode='wb') as f:
                         #         f.write(remote_bytes)
                 else:
-                    logging.warning(f"{tile_id}: TNE - empty tile marked '{tne_path}'")
-                    Path(tne_path, exist_ok=True).touch()
+                    logging.warning(f"{tile_id}: empty response")
             except request.HTTPError as err:
                 # Heuristic: TNE or server is defending tiles
                 # HTTP 403 must be inspected manually
                 logging.error('\n'.join([str(k) for k in (err, err.headers, err.read().decode('utf-8'))]))
                 if err.status == HTTPStatus.NOT_FOUND:
                     logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
-                    Path(tne_path, exist_ok=True).touch()
-                if err.status in (502, 503):
-                    logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")  # For dzz.by
                     Path(tne_path, exist_ok=True).touch()
             except request.URLError as err:
                 # Nothing we can do: no connection, cannot guess TNE or not
@@ -277,8 +276,8 @@ class TileFetcher(object):
                         # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
                         # SASPlanet writes empty files with '.tne' ext
                         logging.warning(f"{tile_id}: TNE - dead tile '{tne_path}'")
-                        Path(tne_path, exist_ok=True).touch()
                         tile_dead = True
+                        Path(tne_path, exist_ok=True).touch()
 
             logging.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
             if tile_parsed and not tile_dead:

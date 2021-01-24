@@ -33,25 +33,27 @@ from twms import overview
 
 class TWMSMain(object):
     """Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
+
+    WMS http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
+    TMS
+        https://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
+        https://gis-lab.info/docs/tms-specification-ru.html
+    WMTS
+        Web Map Tile Service Implementation Standard 2010-04-06 1.0.0
+        http://www.opengeospatial.org/standards/wmts
+        https://sampleserver6.arcgisonline.com/arcgis/rest/services/WorldTimeZones/MapServer/WMTS
     """
     def __init__(self):
         super(TWMSMain, self).__init__()
-        self.cached_objs = {}  # a dict. (layer, z, x, y): PIL image
+        self.cached_objs = dict()  # a dict. (layer, z, x, y): PIL image
         self.cached_hist_list = list()
         self.fetchers_pool = dict()  # self.fetchers_pool[layer['prefix']]
 
-    def handler(self, data):
+    def wms_handler(self, data):
         """Do main TWMS work. Some WMS implementation.
 
         data - dictionary of params.
         returns (HTTP_code, content_type, resp)
-
-        WMS http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
-        TMS https://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
-        WMTS
-            Web Map Tile Service Implementation Standard 2010-04-06 1.0.0
-            http://www.opengeospatial.org/standards/wmts
-            https://sampleserver6.arcgisonline.com/arcgis/rest/services/WorldTimeZones/MapServer/WMTS
 
         http://127.0.0.1:8080/?request=GetCapabilities&
         http://127.0.0.1:8080/?request=GetCapabilities&version=1.0.0
@@ -72,9 +74,9 @@ class TWMSMain(object):
             content_type, resp = capabilities.get(version, ref)
             return HTTPStatus.OK, content_type, resp
 
-        layer = data.get("layers", config.default_layers).split(",")
-        if "layers" in data and not layer[0]:
-            layer = ["transparent"]
+        layer = data.get('layers', config.default_layers).split(",")
+        if 'layers' in data and not layer[0]:
+            layer = ['transparent']
 
         if req_type == "GetCorrections":
             points = data.get('points', '').split('=')

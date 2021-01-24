@@ -47,7 +47,7 @@ class GetHandler(BaseHTTPRequestHandler):
         else:
             data = dict(urllib.parse.parse_qsl(self.path[2:]))  # Strip /?
 
-        resp, content_type, content = self.TWMS.handler(data)
+        resp, content_type, content = self.TWMS.wms_handler(data)
         self.send_response(200)
         self.send_header('Content-Type', content_type)
         self.end_headers()

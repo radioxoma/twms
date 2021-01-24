@@ -1,8 +1,8 @@
 import os
 import sys
+import time
 import imp
 from io import BytesIO
-import datetime
 import mimetypes
 from http import HTTPStatus
 import logging
@@ -61,7 +61,7 @@ class TWMSMain(object):
         # WMS request keys must be case insensitive, values must not
         data = {k.lower(): v for k, v in data.items()}
 
-        start_time = datetime.datetime.now()
+        start_time = time.time()
         srs = data.get("srs", "EPSG:4326")
         wkt = data.get("wkt", "")
         # color = data.get("color", data.get("colour", "")).split(",")
@@ -233,7 +233,8 @@ class TWMSMain(object):
         return HTTPStatus.OK, content_type, img_buf.getvalue()
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
-        """Get tile for a given bbox."""
+        """Get tile by a given bbox."""
+
         orig_bbox = bbox
         ## Making 4-corner maximal bbox
         bbox_p = projections.from4326(bbox, request_proj)
@@ -324,8 +325,10 @@ class TWMSMain(object):
             out = out.resize((W, H), Image.ANTIALIAS)
         return out
 
-    def tile_image(self, layer, z, x, y, start_time, again=False, trybetter=True, real=False):
-        """Returns asked tile (from cache, fetcher, or recursively rescaled).
+    def tile_image(self, layer, z, x, y, start_time, trybetter=True, real=False):
+        """Get tile by given coordinates.
+
+        Returns asked tile (from cache, fetcher, or recursively rescaled).
 
         again - is this a second pass on this tile?
         trybetter - should we try to combine this tile from better ones?
@@ -354,62 +357,57 @@ class TWMSMain(object):
                 return self.cached_objs[(layer["prefix"], z, x, y)]
 
         # Working with cache
-        if layer.get("cached", True):
+        if layer["scalable"] and (z < layer.get("max_zoom", config.default_max_zoom)) and trybetter:
             # Second, try to glue image of better ones
-            if layer["scalable"] and (z <= layer.get("max_zoom", config.default_max_zoom)) and trybetter:
-                logging.info(f"tile_image: scaling tile z{z}/x{x}/y{y}")
-                # # Load upscaled images
-                # if os.path.exists(local + "ups" + ext):
-                #     try:
-                #         im = Image.open(local + "ups" + ext)
-                #         return im
-                #     except OSError:
-                #         pass
-                ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
-                ec = (ec[0], ec[1], ec[2], 0)
-                im = Image.new("RGBA", (512, 512), ec)
-                im1 = self.tile_image(layer, z + 1, x * 2, y * 2, start_time)
-                if im1:
-                    im2 = self.tile_image(layer, z + 1, x * 2 + 1, y * 2, start_time)
-                    if im2:
-                        im3 = self.tile_image(layer, z + 1, x * 2, y * 2 + 1, start_time)
-                        if im3:
-                            im4 = self.tile_image(layer, z + 1, x * 2 + 1, y * 2 + 1, start_time)
-                            if im4:
-                                im.paste(im1, (0, 0))
-                                im.paste(im2, (256, 0))
-                                im.paste(im3, (0, 256))
-                                im.paste(im4, (256, 256))
-                                im = im.resize((256, 256), Image.ANTIALIAS)
-                                # if layer.get("cached", True):
-                                #     try:
-                                #         im.save(local + "ups" + ext)
-                                #     except OSError:
-                                #         pass
-                                return im
-            if not again:
-                # What if again?
-                if 'fetch' in layer:
-                    seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
-                    if (config.deadline > seconds_spent) or (z < 4):
-                        logging.debug(f"tile_image: invoke fetcher for {layer['prefix']}/z{z}/x{x}/y{y}")
-                        return self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching img from outside
-            if real and (z > 0):
-                im = self.tile_image(layer, z, int(x // 2), int(y // 2), start_time, again=False, trybetter=False, real=True)
-                if im:
-                    im = im.crop(
-                        (
-                            128 * (x % 2),
-                            128 * (y % 2),
-                            128 * (x % 2) + 128,
-                            128 * (y % 2) + 128,
-                        )
+            logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
+            # # Load upscaled images
+            # if os.path.exists(local + "ups" + ext):
+            #     try:
+            #         im = Image.open(local + "ups" + ext)
+            #         return im
+            #     except OSError:
+            #         pass
+            ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
+            ec = (ec[0], ec[1], ec[2], 0)
+            im = Image.new("RGBA", (512, 512), ec)
+            im1 = self.tile_image(layer, z + 1, x * 2, y * 2, start_time)
+            if im1:
+                im2 = self.tile_image(layer, z + 1, x * 2 + 1, y * 2, start_time)
+                if im2:
+                    im3 = self.tile_image(layer, z + 1, x * 2, y * 2 + 1, start_time)
+                    if im3:
+                        im4 = self.tile_image(layer, z + 1, x * 2 + 1, y * 2 + 1, start_time)
+                        if im4:
+                            im.paste(im1, (0, 0))
+                            im.paste(im2, (256, 0))
+                            im.paste(im3, (0, 256))
+                            im.paste(im4, (256, 256))
+                            im = im.resize((256, 256), Image.ANTIALIAS)
+                            # if layer.get("cached", True):
+                            #     try:
+                            #         im.save(local + "ups" + ext)
+                            #     except OSError:
+                            #         pass
+                            return im
+
+        if 'fetch' in layer:
+            seconds_spent = time.time() - start_time
+            if (config.deadline > seconds_spent) or (z < 4):
+                # Try fetching img from outside
+                logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} creating dl thread")
+                return self.fetchers_pool[layer['prefix']].fetch(z, x, y)
+        if real and (z > 0):
+            # Downscale?
+            logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} upscaling from top tile")
+            im = self.tile_image(layer, z - 1, int(x // 2), int(y // 2), start_time, trybetter=False, real=True)
+            if im:
+                im = im.crop(
+                    (
+                        128 * (x % 2),
+                        128 * (y % 2),
+                        128 * (x % 2) + 128,
+                        128 * (y % 2) + 128,
                     )
-                    im = im.resize((256, 256), Image.BILINEAR)
-                    return im
-        else:
-            if 'fetch' in layer:
-                logging.info("tile_image: fetching an uncached layer")
-                seconds_spent = (datetime.datetime.now() - start_time).total_seconds()
-                if (config.deadline > seconds_spent) or (z < 4):
-                    return self.fetchers_pool[layer['prefix']].fetch(z, x, y)  # Try fetching from outside
+                )
+                im = im.resize((256, 256), Image.BILINEAR)
+                return im

@@ -185,6 +185,7 @@ class TileFetcher(object):
         tile_parsed = False
         tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
+        remote = ''
 
         # TODO: Conform JOSM tms links zoom restrictions
         if 'max_zoom' in self.layer:
@@ -204,6 +205,8 @@ class TileFetcher(object):
             if tne_lifespan > config.cache_tne_ttl:
                 logging.info(f"{tile_id}: TTL tne reached {tne_path}")
                 need_fetch = True
+            else:
+                logging.info(f"{tile_id}: tile cached as TNE {tne_path}")
         if 'cache_ttl' in self.layer:
             # for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
             if os.path.exists(tile_path):
@@ -235,7 +238,16 @@ class TileFetcher(object):
                         tile_parsed = True
                     except (OSError, AttributeError):
                         # Catching invalid pictures
-                        logging.warning(f"{tile_id}: failed to parse fetched image {remote}")
+                        logging.error(f"{tile_id}: TNE - failed to parse fetched image {tne_path}")
+                        logging.debug(f"{tile_id}: Not image Parsing error {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}")
+                        Path(tne_path, exist_ok=True).touch()
+                        # try:
+                        #     logging.debug(remote_bytes.decode('utf-8'))
+                        # except UnicodeDecodeError:
+                        #     logging.debug(remote_bytes)
+                        # if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+                        #     with open('err.htm', mode='wb') as f:
+                        #         f.write(remote_bytes)
                 else:
                     logging.warning(f"{tile_id}: TNE - empty tile marked '{tne_path}'")
                     Path(tne_path, exist_ok=True).touch()
@@ -245,6 +257,9 @@ class TileFetcher(object):
                 logging.error('\n'.join([str(k) for k in (err, err.headers, err.read().decode('utf-8'))]))
                 if err.status == HTTPStatus.NOT_FOUND:
                     logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
+                    Path(tne_path, exist_ok=True).touch()
+                if err.status in (502, 503):
+                    logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")  # For dzz.by
                     Path(tne_path, exist_ok=True).touch()
             except request.URLError as err:
                 # Nothing we can do: no connection, cannot guess TNE or not
@@ -285,7 +300,8 @@ class TileFetcher(object):
             except OSError:
                 logging.warning(f"{tile_id}: failed to parse image from cache '{tile_path}'")
                 # os.remove(tile_path)  # Cached tile is broken - remove it
-        logging.warning(f"{tile_id}: unreachable tms tile {tne_path}")
+
+        logging.warning(f"{tile_id}: unreachable tile {remote}")
 
     def tms_google_sat(self, z, x, y):
         """Construct template URI with version from JS API.

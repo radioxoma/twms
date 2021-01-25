@@ -365,3 +365,13 @@ def tile_to_quadkey(z, x, y):
             digit += 2
         quadkey += chr(digit)
     return quadkey
+
+
+def tile_slippy_to_tms(z, x, y):
+    """OSGeo Tile Map Service Specification style Y coordinate.
+
+    Same meaning as '{-y}'.
+
+    https://josm.openstreetmap.de/wiki/Maps
+    """
+    return z, x, 2 ** z - 1 - y

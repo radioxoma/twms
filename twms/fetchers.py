@@ -11,7 +11,7 @@ import urllib.request as request
 import http.cookiejar as http_cookiejar
 from http import HTTPStatus
 import ssl
-ssl._create_default_https_context = ssl._create_unverified_context  # Disable for gismap.by
+# ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
 
 from PIL import Image
 

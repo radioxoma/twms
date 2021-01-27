@@ -26,29 +26,29 @@ def html():
     """
     resp += f"</head><body><h2>{wms_name}</h2>"
 
-    for i in layers:
-        bbox = layers[i].get('data_bounding_box', projections.projs[layers[i]['proj']]['bounds'])
-        resp += "<div class=\"entry\"><img src=\"?layers=" + i
+    for layer_id, layer in layers.items():
+        bbox = layer.get('data_bounding_box', projections.projs[layer['proj']]['bounds'])
+        resp += "<div class=\"entry\"><img src=\"?layers=" + layer_id
         resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" />" % bbox
 
-        if 'provider_url' in layers[i]:
-            resp += f"<h3><a referrerpolicy=\"no-referrer\" title=\"Visit tile provider website\" href=\"{layers[i]['provider_url']}\">{layers[i]['name']}</a></h3>"
+        if 'provider_url' in layer:
+            resp += f"<h3><a referrerpolicy=\"no-referrer\" title=\"Visit tile provider website\" href=\"{layer['provider_url']}\">{layer['name']}</a></h3>"
         else:
-            resp += "<h3>"+ layers[i]['name'] + "</h3>"
+            resp += "<h3>"+ layer['name'] + "</h3>"
 
         resp += f"<b>Bounding box:</b> {bbox}"
         resp += f" (show on <a href=\"https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes\">OSM</a>)<br />" % bbox
-        resp += f"<b>Projection:</b> {layers[i]['proj']}<br />"
-        resp += f"<b>WMS half-link:</b> {service_url}?layers={i}&amp;<br />"
+        resp += f"<b>Projection:</b> {layer['proj']}<br />"
+        resp += f"<b>WMS half-link:</b> {service_url}?layers={layer_id}&amp;<br />"
 
         # Links for JOSM control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
         # 127.0.0.1:8111 stands for local JOSM with remote control enabled
         # "&valid - georeference = true" to hide annoying message
-        tms_url = get_tms_url(layers[i])
-        resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layers[i]['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}\">{tms_url}</a><br />"
-        if layers[i]['proj'] == "EPSG:3857":
-            file_url = get_fs_url(layers[i])
-            resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layers[i]['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={file_url}\">{file_url}</a>"
+        tms_url = get_tms_url(layer)
+        resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}\">{tms_url}</a><br />"
+        if layer['proj'] == "EPSG:3857":
+            file_url = get_fs_url(layer)
+            resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={file_url}\">{file_url}</a>"
         resp += "</div>"
 
     resp += "</body></html>"

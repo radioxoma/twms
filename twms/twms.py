@@ -128,7 +128,7 @@ class TWMSMain(object):
                 logging.debug(f"{layer[0]} z{z}/x{x}/y{y} query cache {tile_path}")
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404
-                    logging.info(f"{layer[0]} z{z}/x{x}/y{y} cache hit {tile_path}")
+                    logging.info(f"{layer[0]} z{z}/x{x}/y{y} wms_handler cache hit {tile_path}")
                     with open(tile_path, 'rb') as f:
                         # Note: image file validation performed only in TileFetcher
                         return HTTPStatus.OK, content_type, f.read()
@@ -209,36 +209,31 @@ class TWMSMain(object):
         if flip_h:
             result_img = ImageOps.flip(result_img)
 
-        img_buf = BytesIO()
-        if content_type == "image/jpeg":
-            result_img = result_img.convert("RGB")
-            try:
-                result_img.save(img_buf, 'JPEG', quality=config.output_quality, progressive=config.output_progressive)
-            except OSError:
-                result_img.save(img_buf, 'JPEG', quality=config.output_quality)
-        elif content_type == "image/png":
-            result_img.save(img_buf, 'PNG', progressive=config.output_progressive, optimize=config.output_optimize)
-        elif content_type == "image/gif":
-            result_img.save(img_buf, 'GIF', quality=config.output_quality, progressive=config.output_progressive)
-        else:  # E.g. GIF
-            result_img = result_img.convert("RGB")
-            result_img.save(img_buf, content_type.split('/')[1], quality=config.output_quality, progressive=config.output_progressive)
-        return HTTPStatus.OK, content_type, img_buf.getvalue()
+        return HTTPStatus.OK, content_type, im_convert(result_img, content_type)
 
-    def tiles_handler(self, layer, z, x, y, content_type):
+
+    def tiles_handler(self, layer_id, z, x, y, content_type):
         """Partial slippy map implementation. Serve tiles by index, reproject, if required.
 
         Experimental handler.
 
         http://localhost:8080/tiles/vesat/0/0/0.jpg
+
+        Return 404 instead of blank tile.
         """
-        # self.tile_image()
-        # return resp, content_type, content
-        print(layer, z, x, y, content_type)
-        raise NotImplementedError
+        z, x, y = int(z), int(x), int(y)
+        im = self.tile_image(config.layers[layer_id], z, x, y, time.time(), real=True)
+        logging.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
+        if im:
+            return HTTPStatus.OK, content_type, im_convert(im, content_type)
+        else:
+            return HTTPStatus.NOT_FOUND, 'text/plain', "404 Not Found"
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
-        """Get tile by a given bbox."""
+        """Get tile by a given bbox.
+
+        TODO Move RAM cache to `tile_image()`
+        """
 
         orig_bbox = bbox
         ## Making 4-corner maximal bbox
@@ -357,8 +352,9 @@ class TWMSMain(object):
             layer.get("data_bounding_box", config.default_bbox),
             fully=False):
             return None
-        if "prefix" in layer:
-            if (layer["prefix"], z, x, y) in self.cached_objs:
+        if 'prefix' in layer:
+            if (layer['prefix'], z, x, y) in self.cached_objs:
+                logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} RAM cache hit")
                 return self.cached_objs[(layer["prefix"], z, x, y)]
 
         # Working with cache
@@ -416,3 +412,27 @@ class TWMSMain(object):
                 )
                 im = im.resize((256, 256), Image.BILINEAR)
                 return im
+
+
+def im_convert(im, content_type):
+    """Convert Pillow image to requested Content-Type.
+
+    Image.MIME[img.format] 
+    """
+    img_buf = BytesIO()
+    if content_type == "image/jpeg":
+        im = im.convert("RGB")
+        try:
+            im.save(img_buf, 'JPEG', quality=config.output_quality, progressive=config.output_progressive)
+        except OSError:
+            im.save(img_buf, 'JPEG', quality=config.output_quality)
+    elif content_type == "image/png":
+        im.save(img_buf, 'PNG', progressive=config.output_progressive, optimize=config.output_optimize)
+    elif content_type == "image/gif":
+        im.save(img_buf, 'GIF', quality=config.output_quality, progressive=config.output_progressive)
+    else:
+        im = im.convert("RGB")
+        im.save(img_buf, content_type.split('/')[1], quality=config.output_quality, progressive=config.output_progressive)
+    
+    # print(Image.MIME[im.format])
+    return img_buf.getvalue()

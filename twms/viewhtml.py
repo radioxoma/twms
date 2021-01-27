@@ -3,7 +3,14 @@ from twms import projections
 
 
 def get_tms_url(layer):
-    return f"{service_url}{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
+    # Extension is useless, as we should serve tiles as is
+    return f"{service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
+
+
+def get_wms_url(layer):
+    """TWMS has somewhat like WMS-C emulation for getting tiles directly.
+    """
+    return f"{service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
 
 
 def get_fs_url(layer):
@@ -28,7 +35,7 @@ def html():
 
     for layer_id, layer in layers.items():
         bbox = layer.get('data_bounding_box', projections.projs[layer['proj']]['bounds'])
-        resp += "<div class=\"entry\"><img src=\"?layers=" + layer_id
+        resp += "<div class=\"entry\"><img src=\"wms?layers=" + layer_id
         resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" />" % bbox
 
         if 'provider_url' in layer:
@@ -44,7 +51,7 @@ def html():
         # Links for JOSM control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
         # 127.0.0.1:8111 stands for local JOSM with remote control enabled
         # "&valid - georeference = true" to hide annoying message
-        tms_url = get_tms_url(layer)
+        tms_url = get_wms_url(layer)
         resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}\">{tms_url}</a><br />"
         if layer['proj'] == "EPSG:3857":
             file_url = get_fs_url(layer)

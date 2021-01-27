@@ -10,13 +10,13 @@ from PIL import Image, ImageOps, ImageColor
 # from PIL import ImageFile
 # ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+from twms import config
 from twms import correctify
-from twms import viewwms
 from twms import fetchers
 from twms import bbox as bbox_utils
 from twms import projections
 from twms import viewhtml
-from twms import config
+from twms import viewwms
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
@@ -34,6 +34,7 @@ class TWMSMain(object):
         Web Map Tile Service Implementation Standard 2010-04-06 1.0.0
         http://www.opengeospatial.org/standards/wmts
         https://sampleserver6.arcgisonline.com/arcgis/rest/services/WorldTimeZones/MapServer/WMTS
+        Usually link to WMTSCapabilities.xml
     """
     def __init__(self):
         super(TWMSMain, self).__init__()
@@ -223,6 +224,18 @@ class TWMSMain(object):
             result_img = result_img.convert("RGB")
             result_img.save(img_buf, content_type.split('/')[1], quality=config.output_quality, progressive=config.output_progressive)
         return HTTPStatus.OK, content_type, img_buf.getvalue()
+
+    def tiles_handler(self, layer, z, x, y, content_type):
+        """Partial slippy map implementation. Serve tiles by index, reproject, if required.
+
+        Experimental handler.
+
+        http://localhost:8080/tiles/vesat/0/0/0.jpg
+        """
+        # self.tile_image()
+        # return resp, content_type, content
+        print(layer, z, x, y, content_type)
+        raise NotImplementedError
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
         """Get tile by a given bbox."""

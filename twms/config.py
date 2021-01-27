@@ -276,7 +276,7 @@ layers = {
     # },
 
     "georesursDDZ":  {
-        "name": "dzz.by Aerophotography (Belarus)",
+        "name": "dzz.by orthophoto (Belarus)",
         "provider_url": "https://gismap.by/next/",
         "prefix": "georesursDDZ",
         "proj": "EPSG:3857",

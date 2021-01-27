@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import imp
 from io import BytesIO
 import mimetypes
 from http import HTTPStatus
@@ -11,24 +10,17 @@ from PIL import Image, ImageOps, ImageColor
 # from PIL import ImageFile
 # ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-sys.path.append(os.path.join(os.path.dirname(__file__)))
-install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
-
-config_path = "twms/twms.conf"
-if os.path.exists(config_path):
-    config_path = os.path.join(install_path, config_path)
-    config = imp.load_source("config", os.path.realpath(config_path))
-else:
-    print("No config in '{}'".format(config_path))
-    quit()
-
-
 from twms import correctify
-from twms import capabilities
+from twms import viewwms
 from twms import fetchers
 from twms import bbox as bbox_utils
 from twms import projections
-from twms import overview
+from twms import viewhtml
+from twms import config
+
+
+sys.path.append(os.path.join(os.path.dirname(__file__)))
+install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
 
 
 class TWMSMain(object):
@@ -71,7 +63,7 @@ class TWMSMain(object):
         ref = data.get("ref", config.service_url)
 
         if req_type == "GetCapabilities":
-            content_type, resp = capabilities.get(version, ref)
+            content_type, resp = viewwms.get(version, ref)
             return HTTPStatus.OK, content_type, resp
 
         layer = data.get('layers', config.default_layers).split(",")
@@ -96,7 +88,7 @@ class TWMSMain(object):
         force = tuple(force)
 
         if layer == [""]:
-            return HTTPStatus.OK, 'text/html', overview.html()
+            return HTTPStatus.OK, 'text/html', viewhtml.html()
 
         # Serving imagery
         content_type = 'image/jpeg'  # Default content type of image to serve

@@ -17,7 +17,8 @@ logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 
 from twms import twms
-import config
+from twms import config
+
 
 tile_hyperlink = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 # main_hyperlink = re.compile(r"/(.*)")
@@ -28,6 +29,10 @@ class GetHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Parse GET tile request.
+
+        tiles/{z}/{x}/{y}{ext}
+        wms/tile emulation
+        any overview
         """
         tileh = re.fullmatch(tile_hyperlink, self.path)
         if tileh:

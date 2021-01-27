@@ -10,13 +10,13 @@ import logging
 import urllib.request as request
 import http.cookiejar as http_cookiejar
 from http import HTTPStatus
-import ssl
+# import ssl
 # ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
 
 from PIL import Image
 
 from twms import projections
-import config
+from twms import config
 
 
 DEFAULT_HEADERS = {

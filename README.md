@@ -24,7 +24,7 @@ Install dependencies and clone repo:
     $ git clone https://github.com/radioxoma/twms.git
     $ cd twms
 
-Edit `twms/twms.conf` and set `tiles_cache` path to your `SAS.Planet/cache_ma/`. 
+Edit `twms/config.py` and set `tiles_cache` path to your `SAS.Planet/cache_ma/`.
 
 Run TWMS and check [http://127.0.0.1:8080](http://127.0.0.1:8080) page in browser for discovered imagery and links. This fork intended to be run locally, as python webserver from standard library not considered secure.
 

@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 import os
-import fetchers
+from twms import fetchers
 
 # SAS Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left
+# See
+# https://en.wikipedia.org/wiki/Tiled_web_map
+# https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
 install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
@@ -80,7 +83,7 @@ layers = {
         "proj": "EPSG:3395",
         "ext": ".jpg",
         "scalable": False,
-            "fetch": 'tms',
+        "fetch": 'tms',
             "remote_url": "https://sat01.maps.yandex.net/tiles?l=sat&x=%s&y=%s&z=%s",
             "transform_tile_number": lambda z, x, y: (x, y, z),
     },
@@ -92,7 +95,7 @@ layers = {
         "proj": "EPSG:3395",
         "ext": ".png",
         "scalable": False,
-            "fetch": 'tms',
+        "fetch": 'tms',
             "remote_url": "https://vec01.maps.yandex.net/tiles?l=map&x=%s&y=%s&z=%s",
             "transform_tile_number": lambda z, x, y: (x, y, z),
             "cache_ttl": 60 * 60 * 24 * 30,  # Month
@@ -105,7 +108,7 @@ layers = {
         "proj": "EPSG:3395",
         "ext": ".png",
         "scalable": False,
-            "fetch": 'tms',
+        "fetch": 'tms',
             "remote_url": "https://vec01.maps.yandex.net/tiles?l=skl&lang=ru_RU&x=%s&y=%s&z=%s",
             "transform_tile_number": lambda z, x, y: (x, y, z),
             "cache_ttl": 60 * 60 * 24 * 30,  # Month
@@ -119,8 +122,8 @@ layers = {
         "proj": "EPSG:3857",
         "ext": ".jpg",
         "scalable": False,                  # could zN tile be constructed of four z(N+1) tiles
-            "fetch": 'tms_google_sat',
-            "transform_tile_number": lambda z, x, y: (x, y, z),
+        "fetch": 'tms_google_sat',
+        "transform_tile_number": lambda z, x, y: (x, y, z),
     },
 
     # First available top left tile https://ecn.t0.tiles.virtualearth.net/tiles/a0.jpeg?g=0
@@ -132,7 +135,7 @@ layers = {
         "proj": "EPSG:3857",
         "ext": ".jpg",
         "scalable": False,
-            "fetch": 'tms',
+        "fetch": 'tms',
             "remote_url": "https://ecn.t0.tiles.virtualearth.net/tiles/a%s.jpeg?g=0",
             "transform_tile_number": fetchers.tile_to_quadkey,
             "min_zoom": 1,  # doesn't serve z0/x0/y0 (400 Bad Request for "https://ecn.t0.tiles.virtualearth.net/tiles/a.jpeg?g=0")
@@ -148,7 +151,7 @@ layers = {
         "proj": "EPSG:3857",               # Projection
         "ext": ".png",                      # tile images extension
         "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
-            "fetch": 'tms',        # 'tms' or 'wms' imagery source
+        "fetch": 'tms',        # 'tms' or 'wms' imagery source
             "remote_url": "https://tile.openstreetmap.org/%s/%s/%s.png",  # URL template with placeholders
             "headers": {"Referer": "https://www.openstreetmap.org/"},
             # "transform_tile_number": lambda z, x, y: (z, x, y),  # Function to fill URL placeholders
@@ -165,7 +168,7 @@ layers = {
         "proj": "EPSG:3857",
         "ext": ".png",
         "scalable": False,
-            "fetch": 'tms',
+        "fetch": 'tms',
             "remote_url": "https://gps-tile.openstreetmap.org/lines/%s/%s/%s.png",
             "headers": {"Referer": "https://www.openstreetmap.org/"},
             "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
@@ -243,19 +246,6 @@ layers = {
     #      # Could add "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/20867/38349"
     # },
 
-    "maxar_prem": {
-         "name": "Maxar Premuim",
-         "provider_url": "https://www.maxar.com/",
-         "prefix": "maxar_prem",
-         "ext": ".jpg",
-         "proj": "EPSG:3857",
-         "scalable": False,
-            "fetch": 'tms',
-            "transform_tile_number": fetchers.tile_slippy_to_tms,
-            # API key from JOSM
-            "remote_url": "https://services.digitalglobe.com/earthservice/tmsaccess/tms/1.0.0/DigitalGlobe:ImageryTileService@EPSG:3857@jpg/%s/%s/%s.jpg?connectId=fa014fbc-6cbe-4b6f-b0ca-fbfb8d1e5b7d&foo=premium",
-    },
-
     # "irs":  {
     #     "name": "Kosmosnimki.ru IRS Satellite",
     #     "prefix": "irs",
@@ -287,22 +277,16 @@ layers = {
 
     "georesursDDZ":  {
         "name": "dzz.by Aerophotography (Belarus)",
-        "provider_url": "https://www.dzz.by/izuchdzz/",
+        "provider_url": "https://gismap.by/next/",
         "prefix": "georesursDDZ",
         "proj": "EPSG:3857",
         "ext": ".jpg",
         "scalable": False,
         "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
-            "fetch": 'tms',
-
-            # nca.by has sane proxy (valid 404, SSL certificate)
-            "remote_url": "https://api.nca.by/gis/dzz/tile/%s/%s/%s",
-
-            # https://gismap.by invalid certificate, weird 404 handling
-            # "headers": {"Referer": "https://gismap.by/next/"},  # 403 without SSL
-            # "remote_url": "https://gismap.by/next/proxy/proxy.ashx?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/%s/%s/%s",
+        "fetch": 'tms',
+            "headers": {"Referer": "https://gismap.by/next/"},  # 403 without SSL
+            "remote_url": "https://gismap.by/next/proxy/proxy.ashx?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/%s/%s/%s",
             # ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1123)
-
             "transform_tile_number": lambda z, x, y: (z - 6, y, x),
             "min_zoom": 6,
             "max_zoom": 19,

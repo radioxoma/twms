@@ -30,10 +30,10 @@ def maps_xml(pretty=True):
     imagery = ET.Element('imagery')
     for layer_id, layer in config.layers.items():
         entry = ET.SubElement(imagery, 'entry')
-
-        # entry.attrib['overlay'] = 'true'
+        if 'overlay' in layer and layer['overlay'] is True:
+            entry.attrib['overlay'] = 'true'
         # entry.attrib['eli-best'] = 'true'  # Some JOSM hint/tooltip
-        ET.SubElement(entry, 'default').text = 'true'  # May affect JOSM imagery list order, need to check behavior
+        ET.SubElement(entry, 'default').text = 'true'  # Will be added on first JOSM run?
 
         ET.SubElement(entry, 'name').text = f"twms {layer_id}"  # Must be in English
         ET.SubElement(entry, 'id').text = 'twms_' + layer_id

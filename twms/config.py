@@ -291,10 +291,10 @@ layers = {
     #      "proj": "EPSG:3857",
     # },
 
-    "georesursDDZ":  {
+    "dzzby_orthophoto":  {
         "name": "dzz.by Aerophotography (Belarus)",
         "provider_url": "https://www.dzz.by/izuchdzz/",
-        "prefix": "georesursDDZ",
+        "prefix": "dzzby_orthophoto",
         "proj": "EPSG:3857",
         "ext": ".jpg",
         "scalable": False,

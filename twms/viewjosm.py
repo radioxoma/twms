@@ -41,6 +41,13 @@ def maps_xml(pretty=True):
         ET.SubElement(entry, 'url').text = viewhtml.get_tms_url(layer)  # Implement CDATA?
         # Optional tags below
         ET.SubElement(entry, 'description').text = layer['name']  # Must be in English
+        if 'bounds' in layer:
+            ET.SubElement(entry, 'bounds').attrib.update({
+                'min-lon': str(layer['bounds'][0]),
+                'min-lat': str(layer['bounds'][1]),
+                'max-lon': str(layer['bounds'][2]),
+                'max-lat': str(layer['bounds'][3])})
+
         if 'dead_tile' in layer:
             no_tile = ET.SubElement(entry, 'no-tile-checksum')
             no_tile.attrib['type'] = 'MD5'  # Upper case only

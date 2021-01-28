@@ -3,7 +3,6 @@ from twms import projections
 
 
 def get_tms_url(layer):
-    # Extension is useless, as we should serve tiles as is
     return f"{service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
 
 
@@ -34,7 +33,7 @@ def html():
     resp += f"</head><body><h2>{wms_name}</h2>"
 
     for layer_id, layer in layers.items():
-        bbox = layer.get('data_bounding_box', projections.projs[layer['proj']]['bounds'])
+        bbox = layer.get('bounds', projections.projs[layer['proj']]['bounds'])
         resp += "<div class=\"entry\"><img src=\"wms?layers=" + layer_id
         resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" />" % bbox
 

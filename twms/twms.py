@@ -349,7 +349,7 @@ class TWMSMain(object):
             return None
         if not bbox_utils.bbox_is_in(
             projections.bbox_by_tile(z, x, y, layer["proj"]),
-            layer.get("data_bounding_box", config.default_bbox),
+            layer.get('bounds', config.default_bbox),
             fully=False):
             return None
         if 'prefix' in layer:

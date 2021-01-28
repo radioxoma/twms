@@ -48,19 +48,19 @@ default_bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)   # spherical merc
 
 # Layers
 """
-name                 str - visible layer name
-prefix               str - cache tile subdirectory name
-ext                  string - tile image files extension '.ext'
-overlay              bool - default False - transparent hybrid map
-scalable             bool - default False - construct tile of better ones if they are available (better for home use and satellite images, or scanned maps). If False, tWMS will use nearest zoom level (better for rasterized vector maps and production servers)
-proj                 str - default 'EPSG:3857' - EPSG code of layer tiles projection.
+name           str - visible layer name
+prefix         str - cache tile subdirectory name
+ext            string - tile image files extension '.ext'
+overlay        bool - default False - transparent hybrid map
+scalable       bool - default False - construct tile of better ones if they are available (better for home use and satellite images, or scanned maps). If False, tWMS will use nearest zoom level (better for rasterized vector maps and production servers)
+proj           str - default 'EPSG:3857' - EPSG code of layer tiles projection.
 
-min_zoom             int - the worst zoom level number service provides
-max_zoom             int - the best zoom level number service provides
-empty_color          str PIL color string - if this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
-cache_ttl            int - time that cache will be considered valid
-data_bounding_box    4326-bbox tuple - no fetching will be performed outside this bbox. Good when caching just one country or a single satellite image.
-fetch                function (z, x, y, layer_dict) - function that fetches given tile. should return None if tile wasn't fetched.
+min_zoom       int - the worst zoom level number service provides
+max_zoom       int - the best zoom level number service provides
+empty_color    str PIL color string - if this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
+cache_ttl      int - time that cache will be considered valid
+bounds         tuple - 4326-bbox - (min-lon, min-lat, max-lon, max-lat) no wms fetching will be performed outside this bbox. Good when caching just one country or a single satellite image.
+fetch          function (z, x, y, layer_dict) - function that fetches given tile. should return None if tile wasn't fetched.
 
 * **fetchers.tms** - TMS fetcher
     * **remote_url** _string_ - Base tiles URL. May contain "%s" placeholders
@@ -185,7 +185,7 @@ layers = {
     #      "transform_tile_number": lambda z,x,y: (z-1,x,y),
     #      "proj": "EPSG:3857",
     #      "empty_color": "#f2efe9",
-    #      "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
+    #      "bounds": (23.16722,51.25930,32.82244,56.18162),
     # },
 
     # "kothic": {
@@ -197,7 +197,7 @@ layers = {
     #    "transform_tile_number": lambda z,x,y: (z-1,x,y),
     #    "proj": "EPSG:3857",
     #    "empty_color": "#f2efe9",
-    #    "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
+    #    "bounds": (23.16722,51.25930,32.82244,56.18162),
     # },
 
     # "landsat":  {
@@ -223,7 +223,7 @@ layers = {
     #     "transform_tile_number": lambda z,x,y: (x, 2**(z-1)-y-1, z-1),
     #     "min_zoom": 5,
     #     "proj": "EPSG:3857",
-    #     "data_bounding_box": (17.999999997494381, 39.999999995338634, 172.99999997592218, 77.999999996263981),
+    #     "bounds": (17.999999997494381, 39.999999995338634, 172.99999997592218, 77.999999996263981),
     # },
 
     # "latlonsat":  {
@@ -254,6 +254,7 @@ layers = {
          "prefix": "maxar_prem",
          "ext": ".jpg",
          "proj": "EPSG:3857",
+         "max_zoom": 22,  # As it stands in JOSM
          "scalable": False,
             "fetch": 'tms',
             "transform_tile_number": fetchers.tile_slippy_to_tms,
@@ -274,7 +275,7 @@ layers = {
     #     "max_zoom": 16,
     #     "empty_color": "#000000",
     #     "proj": "EPSG:3395",
-    #     "data_bounding_box": (26.0156238531320340,40.7707274153093520,69.257808718487752,67.610652011923932),
+    #     "bounds": (26.0156238531320340,40.7707274153093520,69.257808718487752,67.610652011923932),
     # },
 
     # "yhsat": {
@@ -297,7 +298,7 @@ layers = {
         "proj": "EPSG:3857",
         "ext": ".jpg",
         "scalable": False,
-        "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
+        "bounds": (23.16722, 51.25930, 32.82244, 56.18162),
             "fetch": 'tms',
 
             # nca.by has sane proxy (valid 404, SSL certificate)

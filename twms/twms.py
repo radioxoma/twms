@@ -211,7 +211,6 @@ class TWMSMain(object):
 
         return HTTPStatus.OK, content_type, im_convert(result_img, content_type)
 
-
     def tiles_handler(self, layer_id, z, x, y, content_type):
         """Partial slippy map implementation. Serve tiles by index, reproject, if required.
 
@@ -221,6 +220,8 @@ class TWMSMain(object):
 
         Return 404 instead of blank tile.
         """
+        if not config.layers[layer_id]['proj'] == 'EPSG:3857':
+            raise NotImplementedError("Reprojection is not supported yet")
         z, x, y = int(z), int(x), int(y)
         im = self.tile_image(config.layers[layer_id], z, x, y, time.time(), real=True)
         logging.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
@@ -234,7 +235,6 @@ class TWMSMain(object):
 
         TODO Move RAM cache to `tile_image()`
         """
-
         orig_bbox = bbox
         ## Making 4-corner maximal bbox
         bbox_p = projections.from4326(bbox, request_proj)
@@ -246,7 +246,7 @@ class TWMSMain(object):
             (bbox[0], bbox[1]),
             (bbox_p[0], bbox_p[1]),
             (bbox[2], bbox[3]))
-        if "nocorrect" not in force:
+        if 'nocorrect' not in force:
             bb4 = []
             for point in bbox_4:
                 bb4.append(correctify.rectify(layer, point))
@@ -283,13 +283,7 @@ class TWMSMain(object):
         for x in range(from_tile_x, to_tile_x + 1):
             for y in range(to_tile_y, from_tile_y + 1):
                 im1 = self.tile_image(layer, zoom, x, y, start_time, real=True)
-                if im1:
-                    if (layer['prefix'], zoom, x, y) not in self.cached_objs:
-                        self.cached_objs[(layer["prefix"], zoom, x, y)] = im1
-                        self.cached_hist_list.append((layer["prefix"], zoom, x, y))
-                    if len(self.cached_objs) >= config.max_ram_cached_tiles:
-                        del self.cached_objs[self.cached_hist_list.pop(0)]
-                else:
+                if not im1:
                     ec = ImageColor.getcolor(
                         layer.get("empty_color", config.default_background), "RGBA")
                     im1 = Image.new("RGBA", (256, 256), ec)
@@ -339,6 +333,7 @@ class TWMSMain(object):
 
         Function must return None if image is invalid  or unavailable
         """
+        tile = None
         # Dedicated fetcher for each imagery layer - if one fetcher hangs,
         # others should be responsive
         if layer['prefix'] not in self.fetchers_pool:
@@ -358,7 +353,7 @@ class TWMSMain(object):
                 return self.cached_objs[(layer["prefix"], z, x, y)]
 
         # Working with cache
-        if layer["scalable"] and (z < layer.get("max_zoom", config.default_max_zoom)) and trybetter:
+        if layer['scalable'] and (z < layer.get('max_zoom', config.default_max_zoom)) and trybetter:
             # Second, try to glue image of better ones
             logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
             # # Load upscaled images
@@ -383,21 +378,21 @@ class TWMSMain(object):
                             im.paste(im2, (256, 0))
                             im.paste(im3, (0, 256))
                             im.paste(im4, (256, 256))
-                            im = im.resize((256, 256), Image.ANTIALIAS)
+                            tile = im.resize((256, 256), Image.ANTIALIAS)
                             # if layer.get("cached", True):
                             #     try:
                             #         im.save(local + "ups" + ext)
                             #     except OSError:
                             #         pass
-                            return im
 
-        if 'fetch' in layer:
+        if tile is None and 'fetch' in layer:
             seconds_spent = time.time() - start_time
             if (config.deadline > seconds_spent) or (z < 4):
                 # Try fetching img from outside
                 logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} creating dl thread")
-                return self.fetchers_pool[layer['prefix']].fetch(z, x, y)
-        if real and (z > 0):
+                tile = self.fetchers_pool[layer['prefix']].fetch(z, x, y)
+
+        if tile is None and real and z > 0:
             # Downscale?
             logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} upscaling from top tile")
             im = self.tile_image(layer, z - 1, int(x // 2), int(y // 2), start_time, trybetter=False, real=True)
@@ -410,8 +405,16 @@ class TWMSMain(object):
                         128 * (y % 2) + 128,
                     )
                 )
-                im = im.resize((256, 256), Image.BILINEAR)
-                return im
+                tile = im.resize((256, 256), Image.BILINEAR)
+
+        # RAM cache. Better use decorator?
+        if (layer['prefix'], z, x, y) not in self.cached_objs:
+            self.cached_objs[(layer['prefix'], z, x, y)] = tile
+            self.cached_hist_list.append((layer['prefix'], z, x, y))
+        if len(self.cached_objs) >= config.max_ram_cached_tiles:
+            del self.cached_objs[self.cached_hist_list.pop(0)]
+
+        return tile
 
 
 def im_convert(im, content_type):

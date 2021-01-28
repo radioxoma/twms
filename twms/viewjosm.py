@@ -38,7 +38,11 @@ def maps_xml(pretty=True):
         ET.SubElement(entry, 'name').text = f"twms {layer_id}"  # Must be in English
         ET.SubElement(entry, 'id').text = 'twms_' + layer_id
         ET.SubElement(entry, 'type').text = 'tms'
-        ET.SubElement(entry, 'url').text = viewhtml.get_tms_url(layer)  # Implement CDATA?
+        if layer['proj'] == 'EPSG:3857':
+            ET.SubElement(entry, 'url').text = viewhtml.get_tms_url(layer)  # Implement CDATA?
+        else:
+            # tms_handler not supports reprojection
+            ET.SubElement(entry, 'url').text = viewhtml.get_wms_url(layer)  # Implement CDATA?
         # Optional tags below
         ET.SubElement(entry, 'description').text = layer['name']  # Must be in English
         if 'bounds' in layer:

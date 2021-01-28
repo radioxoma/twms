@@ -220,7 +220,7 @@ class TWMSMain(object):
 
         Return 404 instead of blank tile.
         """
-        if not config.layers[layer_id]['proj'] == 'EPSG:3857':
+        if config.layers[layer_id]['proj'] != 'EPSG:3857':
             raise NotImplementedError("Reprojection is not supported yet")
         z, x, y = int(z), int(x), int(y)
         im = self.tile_image(config.layers[layer_id], z, x, y, time.time(), real=True)

@@ -220,11 +220,12 @@ class TWMSMain(object):
 
         Return 404 instead of blank tile.
         """
+        logging.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
         if config.layers[layer_id]['proj'] != 'EPSG:3857':
-            raise NotImplementedError("Reprojection is not supported yet")
+            raise NotImplementedError("Reprojection is not supported, use wms for this tile set")
         z, x, y = int(z), int(x), int(y)
         im = self.tile_image(config.layers[layer_id], z, x, y, time.time(), real=True)
-        logging.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
+
         if im:
             return HTTPStatus.OK, content_type, im_convert(im, content_type)
         else:
@@ -232,8 +233,6 @@ class TWMSMain(object):
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
         """Get tile by a given bbox.
-
-        TODO Move RAM cache to `tile_image()`
         """
         orig_bbox = bbox
         ## Making 4-corner maximal bbox
@@ -340,13 +339,15 @@ class TWMSMain(object):
             self.fetchers_pool[layer['prefix']] = fetchers.TileFetcher(layer)
 
         x = x % (2 ** z)
-        if y < 0 or y >= (2 ** z):
+        if y < 0 or y >= (2 ** z) or z < 0:
+            logging.warning(f"{layer['prefix']}/z{z}/x{x}/y{y} impossible tile coordinates")
             return None
+
         if not bbox_utils.bbox_is_in(
-            projections.bbox_by_tile(z, x, y, layer["proj"]),
-            layer.get('bounds', config.default_bbox),
-            fully=False):
+            projections.bbox_by_tile(z, x, y, layer["proj"]), layer.get('bounds', config.default_bbox), fully=False):
+            logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} ignoring request for a tile outside configured bounds")
             return None
+
         if 'prefix' in layer:
             if (layer['prefix'], z, x, y) in self.cached_objs:
                 logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} RAM cache hit")
@@ -419,8 +420,6 @@ class TWMSMain(object):
 
 def im_convert(im, content_type):
     """Convert Pillow image to requested Content-Type.
-
-    Image.MIME[img.format] 
     """
     img_buf = BytesIO()
     if content_type == "image/jpeg":

@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
 import os
+import logging
+logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
+
 from twms import fetchers
 
 # SAS Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left

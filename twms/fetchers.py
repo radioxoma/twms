@@ -113,8 +113,9 @@ class TileFetcher(object):
         return resp
 
     def threadworker(self, z, x, y, zhash):
-        if self.layer['fetch'] not in ('tms', 'wms', 'tms_google_sat'):
-            raise ValueError("fetch must be 'tms' or 'wms'")
+        f_names = ('tms', 'wms', 'tms_google_sat')
+        if self.layer['fetch'] not in f_names:
+            raise ValueError("fetch must be " + ', '.join(f_names))
 
         # Call fetcher by it's name
         self.thread_responses[zhash] = getattr(self, self.layer['fetch'])(z, x, y)

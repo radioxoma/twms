@@ -14,9 +14,6 @@ import mimetypes
 from http.server import ThreadingHTTPServer
 from http.server import BaseHTTPRequestHandler
 from http import HTTPStatus
-import logging
-logging.basicConfig(level=logging.INFO)
-# logging.basicConfig(level=logging.DEBUG)
 
 import twms
 import twms.twms
@@ -105,7 +102,7 @@ def main():
     #     if sys.argv[1].isdigit():
     #         port = int(sys.argv[1])
     server = ThreadingHTTPServer((twms.config.host, twms.config.port), GetHandler)
-    print(f"Starting TWMS server at {twms.config.service_url} use <Ctrl-C> to stop".format(
+    print(f"{twms.config.service_url} TWMS web-server use <Ctrl-C> to stop".format(
         server.server_address[0], server.server_address[1]))
     print(f"Add {twms.config.service_url}josm/maps.xml to JOSM 'imagery.layers.sites' property and check imagery setting")
     server.serve_forever()

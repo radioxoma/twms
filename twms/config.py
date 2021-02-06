@@ -39,7 +39,7 @@ default_background = "#ffffff"    # Default background for empty space (Pillow c
 ## WMS GetCapabilities
 host = "localhost"
 port = 8080
-service_url = "http://{}:{}/".format(host, port)                       # URL service installed at
+service_url = "http://{}:{}/".format(host, port)  # URL service installed at
 
 wms_name = "twms based web map service"
 contact_person = {
@@ -47,7 +47,7 @@ contact_person = {
     "real_name": "",
     "organization": ""
 }
-default_bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)   # spherical mercator maximum. 
+default_bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)   # spherical mercator maximum
 
 
 # Layers
@@ -298,14 +298,17 @@ layers = {
     "dzzby_orthophoto":  {
         # [19] 30 cm most of Belarus
         # [20] 15 cm Minsk
-        # [21]  5 cm Unmanned airway vehicle "Геоскан-201" for садоводческие товарищества and towns (1:2000 and better)
+        #     20 top for orthophoto, but in most places it just blurred 19
+        # [21]
+        # [22] 7.5~5 cm Unmanned airway vehicle "Геоскан-201" for садоводческие товарищества and towns
+        #     22 top for UAV
         "name": "dzz.by Aerophotography (Belarus)",
         "provider_url": "https://www.dzz.by/izuchdzz/",
         "prefix": "dzzby_orthophoto",
         "proj": "EPSG:3857",
         "ext": ".jpg",
         "scalable": False,
-        "bounds": (23.16722, 51.25930, 32.82244, 56.18162),
+        "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
             "fetch": 'tms',
 
             # nca.by has sane proxy (valid 404, SSL certificate)
@@ -318,6 +321,6 @@ layers = {
 
             "transform_tile_number": lambda z, x, y: (z - 6, y, x),
             "min_zoom": 6,
-            "max_zoom": 19,  # In many places 20 zoom not really better
+            "max_zoom": 19,  # max_zoom is 20, but in most places it just blurred 19
     },
 }

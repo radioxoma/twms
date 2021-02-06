@@ -7,6 +7,7 @@ import hashlib
 import threading
 from functools import wraps
 import logging
+import mimetypes
 import urllib.request as request
 import http.cookiejar as http_cookiejar
 from http import HTTPStatus
@@ -173,6 +174,11 @@ class TileFetcher(object):
     def tms(self, z, x, y):
         """Fetch tile by coordinates, r/w cache.
 
+        Funtion fetches image, checks it validity and detects actual
+        image format (ignores server Content-Type). All tiles with
+        Content-Type not matching default for this layer will be
+        converted before saving to cache.
+
         TNE - tile not exist (got HTTP 404 or default tile for empty zones aka "dead tile")
 
         Cache is structured according to tile coordinates.
@@ -190,6 +196,7 @@ class TileFetcher(object):
         tile_parsed = False
         tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
+        target_mimetype = mimetypes.types_map[self.layer['ext']]
         remote = ''
 
         # TODO: Conform JOSM tms links zoom restrictions
@@ -284,8 +291,17 @@ class TileFetcher(object):
             if tile_parsed and not tile_dead:
                 # All well, save tile to cache
                 logging.info(f"{tile_id}: saving {tile_path}")
-                with open(tile_path, "wb") as f:
-                    f.write(remote_bytes)
+
+                # Preserving original image if possible, as encoding is lossy
+                # Storing all images into one format, just like SAS.Planet does
+                if im.get_format_mimetype() != target_mimetype:
+                    logging.warning(f"{tile_id} unexpected image Content-Type {im.get_format_mimetype()}, converting to '{target_mimetype}'")
+                    image_bytes = im_convert(im, target_mimetype)
+                else:
+                    image_bytes = remote_bytes
+
+                with open(tile_path, 'wb') as f:
+                    f.write(image_bytes)
                 if os.path.exists(tne_path):
                     os.remove(tne_path)
                 return im
@@ -376,3 +392,28 @@ def tile_slippy_to_tms(z, x, y):
     https://josm.openstreetmap.de/wiki/Maps
     """
     return z, x, 2 ** z - 1 - y
+
+
+def im_convert(im, content_type, exif=None):
+    """Convert Pillow image to requested Content-Type.
+
+    :param Image im: Pillow image
+    :param str content_type:
+    :rtype: byte str
+    """
+    # Exif-related code not documented, Pillow can change behavior
+    exif = Image.Exif()
+    exif[0x0131] = 'twms'  # ExifTags.TAGS['Software']
+
+    img_buf = BytesIO()
+    if content_type == "image/jpeg":
+        im = im.convert("RGB")
+        im.save(img_buf, 'JPEG', quality=config.output_quality, progressive=config.output_progressive, exif=exif)
+    elif content_type == "image/png":
+        im.save(img_buf, 'PNG', progressive=config.output_progressive, optimize=config.output_optimize, exif=exif)
+    elif content_type == "image/gif":
+        im.save(img_buf, 'GIF', quality=config.output_quality, progressive=config.output_progressive, exif=exif)
+    else:
+        im = im.convert("RGB")
+        im.save(img_buf, content_type.split('/')[1], quality=config.output_quality, progressive=config.output_progressive, exif=exif)
+    return img_buf.getvalue()

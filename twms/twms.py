@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-from io import BytesIO
 import mimetypes
 from http import HTTPStatus
 import logging
@@ -209,7 +208,7 @@ class TWMSMain(object):
         if flip_h:
             result_img = ImageOps.flip(result_img)
 
-        return HTTPStatus.OK, content_type, im_convert(result_img, content_type)
+        return HTTPStatus.OK, content_type, fetchers.im_convert(result_img, content_type)
 
     def tiles_handler(self, layer_id, z, x, y, content_type):
         """Partial slippy map implementation. Serve tiles by index, reproject, if required.
@@ -227,7 +226,7 @@ class TWMSMain(object):
         im = self.tile_image(config.layers[layer_id], z, x, y, time.time(), real=True)
 
         if im:
-            return HTTPStatus.OK, content_type, im_convert(im, content_type)
+            return HTTPStatus.OK, content_type, fetchers.im_convert(im, content_type)
         else:
             return HTTPStatus.NOT_FOUND, 'text/plain', "404 Not Found"
 
@@ -416,25 +415,3 @@ class TWMSMain(object):
             del self.cached_objs[self.cached_hist_list.pop(0)]
 
         return tile
-
-
-def im_convert(im, content_type):
-    """Convert Pillow image to requested Content-Type.
-    """
-    img_buf = BytesIO()
-    if content_type == "image/jpeg":
-        im = im.convert("RGB")
-        try:
-            im.save(img_buf, 'JPEG', quality=config.output_quality, progressive=config.output_progressive)
-        except OSError:
-            im.save(img_buf, 'JPEG', quality=config.output_quality)
-    elif content_type == "image/png":
-        im.save(img_buf, 'PNG', progressive=config.output_progressive, optimize=config.output_optimize)
-    elif content_type == "image/gif":
-        im.save(img_buf, 'GIF', quality=config.output_quality, progressive=config.output_progressive)
-    else:
-        im = im.convert("RGB")
-        im.save(img_buf, content_type.split('/')[1], quality=config.output_quality, progressive=config.output_progressive)
-    
-    # print(Image.MIME[im.format])
-    return img_buf.getvalue()

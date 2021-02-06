@@ -298,7 +298,7 @@ layers = {
     "dzzby_orthophoto":  {
         # [19] 30 cm most of Belarus
         # [20] 15 cm Minsk
-        # [21]  5 cm Unmanned airway vehicle for садоводческие товарищества and towns (1:2000 and better)
+        # [21]  5 cm Unmanned airway vehicle "Геоскан-201" for садоводческие товарищества and towns (1:2000 and better)
         "name": "dzz.by Aerophotography (Belarus)",
         "provider_url": "https://www.dzz.by/izuchdzz/",
         "prefix": "dzzby_orthophoto",

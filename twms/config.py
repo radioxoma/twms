@@ -19,11 +19,13 @@ install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
 # When time is out, tile will be composited from cached tiles
 deadline = 45
 
-# If server returns no tile (HTTP 404) or dead tile (empty tile),
+# If server returns no tile (HTTP 404) or dead tile,
 # TWMS saves in cache empty "*.tne" file.
 # This is a timeout for a next attempt to fetch missing tile
 cache_tne_ttl = 60 * 60 * 24 * 30
 default_max_zoom = 19             # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer
+# [19] 30 cm resolution - best Maxar satellite resolution at 2021
+
 default_min_zoom = 0              # Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
 default_layers = ""               # layer(s) to show when no layers given explicitly. if False, overview page is returned
 default_ext = '.jpg'
@@ -258,7 +260,7 @@ layers = {
          "prefix": "maxar_prem",
          "ext": ".jpg",
          "proj": "EPSG:3857",
-         "max_zoom": 22,  # As it stands in JOSM
+         "max_zoom": 17,  # Looks like artificial restriction
          "scalable": False,
             "fetch": 'tms',
             "transform_tile_number": fetchers.tile_slippy_to_tms,

@@ -183,7 +183,7 @@ class TileFetcher(object):
 
         Cache is structured according to tile coordinates.
         Actual tile image projection specified in config file.
-        
+
         MBTiles
             https://wiki.openstreetmap.org/wiki/MBTiles
             https://github.com/mapbox/mbtiles-spec
@@ -339,7 +339,7 @@ class TileFetcher(object):
             except request.URLError:
                 pass
 
-        # URI version can expiry, reset if no image
+        # URL version can expiry, reset if no image
         # Though it is not only possible cause of None response
         im = self.tms(z, x, y)
         if 'remote_url' in self.layer and not im:
@@ -350,7 +350,7 @@ class TileFetcher(object):
 def tile_to_quadkey(z, x, y):
     """Transform tile coordinates to a Bing quadkey.
 
-    GlobalMapper Tiles cache numeration starts from 0 level with one tile. On 1 level four tiles etc
+    Slippy map tiles cache numeration starts from 0 level with one tile. On 1 level four tiles etc
     Bing uses quadkey tile coordinates, so minimal cache level is 1 (four tiles). Single tile at zero level not addressed.
 
     https://docs.microsoft.com/en-us/bingmaps/articles/bing-maps-tile-system

@@ -235,9 +235,16 @@ class TileFetcher(object):
         # Fetching image
         if need_fetch and 'remote_url' in self.layer:
             if 'transform_tile_number' in self.layer:
-                remote = self.layer['remote_url'] % self.layer["transform_tile_number"](z, x, y)
+                trans_z, trans_x, trans_y = self.layer['transform_tile_number'](z, x, y)
             else:
-                remote = self.layer['remote_url'] % (z, x, y)
+                trans_z, trans_x, trans_y = z, x, y
+
+            # Placeholder substitution
+            remote = self.layer['remote_url'].replace('{z}', str(trans_z))
+            remote = remote.replace('{x}', str(trans_x))
+            remote = remote.replace('{y}', str(trans_y))
+            remote = remote.replace('{-y}', str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2]))
+            remote = remote.replace('{q}', tile_to_quadkey(trans_z, trans_x, trans_y))  # Bing
             try:
                 # Got response, need to verify content
                 logging.info(f"{tile_id}: FETCHING {remote}")
@@ -334,7 +341,7 @@ class TileFetcher(object):
                     if not match.group(1):
                         logging.error(f"Cannot parse 'v=' from {maps_googleapis_js}")
                         raise ValueError(f"Cannot parse 'v=' from {maps_googleapis_js}")
-                    self.layer['remote_url'] = "https://khms0.google.com/kh/v=" + match.group(1) + "?x=%s&y=%s&z=%s"
+                    self.layer['remote_url'] = "https://khms0.google.com/kh/v=" + match.group(1) + "?x={x}&y={y}&z={z}"
                     logging.info(f"Setting new {self.layer['name']} URI {self.layer['remote_url']}")
             except request.URLError:
                 pass

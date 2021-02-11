@@ -91,8 +91,7 @@ layers = {
         "ext": ".jpg",
         "scalable": False,
         "fetch": 'tms',
-            "remote_url": "https://sat01.maps.yandex.net/tiles?l=sat&x=%s&y=%s&z=%s",
-            "transform_tile_number": lambda z, x, y: (x, y, z),
+            "remote_url": "https://sat01.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}",
     },
 
     "yamapng": {
@@ -103,8 +102,7 @@ layers = {
         "ext": ".png",
         "scalable": False,
         "fetch": 'tms',
-            "remote_url": "https://vec01.maps.yandex.net/tiles?l=map&x=%s&y=%s&z=%s",
-            "transform_tile_number": lambda z, x, y: (x, y, z),
+            "remote_url": "https://vec01.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}",
             "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
 
@@ -118,8 +116,7 @@ layers = {
         "scalable": False,
         "min_zoom": 1,
         "fetch": 'tms',
-            "remote_url": "https://vec01.maps.yandex.net/tiles?l=skl&lang=ru_RU&x=%s&y=%s&z=%s",
-            "transform_tile_number": lambda z, x, y: (x, y, z),
+            "remote_url": "https://vec01.maps.yandex.net/tiles?l=skl&lang=ru_RU&x={x}&y={y}&z={z}",
             "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
 
@@ -131,7 +128,6 @@ layers = {
         "ext": ".jpg",
         "scalable": False,                  # could zN tile be constructed of four z(N+1) tiles
         "fetch": 'tms_google_sat',
-            "transform_tile_number": lambda z, x, y: (x, y, z),
     },
 
     # First available top left tile https://ecn.t0.tiles.virtualearth.net/tiles/a0.jpeg?g=0
@@ -145,8 +141,7 @@ layers = {
         "scalable": False,
         "min_zoom": 1,  # doesn't serve z0/x0/y0 (400 Bad Request for "https://ecn.t0.tiles.virtualearth.net/tiles/a.jpeg?g=0")
         "fetch": 'tms',
-            "remote_url": "https://ecn.t0.tiles.virtualearth.net/tiles/a%s.jpeg?g=0",
-            "transform_tile_number": fetchers.tile_to_quadkey,
+            "remote_url": "https://ecn.t0.tiles.virtualearth.net/tiles/a{q}.jpeg?g=0",
             # "max_zoom": 19,
             # Check against known size in bytes and md5 hash
             "dead_tile": {"size": 1033, "md5": "c13269481c73de6e18589f9fbc3bdf7e", "sha256": "45d35034a62d30443e492851752f67f439b95a908fce54de601f7373fcb7ab05"},
@@ -161,7 +156,7 @@ layers = {
         "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
         "max_zoom": 19,  # Allowed if <=
         "fetch": 'tms',        # 'tms' or 'wms' imagery source
-            "remote_url": "https://tile.openstreetmap.org/%s/%s/%s.png",  # URL template with placeholders
+            "remote_url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",  # URL template with placeholders
             "headers": {"Referer": "https://www.openstreetmap.org/"},
             # "transform_tile_number": lambda z, x, y: (z, x, y),  # Function to fill URL placeholders
             "empty_color": "#F1EEE8",
@@ -177,7 +172,7 @@ layers = {
         'overlay': True,
         "scalable": False,
         "fetch": 'tms',
-            "remote_url": "https://gps-tile.openstreetmap.org/lines/%s/%s/%s.png",
+            "remote_url": "https://gps-tile.openstreetmap.org/lines/{z}/{x}/{y}.png",
             "headers": {"Referer": "https://www.openstreetmap.org/"},
             "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
     },
@@ -201,7 +196,6 @@ layers = {
     #    "cached": False,
     #    "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
     #    "fetch": fetchers.kothic_fetcher,    # function that fetches given tile. should return None if tile wasn't fetched
-    #    "transform_tile_number": lambda z,x,y: (z-1,x,y),
     #    "proj": "EPSG:3857",
     #    "empty_color": "#f2efe9",
     #    "bounds": (23.16722,51.25930,32.82244,56.18162),
@@ -264,9 +258,8 @@ layers = {
          "max_zoom": 17,  # Looks like artificial restriction
          "scalable": False,
             "fetch": 'tms',
-            "transform_tile_number": fetchers.tile_slippy_to_tms,
             # API key from JOSM
-            "remote_url": "https://services.digitalglobe.com/earthservice/tmsaccess/tms/1.0.0/DigitalGlobe:ImageryTileService@EPSG:3857@jpg/%s/%s/%s.jpg?connectId=fa014fbc-6cbe-4b6f-b0ca-fbfb8d1e5b7d&foo=premium",
+            "remote_url": "https://services.digitalglobe.com/earthservice/tmsaccess/tms/1.0.0/DigitalGlobe:ImageryTileService@EPSG:3857@jpg/{z}/{x}/{-y}.jpg?connectId=fa014fbc-6cbe-4b6f-b0ca-fbfb8d1e5b7d&foo=premium",
     },
 
     # "irs":  {
@@ -315,14 +308,14 @@ layers = {
             "fetch": 'tms',
 
             # nca.by has sane proxy (valid 404, SSL certificate)
-            "remote_url": "https://api.nca.by/gis/dzz/tile/%s/%s/%s",
+            "remote_url": "https://api.nca.by/gis/dzz/tile/{z}/{y}/{x}",
 
             # https://gismap.by invalid certificate, weird 404 handling
             # "headers": {"Referer": "https://gismap.by/next/"},  # 403 without SSL
             # "remote_url": "https://gismap.by/next/proxy/proxy.ashx?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/%s/%s/%s",
             # ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1123)
 
-            "transform_tile_number": lambda z, x, y: (z - 6, y, x),
+            "transform_tile_number": lambda z, x, y: (z - 6, x, y),
             "min_zoom": 6,
             "max_zoom": 19,  # max_zoom is 20, but in most places it just blurred 19
     },

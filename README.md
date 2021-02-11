@@ -9,9 +9,10 @@ Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStree
 ## About this fork
 
 * [`http.server`](https://docs.python.org/3/library/http.server.html) from standard python library is used instead of [webpy](https://webpy.org/)
-* [Slippy map](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) cache and URL, compatible with [JOSM](https://josm.openstreetmap.de/), [SAS.Planet](http://www.sasgis.org/sasplaneta/), Leaflet etc
+* [Slippy map](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) cache and proxy URL, compatible with [JOSM](https://josm.openstreetmap.de/), [SAS.Planet](http://www.sasgis.org/sasplaneta/), Leaflet etc
 * [JOSM remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from web
 * [JOSM imagery XML](https://josm.openstreetmap.de/wiki/Maps) for `imagery.layers.sites`
+* Conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
 * Functional regression - unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
 * Due to huge refactoring and removing half of the original code the changes ineligible for a pull request
 * Consider it as hacky replacement for [MapProxy](https://wiki.openstreetmap.org/wiki/MapProxy)

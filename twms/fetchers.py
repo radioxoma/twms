@@ -133,9 +133,10 @@ class TileFetcher(object):
             return None
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
 
-        width = 384  # Using larger source size to rescale better in python
-        height = 384
-        tile_bbox = "%s,%s,%s,%s" % projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
+        width = 256  # Using larger source size to rescale better in python
+        height = 256
+        tile_bbox = "{},{},{},{}".format(*projections.from4326(
+            projections.bbox_by_tile(z, x, y, req_proj), req_proj))
 
         remote = self.layer['remote_url'].replace('{bbox}', tile_bbox)
         remote = remote.replace('{width}', str(width))
@@ -168,6 +169,7 @@ class TileFetcher(object):
 
         ic = Image.new("RGBA", (256, 256), self.layer.get("empty_color", config.default_background))
         if im.histogram() == ic.histogram():
+            logging.debug(f"{tile_id}: TNE - empty histogram '{tne_path}'")
             Path(tne_path, exist_ok=True).touch()
             return None
         im.save(tile_path)

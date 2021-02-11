@@ -34,8 +34,13 @@ def html():
 
     for layer_id, layer in layers.items():
         bbox = layer.get('bounds', projections.projs[layer['proj']]['bounds'])
-        resp += "<div class=\"entry\"><img src=\"wms?layers=" + layer_id
-        resp += "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" />" % bbox
+        resp += "<div class=\"entry\">"
+
+        if 'min_zoom' in layer and layer['min_zoom'] > 8:
+            # Too recursive
+            resp += "<p>Preview unavailable</p>"
+        else:
+            resp += "<img src=\"wms?layers=" + layer_id + "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" />" % bbox
 
         if 'provider_url' in layer:
             resp += f"<h3><a referrerpolicy=\"no-referrer\" title=\"Visit tile provider website\" href=\"{layer['provider_url']}\">{layer['name']}</a></h3>"

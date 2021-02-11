@@ -177,18 +177,22 @@ layers = {
             "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
     },
 
-    # "ncaby_radr": {
-    #     "name": "nca.by Capital buildings and address",
-    #     "provider_url": "https://nca.by/",
-    #     "prefix": "ncaby_radr",
-    #     "proj": "EPSG:3857",
-    #     "ext": ".png",
-    #     "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
-    #     "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
-    #     "fetch": 'wms',
-    #         "min_zoom": 15,
-    #         "remote_url": "http://gisserver3.nca.by:8080/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&layers=prod:radr&propertyName=obj_name,elementtyp,elementnam,addr_label,geom&TILED=true&STYLES=addr_ks&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}",
-    # },
+    # 'addr_ks' - red dot - капитальное строение (КС)
+    # yellow dot - Незавершенное законсервированное капитальное строение (НЗКС)
+    # green dot - земельный участок (ЗУ)
+    "ncaby_radr": {
+        "name": "nca.by Capital buildings and addresses",
+        "provider_url": "http://vl.nca.by/",
+        "prefix": "ncaby_radr",
+        "proj": "EPSG:3857",
+        "ext": ".png",
+        "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
+        "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
+        "fetch": 'wms',
+            "min_zoom": 15,
+            "remote_url": "http://gisserver3.nca.by:8080/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&layers=prod:radr&propertyName=obj_name,elementtyp,elementnam,addr_label,geom&TILED=true&STYLES=addr_ks&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}",
+            "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
+    },
 
     # "kothic": {
     #    "name": "Kothic - Belarus",

@@ -76,7 +76,7 @@ fetch          function (z, x, y, layer_dict) - function that fetches given tile
         md5 - md5sum hash of that tile
 * **fetchers.wns**
     * **remote_url** _str_ - Base WMS URL. A GetMap request with omitted srs, height, width and bbox. Should probably end in "?" or "&".
-    * **wms_proj** _str_ - projec for WMS request. Note that images probably won't be properly reprojected if it differs from **proj**. Helps to cope with broken WMS services.
+    * **wms_proj** _str_ - projection for WMS request. Note that images probably won't be properly reprojected if it differs from **proj**. Helps to cope with WMS services unable to serve properly reprojected imagery.
 
 See other WMTS configs https://github.com/bertt/wmts
 """
@@ -182,16 +182,17 @@ layers = {
             "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
     },
 
-    # "osm-be": {
-    #      "name": "OpenStreetMap mapnik - Belarus",
-    #      "cached": False,
-    #      "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
-    #      "fetch": 'tms',    # function that fetches given tile. should return None if tile wasn't fetched
-    #      "remote_url": "https://tile.latlon.org/tiles/%s/%s/%s.png",
-    #      "transform_tile_number": lambda z,x,y: (z-1,x,y),
-    #      "proj": "EPSG:3857",
-    #      "empty_color": "#f2efe9",
-    #      "bounds": (23.16722,51.25930,32.82244,56.18162),
+    # "ncaby_radr": {
+    #     "name": "nca.by Capital buildings and address",
+    #     "provider_url": "https://nca.by/",
+    #     "prefix": "ncaby_radr",
+    #     "proj": "EPSG:3857",
+    #     "ext": ".png",
+    #     "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
+    #     "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
+    #     "fetch": 'wms',
+    #         "min_zoom": 15,
+    #         "remote_url": "http://gisserver3.nca.by:8080/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&layers=prod:radr&propertyName=obj_name,elementtyp,elementnam,addr_label,geom&TILED=true&STYLES=addr_ks&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}",
     # },
 
     # "kothic": {

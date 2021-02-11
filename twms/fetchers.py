@@ -122,35 +122,42 @@ class TileFetcher(object):
         self.thread_responses[zhash] = getattr(self, self.layer['fetch'])(z, x, y)
 
     def wms(self, z, x, y):
+        """
+        Leave possibility to request arbitrary (other than cache 'proj')
+        projection from WMS by 'wms_proj' parameter, as server may be broken.
+        """
         # Untested, probably broken
-        if "max_zoom" in self.layer:
-            if z > self.layer["max_zoom"]:
-                return None
+        tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
+        if 'max_zoom' in self.layer and z > self.layer['max_zoom']:
+            logging.debug(f"{tile_id}: zoom limit")
+            return None
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
-        width = 384  # using larger source size to rescale better in python
+
+        width = 384  # Using larger source size to rescale better in python
         height = 384
-        tile_bbox = "bbox=%s,%s,%s,%s" % (
-            projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj))
+        tile_bbox = "%s,%s,%s,%s" % projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
 
-        wms = self.layer["remote_url"] + tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
-        if self.layer.get("cached", True):
-            # MOBAC cache path style
-            tile_path = config.tiles_cache + self.layer["prefix"] + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer['ext'])
-            partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
-            lock_path = partial_path + '.lock'
-            tne_path = partial_path + '.tne'
+        remote = self.layer['remote_url'].replace('{bbox}', tile_bbox)
+        remote = remote.replace('{width}', str(width))
+        remote = remote.replace('{height}', str(height))
+        remote = remote.replace('{proj}', req_proj)
 
-            os.makedirs(os.path.dirname(tile_path), exist_ok=True)
+        # MOBAC cache path style
+        tile_path = config.tiles_cache + self.layer["prefix"] + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer['ext'])
+        partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
+        tne_path = partial_path + '.tne'
 
-            if 'cache_ttl' in self.layer:
-                for ex in (ext, '.dsc' + ext, '.ups' + ext, '.tne'):
-                    fp = partial_path + ex
-                    if os.path.exists(fp):
-                        if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
-                            os.remove(fp)
+        os.makedirs(os.path.dirname(tile_path), exist_ok=True)
 
-        logging.info(f"wms: fetching z{z}/x{x}/y{y} {self.layer['name']} {wms}")
-        im_bytes = self.opener(wms).read()
+        if 'cache_ttl' in self.layer:
+            for ex in (ext, '.dsc' + ext, '.ups' + ext, '.tne'):
+                fp = partial_path + ex
+                if os.path.exists(fp):
+                    if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
+                        os.remove(fp)
+
+        logging.info(f"wms: fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
+        im_bytes = self.opener(remote).read()
         if im_bytes:
             im = Image.open(BytesIO(im_bytes))
         else:
@@ -159,22 +166,17 @@ class TileFetcher(object):
             im = im.resize((256, 256), Image.ANTIALIAS)
         im = im.convert("RGBA")
 
-        if self.layer.get("cached", True):
-            ic = Image.new("RGBA", (256, 256), self.layer.get("empty_color", config.default_background))
-            if im.histogram() == ic.histogram():
-                with open(tne_path, 'w') as f:
-                    when = time.localtime()
-                    timestamp = "%02d.%02d.%04d %02d:%02d:%02d" % (
-                    when[2], when[1], when[0], when[3], when[4], when[5])
-                    f.write(timestamp)
-                return False
-            im.save(tile_path)
+        ic = Image.new("RGBA", (256, 256), self.layer.get("empty_color", config.default_background))
+        if im.histogram() == ic.histogram():
+            Path(tne_path, exist_ok=True).touch()
+            return None
+        im.save(tile_path)
         return im
 
     def tms(self, z, x, y):
         """Fetch tile by coordinates, r/w cache.
 
-        Funtion fetches image, checks it validity and detects actual
+        Function fetches image, checks it validity and detects actual
         image format (ignores server Content-Type). All tiles with
         Content-Type not matching default for this layer will be
         converted before saving to cache.
@@ -199,11 +201,9 @@ class TileFetcher(object):
         target_mimetype = mimetypes.types_map[self.layer['ext']]
         remote = ''
 
-        # TODO: Conform JOSM tms links zoom restrictions
-        if 'max_zoom' in self.layer:
-            if z > self.layer['max_zoom']:
-                logging.debug(f"{tile_id}: zoom limit")
-                return None
+        if 'max_zoom' in self.layer and z > self.layer['max_zoom']:
+            logging.debug(f"{tile_id}: zoom limit")
+            return None
 
         # MOBAC cache path style
         tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer['ext'])

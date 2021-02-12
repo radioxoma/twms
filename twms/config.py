@@ -120,6 +120,21 @@ layers = {
             "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
 
+    # "remote_url": "https://gps-tiles.maps.yandex.net/tiles?style=red_combined&x={x}&y={y}&z={z}",
+    "yandextracks": {
+        "name": "Yandex Tracks",
+        "provider_url": "https://n.maps.yandex.ru",
+        "prefix": "yandextracks",
+        "proj": "EPSG:3395",
+        "ext": ".png",
+        "scalable": False,
+        "fetch": 'tms',
+            "remote_url": "https://gps-tiles.maps.yandex.net/tiles?style=point&x={x}&y={y}&z={z}",
+            "min_zoom": 10,
+            "max_zoom": 17,
+            "cache_ttl": 60 * 60 * 24 * 30,  # Month
+    },
+
     "sat":  {
         "name": "Google Satellite",
         "provider_url": "https://www.google.com/maps/",

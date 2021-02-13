@@ -203,7 +203,7 @@ layers = {
         "ext": ".png",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
-        "fetch": 'wms',
+        "fetch": 'tms',
             "min_zoom": 15,
             "remote_url": "http://gisserver3.nca.by:8080/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&layers=prod:radr&propertyName=obj_name,elementtyp,elementnam,addr_label,geom&TILED=true&STYLES=addr_ks&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}",
             "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
@@ -217,7 +217,7 @@ layers = {
         "ext": ".png",
         "scalable": False,
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
-        "fetch": 'wms',
+        "fetch": 'tms',
             "remote_url": "https://mapserver.geo.by/mapcache/?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=mapserver_tileset&STYLES=&FORMAT=image/png&TRANSPARENT=true&HEIGHT={height}&WIDTH={width}&SRS={proj}&BBOX={bbox}",
             "headers": {"Referer": "https://geo.by/navigation/map"},
             "cache_ttl": 60 * 60 * 24 * 30,  # 1 month

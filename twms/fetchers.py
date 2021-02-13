@@ -122,11 +122,15 @@ class TileFetcher(object):
         self.thread_responses[zhash] = getattr(self, self.layer['fetch'])(z, x, y)
 
     def wms(self, z, x, y):
-        """
+        """Use tms instead.
+
+        Possible features to implement:
+            * TNE based on histogram
+            * Big tile request (e.g. 512x512)
+
         Leave possibility to request arbitrary (other than cache 'proj')
         projection from WMS by 'wms_proj' parameter, as server may be broken.
         """
-        # Untested, probably broken
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
         if 'max_zoom' in self.layer and z > self.layer['max_zoom']:
             logging.debug(f"{tile_id}: zoom limit")
@@ -242,11 +246,23 @@ class TileFetcher(object):
                 trans_z, trans_x, trans_y = z, x, y
 
             # Placeholder substitution
+            # TMS
             remote = self.layer['remote_url'].replace('{z}', str(trans_z))
             remote = remote.replace('{x}', str(trans_x))
             remote = remote.replace('{y}', str(trans_y))
             remote = remote.replace('{-y}', str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2]))
             remote = remote.replace('{q}', tile_to_quadkey(trans_z, trans_x, trans_y))  # Bing
+
+            # WMS, no real difference with TMS except missing *.tne feature
+            width = 256
+            height = 256
+            tile_bbox = "{},{},{},{}".format(*projections.from4326(
+                projections.bbox_by_tile(z, x, y, self.layer['proj']), self.layer['proj']))
+            remote = remote.replace('{bbox}', tile_bbox)
+            remote = remote.replace('{width}', str(width))
+            remote = remote.replace('{height}', str(height))
+            remote = remote.replace('{proj}', self.layer["proj"])
+
             try:
                 # Got response, need to verify content
                 logging.info(f"{tile_id}: FETCHING {remote}")

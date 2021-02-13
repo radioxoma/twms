@@ -209,6 +209,20 @@ layers = {
             "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
     },
 
+    "geoby_mapserver": {
+        "name": "geo.by Belgeodesy Map",
+        "provider_url": "https://geo.by/navigation/map",
+        "prefix": "geoby_mapserver",
+        "proj": "EPSG:3857",
+        "ext": ".png",
+        "scalable": False,
+        "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
+        "fetch": 'wms',
+            "remote_url": "https://mapserver.geo.by/mapcache/?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=mapserver_tileset&STYLES=&FORMAT=image/png&TRANSPARENT=true&HEIGHT={height}&WIDTH={width}&SRS={proj}&BBOX={bbox}",
+            "headers": {"Referer": "https://geo.by/navigation/map"},
+            "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
+    },
+
     # "kothic": {
     #    "name": "Kothic - Belarus",
     #    "prefix": "kothic",

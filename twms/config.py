@@ -7,12 +7,25 @@ logging.basicConfig(level=logging.INFO)
 
 from twms import fetchers
 
-# SAS Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left
-# See
-# https://en.wikipedia.org/wiki/Tiled_web_map
-# https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+"""
+Cache layout
+------------
+
+There are multiple descriptions for the same thing:
+
+  * TWMS stores tiles of 256x256 pixels
+  * TWMS stores whole cache in single user-defined mimetype. If server returns tile with needed mimetype, original image is preserved, otherwise it will be recompressed
+  * TWMS internally uses 'GLOBAL_WEBMERCATOR' grid, 'EPSG:3857' (formely known as 'EPSG:900913') projection, origin north-west (compatible with OpenStreetMap, mapproxy.org)
+  * Same as SAS.Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left (nw)
+
+See:
+  [1] https://en.wikipedia.org/wiki/Tiled_web_map
+  [2] https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+"""
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
+
+
 install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
 
 # timeout for outer downloads.

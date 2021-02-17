@@ -301,7 +301,7 @@ layers = {
          "prefix": "maxar_prem",
          "ext": ".jpg",
          "proj": "EPSG:3857",
-         "max_zoom": 17,  # Looks like artificial restriction
+         "max_zoom": 18,  # Looks like artificial restriction
          "scalable": False,
             "fetch": 'tms',
             # API key from JOSM

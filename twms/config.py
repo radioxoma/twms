@@ -21,6 +21,7 @@ There are multiple descriptions for the same thing:
 See:
   [1] https://en.wikipedia.org/wiki/Tiled_web_map
   [2] https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+  [3] https://josm.openstreetmap.de/wiki/SharedTileCache
 """
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")

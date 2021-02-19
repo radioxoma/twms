@@ -50,7 +50,7 @@ From now you can browse tiles and `*.tne` "tile not exists" files in SAS.Planet 
 
 ## Setting up JOSM
 
-At 2021 JOSM uses [Java cache system](https://commons.apache.org/proper/commons-jcs/), which is not a directory with tiles, so it can't be shared. It also cannot be disabled in JOSM, so we move cache dir to RAM disk:
+At 2021 JOSM uses [Java cache system](https://commons.apache.org/proper/commons-jcs/) ((ticket)[https://josm.openstreetmap.de/ticket/11216]), which is not a directory with tiles, so it can't be shared. It also cannot be disabled in JOSM, so we move cache dir to RAM disk:
 
 1. Set property 'imagery.generic.loader.cachedir' to `/dev/shm/JOSM/tiles` or start JOSM with parameter `-Djosm.cache=/dev/shm/JOSM/tiles`.
 2. Set property 'imagery.cache.max_disk_size' to reasonable value, e.g. 64 Mb, to not exceed RAM

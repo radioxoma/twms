@@ -116,7 +116,7 @@ layers = {
         "ext": ".png",
         "scalable": False,
         "fetch": 'tms',
-            "remote_url": "https://vec01.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}",
+            "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}",
             "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
 

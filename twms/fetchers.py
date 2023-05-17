@@ -70,7 +70,7 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
         while mtries > 1:
             try:
                 return opener.open(*args, **kwargs)
-            except request.HTTPError as err:
+            except request.HTTPError:
                 # Prevent catching HTTPError as subclass of URLError
                 # logging.error(err)
                 raise
@@ -394,8 +394,8 @@ class TileFetcher:
                         r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp
                     )
                     if not match.group(1):
-                        logging.error(f"Cannot parse 'v=' from {maps_googleapis_js}")
-                        raise ValueError(f"Cannot parse 'v=' from {maps_googleapis_js}")
+                        logging.error("Cannot parse 'v=' from maps_googleapis_js")
+                        raise ValueError("Cannot parse 'v=' from maps_googleapis_js")
                     self.layer["remote_url"] = (
                         "https://khms0.google.com/kh/v="
                         + match.group(1)

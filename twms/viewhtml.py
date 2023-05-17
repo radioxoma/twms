@@ -1,24 +1,23 @@
-from twms import projections
-from twms.config import *
+from twms import config, projections
 
 
 def get_tms_url(layer):
-    return f"{service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
+    return f"{config.service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', config.default_ext)}"
 
 
 def get_wms_url(layer):
     """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
-    return f"{service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
+    return f"{config.service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', config.default_ext)}"
 
 
 def get_fs_url(layer):
-    return f"file://{tiles_cache}{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
+    return f"file://{config.tiles_cache}{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', config.default_ext)}"
 
 
 def html():
     """Available TMS layers summary."""
     resp = "<!doctype html><html><head>"
-    resp += "<title>" + wms_name + "</title>"
+    resp += "<title>" + config.wms_name + "</title>"
     resp += """<style>\
     .entry {
         display: inline-block;
@@ -28,9 +27,9 @@ def html():
     }
     </style>
     """
-    resp += f"</head><body><h2>{wms_name}</h2>"
+    resp += f"</head><body><h2>{config.wms_name}</h2>"
 
-    for layer_id, layer in layers.items():
+    for layer_id, layer in config.layers.items():
         bbox = layer.get("bounds", projections.projs[layer["proj"]]["bounds"])
         resp += '<div class="entry">'
 
@@ -52,11 +51,13 @@ def html():
 
         resp += f"<b>Bounding box:</b> {bbox}"
         resp += (
-            f' (show on <a href="https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>)<br />'
+            ' (show on <a href="https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>)<br />'
             % bbox
         )
         resp += f"<b>Projection:</b> {layer['proj']}<br />"
-        resp += f"<b>WMS half-link:</b> {service_url}?layers={layer_id}&amp;<br />"
+        resp += (
+            f"<b>WMS half-link:</b> {config.service_url}?layers={layer_id}&amp;<br />"
+        )
 
         # Links for JOSM control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
         # 127.0.0.1:8111 stands for local JOSM with remote control enabled

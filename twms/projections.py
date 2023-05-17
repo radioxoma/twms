@@ -113,8 +113,8 @@ def _c3857t4326(t1, t2, lon, lat):
 def _c4326t3395(t1, t2, lon, lat):
     """Pure python 4326 -> 3395 transform. About 8x faster than pyproj."""
     E = 0.0818191908426
-    A = 20037508.342789
-    F = 53.5865938
+    # A = 20037508.342789
+    # F = 53.5865938
     tmp = math.tan(0.78539816339744830962 + math.radians(lat) / 2.0)
     pow_tmp = math.pow(
         math.tan(

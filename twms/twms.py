@@ -254,8 +254,7 @@ class TWMSMain:
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
         """Get tile by a given bbox."""
-        orig_bbox = bbox
-        ## Making 4-corner maximal bbox
+        # Making 4-corner maximal bbox
         bbox_p = projections.from4326(bbox, request_proj)
         bbox_p = projections.to4326(
             (bbox_p[2], bbox_p[1], bbox_p[0], bbox_p[3]), request_proj
@@ -311,7 +310,7 @@ class TWMSMain:
                     im1 = Image.new("RGBA", (256, 256), ec)
                 out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
 
-        ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
+        # TODO: We could drop this crop in case user doesn't need it.
         out = out.crop(bbox_im)
         if "noresize" not in force:
             if (H == W) and (H == 0):
@@ -320,7 +319,7 @@ class TWMSMain:
                 H = out.size[1] * W // out.size[0]
             if W == 0:
                 W = out.size[0] * H // out.size[1]
-        # bbox = orig_bbox
+
         quad = list()
         trans_needed = False
         for point in bbox_4:

@@ -13,8 +13,6 @@ import os
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 
-from twms import fetchers
-
 """
 Cache layout
 ------------
@@ -66,7 +64,7 @@ default_background = (
 )
 
 
-## WMS GetCapabilities
+# WMS GetCapabilities
 host = "localhost"
 port = 8080
 service_url = "http://{}:{}/".format(host, port)  # URL service installed at

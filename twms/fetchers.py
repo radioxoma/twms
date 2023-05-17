@@ -20,11 +20,10 @@ from twms import config, projections
 # ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
 
 
-
-
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0",
-    "Connection": "Keep-Alive"}
+    "Connection": "Keep-Alive",
+}
 
 
 def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
@@ -88,7 +87,7 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
 class TileFetcher:
     def __init__(self, layer):
         self.layer = layer
-        self.opener = prepare_opener(headers=self.layer.get('headers', dict()))
+        self.opener = prepare_opener(headers=self.layer.get("headers", dict()))
         self.fetching_now = {}
         self.thread_responses = {}  # Dicts are thread safe
         self.zhash_lock = {}
@@ -101,8 +100,7 @@ class TileFetcher:
         except KeyError:
             self.zhash_lock[zhash] = 1
         if zhash not in self.fetching_now:
-            thread = threading.Thread(
-                None, self.threadworker, None, (z, x, y, zhash))
+            thread = threading.Thread(None, self.threadworker, None, (z, x, y, zhash))
             thread.start()
             self.fetching_now[zhash] = thread
         if self.fetching_now[zhash].is_alive():
@@ -116,12 +114,12 @@ class TileFetcher:
         return resp
 
     def threadworker(self, z, x, y, zhash):
-        f_names = ('tms', 'wms', 'tms_google_sat')
-        if self.layer['fetch'] not in f_names:
-            raise ValueError("fetch must be " + ', '.join(f_names))
+        f_names = ("tms", "wms", "tms_google_sat")
+        if self.layer["fetch"] not in f_names:
+            raise ValueError("fetch must be " + ", ".join(f_names))
 
         # Call fetcher by it's name
-        self.thread_responses[zhash] = getattr(self, self.layer['fetch'])(z, x, y)
+        self.thread_responses[zhash] = getattr(self, self.layer["fetch"])(z, x, y)
 
     def wms(self, z, x, y):
         """Use tms instead.
@@ -134,30 +132,35 @@ class TileFetcher:
         projection from WMS by 'wms_proj' parameter, as server may be broken.
         """
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
-        if 'max_zoom' in self.layer and z > self.layer['max_zoom']:
+        if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
             logging.debug(f"{tile_id}: zoom limit")
             return None
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
 
         width = 256  # Using larger source size to rescale better in python
         height = 256
-        tile_bbox = "{},{},{},{}".format(*projections.from4326(
-            projections.bbox_by_tile(z, x, y, req_proj), req_proj))
+        tile_bbox = "{},{},{},{}".format(
+            *projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
+        )
 
-        remote = self.layer['remote_url'].replace('{bbox}', tile_bbox)
-        remote = remote.replace('{width}', str(width))
-        remote = remote.replace('{height}', str(height))
-        remote = remote.replace('{proj}', req_proj)
+        remote = self.layer["remote_url"].replace("{bbox}", tile_bbox)
+        remote = remote.replace("{width}", str(width))
+        remote = remote.replace("{height}", str(height))
+        remote = remote.replace("{proj}", req_proj)
 
         # MOBAC cache path style
-        tile_path = config.tiles_cache + self.layer["prefix"] + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer['ext'])
+        tile_path = (
+            config.tiles_cache
+            + self.layer["prefix"]
+            + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer["ext"])
+        )
         partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
-        tne_path = partial_path + '.tne'
+        tne_path = partial_path + ".tne"
 
         os.makedirs(os.path.dirname(tile_path), exist_ok=True)
 
-        if 'cache_ttl' in self.layer:
-            for ex in (ext, '.dsc' + ext, '.ups' + ext, '.tne'):
+        if "cache_ttl" in self.layer:
+            for ex in (ext, ".dsc" + ext, ".ups" + ext, ".tne"):
                 fp = partial_path + ex
                 if os.path.exists(fp):
                     if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
@@ -173,7 +176,9 @@ class TileFetcher:
             im = im.resize((256, 256), Image.ANTIALIAS)
         im = im.convert("RGBA")
 
-        ic = Image.new("RGBA", (256, 256), self.layer.get("empty_color", config.default_background))
+        ic = Image.new(
+            "RGBA", (256, 256), self.layer.get("empty_color", config.default_background)
+        )
         if im.histogram() == ic.histogram():
             logging.debug(f"{tile_id}: TNE - empty histogram '{tne_path}'")
             Path(tne_path, exist_ok=True).touch()
@@ -206,17 +211,21 @@ class TileFetcher:
         tile_parsed = False
         tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
-        target_mimetype = mimetypes.types_map[self.layer['ext']]
-        remote = ''
+        target_mimetype = mimetypes.types_map[self.layer["ext"]]
+        remote = ""
 
-        if 'max_zoom' in self.layer and z > self.layer['max_zoom']:
+        if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
             logging.debug(f"{tile_id}: zoom limit")
             return None
 
         # MOBAC cache path style
-        tile_path = config.tiles_cache + self.layer['prefix'] + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer['ext'])
+        tile_path = (
+            config.tiles_cache
+            + self.layer["prefix"]
+            + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer["ext"])
+        )
         partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
-        tne_path = partial_path + '.tne'
+        tne_path = partial_path + ".tne"
         os.makedirs(os.path.dirname(tile_path), exist_ok=True)
 
         # Do not delete, only replace if tile exists!
@@ -227,7 +236,7 @@ class TileFetcher:
                 need_fetch = True
             else:
                 logging.info(f"{tile_id}: tile cached as TNE {tne_path}")
-        if 'cache_ttl' in self.layer:
+        if "cache_ttl" in self.layer:
             # for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
             if os.path.exists(tile_path):
                 tile_lifespan = time.time() - os.stat(tile_path).st_mtime
@@ -241,29 +250,37 @@ class TileFetcher:
             need_fetch = True
 
         # Fetching image
-        if need_fetch and 'remote_url' in self.layer:
-            if 'transform_tile_number' in self.layer:
-                trans_z, trans_x, trans_y = self.layer['transform_tile_number'](z, x, y)
+        if need_fetch and "remote_url" in self.layer:
+            if "transform_tile_number" in self.layer:
+                trans_z, trans_x, trans_y = self.layer["transform_tile_number"](z, x, y)
             else:
                 trans_z, trans_x, trans_y = z, x, y
 
             # Placeholder substitution
             # TMS
-            remote = self.layer['remote_url'].replace('{z}', str(trans_z))
-            remote = remote.replace('{x}', str(trans_x))
-            remote = remote.replace('{y}', str(trans_y))
-            remote = remote.replace('{-y}', str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2]))
-            remote = remote.replace('{q}', tile_to_quadkey(trans_z, trans_x, trans_y))  # Bing
+            remote = self.layer["remote_url"].replace("{z}", str(trans_z))
+            remote = remote.replace("{x}", str(trans_x))
+            remote = remote.replace("{y}", str(trans_y))
+            remote = remote.replace(
+                "{-y}", str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2])
+            )
+            remote = remote.replace(
+                "{q}", tile_to_quadkey(trans_z, trans_x, trans_y)
+            )  # Bing
 
             # WMS, no real difference with TMS except missing *.tne feature
             width = 256
             height = 256
-            tile_bbox = "{},{},{},{}".format(*projections.from4326(
-                projections.bbox_by_tile(z, x, y, self.layer['proj']), self.layer['proj']))
-            remote = remote.replace('{bbox}', tile_bbox)
-            remote = remote.replace('{width}', str(width))
-            remote = remote.replace('{height}', str(height))
-            remote = remote.replace('{proj}', self.layer["proj"])
+            tile_bbox = "{},{},{},{}".format(
+                *projections.from4326(
+                    projections.bbox_by_tile(z, x, y, self.layer["proj"]),
+                    self.layer["proj"],
+                )
+            )
+            remote = remote.replace("{bbox}", tile_bbox)
+            remote = remote.replace("{width}", str(width))
+            remote = remote.replace("{height}", str(height))
+            remote = remote.replace("{proj}", self.layer["proj"])
 
             try:
                 # Got response, need to verify content
@@ -277,8 +294,12 @@ class TileFetcher:
                         tile_parsed = True
                     except (OSError, AttributeError):
                         # Catching invalid pictures
-                        logging.error(f"{tile_id}: failed to parse response as image {tne_path}")
-                        logging.debug(f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}")
+                        logging.error(
+                            f"{tile_id}: failed to parse response as image {tne_path}"
+                        )
+                        logging.debug(
+                            f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
+                        )
                         # try:
                         #     logging.debug(remote_bytes.decode('utf-8'))
                         # except UnicodeDecodeError:
@@ -291,7 +312,11 @@ class TileFetcher:
             except request.HTTPError as err:
                 # Heuristic: TNE or server is defending tiles
                 # HTTP 403 must be inspected manually
-                logging.error('\n'.join([str(k) for k in (err, err.headers, err.read().decode('utf-8'))]))
+                logging.error(
+                    "\n".join(
+                        [str(k) for k in (err, err.headers, err.read().decode("utf-8"))]
+                    )
+                )
                 if err.status == HTTPStatus.NOT_FOUND:
                     logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
                     Path(tne_path, exist_ok=True).touch()
@@ -301,12 +326,12 @@ class TileFetcher:
 
             # Save something in cache
             # Sometimes server returns file instead of empty HTTP response
-            if 'dead_tile' in self.layer:
+            if "dead_tile" in self.layer:
                 # Compare bytestring with dead tile hash
-                if len(remote_bytes) == self.layer['dead_tile']['size']:
+                if len(remote_bytes) == self.layer["dead_tile"]["size"]:
                     hasher = hashlib.md5()
                     hasher.update(remote_bytes)
-                    if hasher.hexdigest() == self.layer['dead_tile']['md5']:
+                    if hasher.hexdigest() == self.layer["dead_tile"]["md5"]:
                         # Tile is recognized as empty
                         # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
                         # SASPlanet writes empty files with '.tne' ext
@@ -322,12 +347,14 @@ class TileFetcher:
                 # Preserving original image if possible, as encoding is lossy
                 # Storing all images into one format, just like SAS.Planet does
                 if im.get_format_mimetype() != target_mimetype:
-                    logging.warning(f"{tile_id} unexpected image Content-Type {im.get_format_mimetype()}, converting to '{target_mimetype}'")
+                    logging.warning(
+                        f"{tile_id} unexpected image Content-Type {im.get_format_mimetype()}, converting to '{target_mimetype}'"
+                    )
                     image_bytes = im_convert(im, target_mimetype)
                 else:
                     image_bytes = remote_bytes
 
-                with open(tile_path, 'wb') as f:
+                with open(tile_path, "wb") as f:
                     f.write(image_bytes)
                 if os.path.exists(tne_path):
                     os.remove(tne_path)
@@ -341,7 +368,9 @@ class TileFetcher:
                 logging.info(f"{tile_id}: cache tms {tile_path}")
                 return im
             except OSError:
-                logging.warning(f"{tile_id}: failed to parse image from cache '{tile_path}'")
+                logging.warning(
+                    f"{tile_id}: failed to parse image from cache '{tile_path}'"
+                )
                 # os.remove(tile_path)  # Cached tile is broken - remove it
 
         logging.warning(f"{tile_id}: unreachable tile {remote}")
@@ -353,25 +382,37 @@ class TileFetcher:
         https://khms0.google.com/kh/v=889?x=39595&y=20473&z=16
         https://khms3.google.com/kh/v=889?x=39595&y=20472&z=16
         """
-        if 'remote_url' not in self.layer:
+        if "remote_url" not in self.layer:
             try:
-                resp = self.opener("https://maps.googleapis.com/maps/api/js").read().decode('utf-8')
+                resp = (
+                    self.opener("https://maps.googleapis.com/maps/api/js")
+                    .read()
+                    .decode("utf-8")
+                )
                 if resp:
-                    match = re.search(r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp)
+                    match = re.search(
+                        r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp
+                    )
                     if not match.group(1):
                         logging.error(f"Cannot parse 'v=' from {maps_googleapis_js}")
                         raise ValueError(f"Cannot parse 'v=' from {maps_googleapis_js}")
-                    self.layer['remote_url'] = "https://khms0.google.com/kh/v=" + match.group(1) + "?x={x}&y={y}&z={z}"
-                    logging.info(f"Setting new {self.layer['name']} URI {self.layer['remote_url']}")
+                    self.layer["remote_url"] = (
+                        "https://khms0.google.com/kh/v="
+                        + match.group(1)
+                        + "?x={x}&y={y}&z={z}"
+                    )
+                    logging.info(
+                        f"Setting new {self.layer['name']} URI {self.layer['remote_url']}"
+                    )
             except request.URLError:
                 pass
 
         # URL version can expiry, reset if no image
         # Though it is not only possible cause of None response
         im = self.tms(z, x, y)
-        if 'remote_url' in self.layer and not im:
-            del self.layer['remote_url']
-        return  im
+        if "remote_url" in self.layer and not im:
+            del self.layer["remote_url"]
+        return im
 
 
 def tile_to_quadkey(z, x, y):
@@ -401,7 +442,7 @@ def tile_to_quadkey(z, x, y):
     quadkey = ""
     for i in range(z):
         bit = z - i
-        digit = ord('0')
+        digit = ord("0")
         mask = 1 << (bit - 1)
         if (x & mask) != 0:
             digit += 1
@@ -418,7 +459,7 @@ def tile_slippy_to_tms(z, x, y):
 
     https://josm.openstreetmap.de/wiki/Maps
     """
-    return z, x, 2 ** z - 1 - y
+    return z, x, 2**z - 1 - y
 
 
 def im_convert(im, content_type, exif=None):
@@ -430,17 +471,41 @@ def im_convert(im, content_type, exif=None):
     """
     # Exif-related code not documented, Pillow can change behavior
     exif = Image.Exif()
-    exif[0x0131] = 'twms'  # ExifTags.TAGS['Software']
+    exif[0x0131] = "twms"  # ExifTags.TAGS['Software']
 
     img_buf = BytesIO()
     if content_type == "image/jpeg":
         im = im.convert("RGB")
-        im.save(img_buf, 'JPEG', quality=config.output_quality, progressive=config.output_progressive, exif=exif)
+        im.save(
+            img_buf,
+            "JPEG",
+            quality=config.output_quality,
+            progressive=config.output_progressive,
+            exif=exif,
+        )
     elif content_type == "image/png":
-        im.save(img_buf, 'PNG', progressive=config.output_progressive, optimize=config.output_optimize, exif=exif)
+        im.save(
+            img_buf,
+            "PNG",
+            progressive=config.output_progressive,
+            optimize=config.output_optimize,
+            exif=exif,
+        )
     elif content_type == "image/gif":
-        im.save(img_buf, 'GIF', quality=config.output_quality, progressive=config.output_progressive, exif=exif)
+        im.save(
+            img_buf,
+            "GIF",
+            quality=config.output_quality,
+            progressive=config.output_progressive,
+            exif=exif,
+        )
     else:
         im = im.convert("RGB")
-        im.save(img_buf, content_type.split('/')[1], quality=config.output_quality, progressive=config.output_progressive, exif=exif)
+        im.save(
+            img_buf,
+            content_type.split("/")[1],
+            quality=config.output_quality,
+            progressive=config.output_progressive,
+            exif=exif,
+        )
     return img_buf.getvalue()

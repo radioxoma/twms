@@ -3,7 +3,8 @@ import math
 try:
     import pyproj
 except ImportError:
-    class pyproj:
+
+    class pyproj:  # type: ignore
         class Proj:
             def __init__(self, pstring):
                 self.pstring = pstring
@@ -13,7 +14,7 @@ except ImportError:
                 return c1, c2
             else:
                 raise NotImplementedError(
-                    "Pyproj is not installed - can't convert between projectios. Install pyproj please."
+                    "Pyproj is required for projection transformations"
                 )
 
 
@@ -195,7 +196,7 @@ def coords_by_tile(z, x, y, srs="EPSG:3857"):
     Converts (z,x,y) to coordinates of corner of srs-projected tile
     """
     # z -= 1  # Should I remove it?
-    normalized_tile = (x / (2.0 ** z), 1.0 - (y / (2.0 ** z)))
+    normalized_tile = (x / (2.0**z), 1.0 - (y / (2.0**z)))
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
     maxp = [
         projected_bounds[2] - projected_bounds[0],
@@ -227,7 +228,7 @@ def tile_by_coords(xxx_todo_changeme, zoom, srs="EPSG:3857"):
     ]
     point = [1.0 * point[0] / maxp[0], 1.0 * point[1] / maxp[1]]
     # normalizing
-    return point[0] * (2 ** zoom), (1 - point[1]) * (2 ** zoom)
+    return point[0] * (2**zoom), (1 - point[1]) * (2**zoom)
 
 
 def to4326(line, srs="EPSG:3857"):
@@ -263,7 +264,6 @@ def transform(line, srs1, srs2):
         func = pure_python_transformers[(srs1, srs2)]
         # print("pure")
     else:
-
         func = pyproj.transform
     line = list(line)
     serial = False

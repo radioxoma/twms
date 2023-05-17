@@ -14,9 +14,8 @@ from twms import config, correctify, fetchers, projections, viewhtml, viewwms
 # ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-
 sys.path.append(os.path.join(os.path.dirname(__file__)))
-install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
+install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), "../"))
 
 
 class TWMSMain:
@@ -32,6 +31,7 @@ class TWMSMain:
         https://sampleserver6.arcgisonline.com/arcgis/rest/services/WorldTimeZones/MapServer/WMTS
         Usually link to WMTSCapabilities.xml
     """
+
     def __init__(self):
         super().__init__()
         self.cached_objs = dict()  # a dict. (layer, z, x, y): PIL image
@@ -63,12 +63,12 @@ class TWMSMain:
             content_type, resp = viewwms.get(version, ref)
             return HTTPStatus.OK, content_type, resp
 
-        layer = data.get('layers', config.default_layers).split(",")
-        if 'layers' in data and not layer[0]:
-            layer = ['transparent']
+        layer = data.get("layers", config.default_layers).split(",")
+        if "layers" in data and not layer[0]:
+            layer = ["transparent"]
 
         if req_type == "GetCorrections":
-            points = data.get('points', '').split('=')
+            points = data.get("points", "").split("=")
             points = [a.split(",") for a in points]
             points = [(float(a[0]), float(a[1])) for a in points]
 
@@ -77,7 +77,7 @@ class TWMSMain:
                 for point in points:
                     resp += "%s,%s;" % (correctify.rectify(config.layers[lay], point))
                 resp += "\n"
-            return HTTPStatus.OK, 'text/plain', resp
+            return HTTPStatus.OK, "text/plain", resp
 
         force = data.get("force", "")
         if force != "":
@@ -85,16 +85,20 @@ class TWMSMain:
         force = tuple(force)
 
         if layer == [""]:
-            return HTTPStatus.OK, 'text/html', viewhtml.html()
+            return HTTPStatus.OK, "text/html", viewhtml.html()
 
         # Serving imagery
-        content_type = 'image/jpeg'  # Default content type of image to serve
+        content_type = "image/jpeg"  # Default content type of image to serve
         try:
             # Get requested content type from standard WMS 'format' parameter,
             # https://docs.geoserver.org/stable/en/user/services/wms/outputformats.html
-            content_type = data['format']
+            content_type = data["format"]
             if content_type not in mimetypes.types_map.values():
-                return HTTPStatus.INTERNAL_SERVER_ERROR, 'text/plain', f"Invalid image format '{content_type}' requested"
+                return (
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    "text/plain",
+                    f"Invalid image format '{content_type}' requested",
+                )
         except KeyError:
             pass
 
@@ -109,23 +113,34 @@ class TWMSMain:
             height = 256
             height = int(data.get("height", height))
             width = int(data.get("width", width))
-            srs = data.get('srs', 'EPSG:3857')
+            srs = data.get("srs", "EPSG:3857")
             # Try to return tile as is, if possible
-            if all((
+            if all(
+                (
                     len(layer) == 1,
                     layer[0] in config.layers,
-                    'cache_ttl' not in config.layers[layer[0]],  # Need to check time in fetcher
-                    srs == config.layers[layer[0]]['proj'],
+                    "cache_ttl"
+                    not in config.layers[layer[0]],  # Need to check time in fetcher
+                    srs == config.layers[layer[0]]["proj"],
                     width == height == 256,
                     not force,
-                    not correctify.has_corrections(config.layers[layer[0]]))):
-                tile_path = config.tiles_cache + config.layers[layer[0]]['prefix'] + "/{:.0f}/{:.0f}/{:.0f}{}".format(
-                    z, x, y, config.layers[layer[0]]['ext'])
+                    not correctify.has_corrections(config.layers[layer[0]]),
+                )
+            ):
+                tile_path = (
+                    config.tiles_cache
+                    + config.layers[layer[0]]["prefix"]
+                    + "/{:.0f}/{:.0f}/{:.0f}{}".format(
+                        z, x, y, config.layers[layer[0]]["ext"]
+                    )
+                )
                 logging.debug(f"{layer[0]} z{z}/x{x}/y{y} query cache {tile_path}")
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404
-                    logging.info(f"{layer[0]} z{z}/x{x}/y{y} wms_handler cache hit {tile_path}")
-                    with open(tile_path, 'rb') as f:
+                    logging.info(
+                        f"{layer[0]} z{z}/x{x}/y{y} wms_handler cache hit {tile_path}"
+                    )
+                    with open(tile_path, "rb") as f:
                         # Note: image file validation performed only in TileFetcher
                         return HTTPStatus.OK, content_type, f.read()
 
@@ -156,7 +171,9 @@ class TWMSMain:
 
         try:
             # WMS image
-            result_img = self.getimg(box, srs, (height, width), config.layers[ll], start_time, force)
+            result_img = self.getimg(
+                box, srs, (height, width), config.layers[ll], start_time, force
+            )
         except KeyError:
             result_img = Image.new("RGBA", (width, height))
 
@@ -168,7 +185,9 @@ class TWMSMain:
                 wkt = correctify.corr_wkt(config.layers[ll]) + wkt
                 srs = config.layers[ll]["proj"]
 
-            im2 = self.getimg(box, srs, (height, width), config.layers[ll], start_time, force)
+            im2 = self.getimg(
+                box, srs, (height, width), config.layers[ll], start_time, force
+            )
             if "empty_color" in config.layers[ll]:
                 ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
                 sec = set(ec)
@@ -196,7 +215,7 @@ class TWMSMain:
                 im2 = im2.resize(result_img.size, Image.ANTIALIAS)
             im2 = Image.composite(im2, result_img, im2.split()[3])  # imgs/(imgs+1.))
 
-            if 'noblend' in force:
+            if "noblend" in force:
                 result_img = im2
             else:
                 result_img = Image.blend(im2, result_img, 0.5)
@@ -205,7 +224,11 @@ class TWMSMain:
         if flip_h:
             result_img = ImageOps.flip(result_img)
 
-        return HTTPStatus.OK, content_type, fetchers.im_convert(result_img, content_type)
+        return (
+            HTTPStatus.OK,
+            content_type,
+            fetchers.im_convert(result_img, content_type),
+        )
 
     def tiles_handler(self, layer_id, z, x, y, content_type):
         """Partial slippy map implementation. Serve tiles by index, reproject, if required.
@@ -217,31 +240,34 @@ class TWMSMain:
         Return 404 instead of blank tile.
         """
         logging.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
-        if config.layers[layer_id]['proj'] != 'EPSG:3857':
-            raise NotImplementedError("Reprojection is not supported, use wms for this tile set")
+        if config.layers[layer_id]["proj"] != "EPSG:3857":
+            raise NotImplementedError(
+                "Reprojection is not supported, use wms for this tile set"
+            )
         z, x, y = int(z), int(x), int(y)
         im = self.tile_image(config.layers[layer_id], z, x, y, time.time(), real=True)
 
         if im:
             return HTTPStatus.OK, content_type, fetchers.im_convert(im, content_type)
         else:
-            return HTTPStatus.NOT_FOUND, 'text/plain', "404 Not Found"
+            return HTTPStatus.NOT_FOUND, "text/plain", "404 Not Found"
 
     def getimg(self, bbox, request_proj, size, layer, start_time, force):
-        """Get tile by a given bbox.
-        """
+        """Get tile by a given bbox."""
         orig_bbox = bbox
         ## Making 4-corner maximal bbox
         bbox_p = projections.from4326(bbox, request_proj)
         bbox_p = projections.to4326(
-            (bbox_p[2], bbox_p[1], bbox_p[0], bbox_p[3]), request_proj)
+            (bbox_p[2], bbox_p[1], bbox_p[0], bbox_p[3]), request_proj
+        )
 
         bbox_4 = (
             (bbox_p[2], bbox_p[3]),
             (bbox[0], bbox[1]),
             (bbox_p[0], bbox_p[1]),
-            (bbox[2], bbox[3]))
-        if 'nocorrect' not in force:
+            (bbox[2], bbox[3]),
+        )
+        if "nocorrect" not in force:
             bb4 = []
             for point in bbox_4:
                 bb4.append(correctify.rectify(layer, point))
@@ -280,7 +306,8 @@ class TWMSMain:
                 im1 = self.tile_image(layer, zoom, x, y, start_time, real=True)
                 if not im1:
                     ec = ImageColor.getcolor(
-                        layer.get("empty_color", config.default_background), "RGBA")
+                        layer.get("empty_color", config.default_background), "RGBA"
+                    )
                     im1 = Image.new("RGBA", (256, 256), ec)
                 out.paste(im1, ((x - from_tile_x) * 256, (-to_tile_y + y) * 256))
 
@@ -331,28 +358,41 @@ class TWMSMain:
         tile = None
         # Dedicated fetcher for each imagery layer - if one fetcher hangs,
         # others should be responsive
-        if layer['prefix'] not in self.fetchers_pool:
-            self.fetchers_pool[layer['prefix']] = fetchers.TileFetcher(layer)
+        if layer["prefix"] not in self.fetchers_pool:
+            self.fetchers_pool[layer["prefix"]] = fetchers.TileFetcher(layer)
 
-        x = x % (2 ** z)
-        if y < 0 or y >= (2 ** z) or z < 0:
-            logging.warning(f"{layer['prefix']}/z{z}/x{x}/y{y} impossible tile coordinates")
+        x = x % (2**z)
+        if y < 0 or y >= (2**z) or z < 0:
+            logging.warning(
+                f"{layer['prefix']}/z{z}/x{x}/y{y} impossible tile coordinates"
+            )
             return None
 
         if not bbox_utils.bbox_is_in(
-            projections.bbox_by_tile(z, x, y, layer["proj"]), layer.get('bounds', config.default_bbox), fully=False):
-            logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} ignoring request for a tile outside configured bounds")
+            projections.bbox_by_tile(z, x, y, layer["proj"]),
+            layer.get("bounds", config.default_bbox),
+            fully=False,
+        ):
+            logging.info(
+                f"{layer['prefix']}/z{z}/x{x}/y{y} ignoring request for a tile outside configured bounds"
+            )
             return None
 
-        if 'prefix' in layer:
-            if (layer['prefix'], z, x, y) in self.cached_objs:
+        if "prefix" in layer:
+            if (layer["prefix"], z, x, y) in self.cached_objs:
                 logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} RAM cache hit")
                 return self.cached_objs[(layer["prefix"], z, x, y)]
 
         # Working with cache
-        if layer['scalable'] and (z < layer.get('max_zoom', config.default_max_zoom)) and trybetter:
+        if (
+            layer["scalable"]
+            and (z < layer.get("max_zoom", config.default_max_zoom))
+            and trybetter
+        ):
             # Second, try to glue image of better ones
-            logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
+            logging.info(
+                f"{layer['prefix']}/z{z}/x{x}/y{y} downscaling from 4 subtiles"
+            )
             # # Load upscaled images
             # if os.path.exists(local + "ups" + ext):
             #     try:
@@ -360,7 +400,9 @@ class TWMSMain:
             #         return im
             #     except OSError:
             #         pass
-            ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
+            ec = ImageColor.getcolor(
+                layer.get("empty_color", config.default_background), "RGBA"
+            )
             ec = (ec[0], ec[1], ec[2], 0)
             im = Image.new("RGBA", (512, 512), ec)
             im1 = self.tile_image(layer, z + 1, x * 2, y * 2, start_time)
@@ -369,7 +411,9 @@ class TWMSMain:
                 if im2:
                     im3 = self.tile_image(layer, z + 1, x * 2, y * 2 + 1, start_time)
                     if im3:
-                        im4 = self.tile_image(layer, z + 1, x * 2 + 1, y * 2 + 1, start_time)
+                        im4 = self.tile_image(
+                            layer, z + 1, x * 2 + 1, y * 2 + 1, start_time
+                        )
                         if im4:
                             im.paste(im1, (0, 0))
                             im.paste(im2, (256, 0))
@@ -382,17 +426,25 @@ class TWMSMain:
                             #     except OSError:
                             #         pass
 
-        if tile is None and 'fetch' in layer:
+        if tile is None and "fetch" in layer:
             seconds_spent = time.time() - start_time
             if (config.deadline > seconds_spent) or (z < 4):
                 # Try fetching img from outside
                 logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} creating dl thread")
-                tile = self.fetchers_pool[layer['prefix']].fetch(z, x, y)
+                tile = self.fetchers_pool[layer["prefix"]].fetch(z, x, y)
 
         if tile is None and real and z > 0:
             # Downscale?
             logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} upscaling from top tile")
-            im = self.tile_image(layer, z - 1, int(x // 2), int(y // 2), start_time, trybetter=False, real=True)
+            im = self.tile_image(
+                layer,
+                z - 1,
+                int(x // 2),
+                int(y // 2),
+                start_time,
+                trybetter=False,
+                real=True,
+            )
             if im:
                 im = im.crop(
                     (
@@ -405,9 +457,9 @@ class TWMSMain:
                 tile = im.resize((256, 256), Image.BILINEAR)
 
         # RAM cache. Better use decorator?
-        if (layer['prefix'], z, x, y) not in self.cached_objs:
-            self.cached_objs[(layer['prefix'], z, x, y)] = tile
-            self.cached_hist_list.append((layer['prefix'], z, x, y))
+        if (layer["prefix"], z, x, y) not in self.cached_objs:
+            self.cached_objs[(layer["prefix"], z, x, y)] = tile
+            self.cached_hist_list.append((layer["prefix"], z, x, y))
         if len(self.cached_objs) >= config.max_ram_cached_tiles:
             del self.cached_objs[self.cached_hist_list.pop(0)]
 

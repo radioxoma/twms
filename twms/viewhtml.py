@@ -7,8 +7,7 @@ def get_tms_url(layer):
 
 
 def get_wms_url(layer):
-    """TWMS has somewhat like WMS-C emulation for getting tiles directly.
-    """
+    """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
     return f"{service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', default_ext)}"
 
 
@@ -17,8 +16,7 @@ def get_fs_url(layer):
 
 
 def html():
-    """Available TMS layers summary.
-    """
+    """Available TMS layers summary."""
     resp = "<!doctype html><html><head>"
     resp += "<title>" + wms_name + "</title>"
     resp += """<style>\
@@ -33,22 +31,30 @@ def html():
     resp += f"</head><body><h2>{wms_name}</h2>"
 
     for layer_id, layer in layers.items():
-        bbox = layer.get('bounds', projections.projs[layer['proj']]['bounds'])
-        resp += "<div class=\"entry\">"
+        bbox = layer.get("bounds", projections.projs[layer["proj"]]["bounds"])
+        resp += '<div class="entry">'
 
-        if 'min_zoom' in layer and layer['min_zoom'] > 8:
+        if "min_zoom" in layer and layer["min_zoom"] > 8:
             # Too recursive
             resp += "<p>Preview unavailable</p>"
         else:
-            resp += "<img src=\"wms?layers=" + layer_id + "&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png\" width=\"200\" />" % bbox
+            resp += (
+                '<img src="wms?layers='
+                + layer_id
+                + '&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png" width="200" />'
+                % bbox
+            )
 
-        if 'provider_url' in layer:
+        if "provider_url" in layer:
             resp += f"<h3><a referrerpolicy=\"no-referrer\" title=\"Visit tile provider website\" href=\"{layer['provider_url']}\">{layer['name']}</a></h3>"
         else:
-            resp += "<h3>"+ layer['name'] + "</h3>"
+            resp += "<h3>" + layer["name"] + "</h3>"
 
         resp += f"<b>Bounding box:</b> {bbox}"
-        resp += f" (show on <a href=\"https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes\">OSM</a>)<br />" % bbox
+        resp += (
+            f' (show on <a href="https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>)<br />'
+            % bbox
+        )
         resp += f"<b>Projection:</b> {layer['proj']}<br />"
         resp += f"<b>WMS half-link:</b> {service_url}?layers={layer_id}&amp;<br />"
 
@@ -57,7 +63,7 @@ def html():
         # "&valid - georeference = true" to hide annoying message
         tms_url = get_wms_url(layer)
         resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}\">{tms_url}</a><br />"
-        if layer['proj'] == "EPSG:3857":
+        if layer["proj"] == "EPSG:3857":
             file_url = get_fs_url(layer)
             resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={file_url}\">{file_url}</a>"
         resp += "</div>"

@@ -1,10 +1,9 @@
 import xml.etree.ElementTree as ET
-from xml.dom import minidom
 
 from twms import config, viewhtml
 
 
-def maps_xml(pretty=True):
+def maps_xml():
     """Create XML for JOSM 'imagery.layers.sites' property.
 
     XML spec https://josm.openstreetmap.de/wiki/Maps
@@ -80,10 +79,4 @@ def maps_xml(pretty=True):
             ET.SubElement(entry, "min-zoom").text = str(layer["min_zoom"])
 
     imagery_xml = ET.tostring(imagery, encoding="unicode")
-    if not pretty:
-        return imagery_xml
-    else:
-        # return minidom.parseString(imagery_xml).toprettyxml(indent="  ")
-        # Print node directly to skip XML header
-        root = minidom.parseString(imagery_xml).childNodes[0]
-        return root.toprettyxml(indent="  ")
+    return imagery_xml

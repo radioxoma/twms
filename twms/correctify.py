@@ -1,6 +1,6 @@
 import os
 
-from twms import projections, twms
+from twms import config, projections
 
 
 def distance(z, x, y, g):
@@ -8,12 +8,12 @@ def distance(z, x, y, g):
 
 
 def has_corrections(layer):
-    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     return os.path.exists(corrfile)
 
 
 def corr_wkt(layer):
-    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     with open(corrfile) as f:
         corr = f.read()
     wkt = ""
@@ -25,7 +25,7 @@ def corr_wkt(layer):
 
 
 def rectify(layer, point):
-    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     srs = layer["proj"]
     if not os.path.exists(corrfile):
         return point
@@ -83,7 +83,7 @@ def rectify(layer, point):
 
 # print(rectify("yasat", (27.679068, 53.885122), ""))
 def r_bbox(layer, bbox):
-    corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
+    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     srs = layer["proj"]
     if not os.path.exists(corrfile):
         return bbox

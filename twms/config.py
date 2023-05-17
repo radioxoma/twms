@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """TWMS config file.
 
 debug - tile file operations

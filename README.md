@@ -58,7 +58,7 @@ At 2021 JOSM uses [Java cache system](https://commons.apache.org/proper/commons-
 
 ### Load tiles directly from disk cache
 
-JOSM supports `file://` URL pointing to 256x256 tiles in EPSG:3857 projection (like OSM, Bing or Google, but not Yandex as it uses EPSG:3395). **So it's possible to make JOSM loading tiles directly from SAS.Planet cache, without running any server.**
+JOSM supports `file://` URL pointing to 256x256 tiles in EPSG:3857 projection (like OSM, Bing or Google, but not Yandex as it uses EPSG:3395). **So it's possible to make JOSM load tiles directly from SAS.Planet cache, without running any server.**
 
 1. Check [http://127.0.0.1:8080](http://127.0.0.1:8080) for available `file://` links
 2. Open JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries* and paste link. E.g.:

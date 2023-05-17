@@ -7,23 +7,6 @@ def distance(z, x, y, g):
     return ((z - y) ** 2 + (x - g) ** 2) ** (0.5)
 
 
-def has_corrections(layer):
-    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
-    return os.path.exists(corrfile)
-
-
-def corr_wkt(layer):
-    corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
-    with open(corrfile) as f:
-        corr = f.read()
-    wkt = ""
-    for line in corr:
-        d, c, b, a, user, ts = line.split()
-        d, c, b, a = (float(d), float(c), float(b), float(a))
-        wkt += "POINT({} {}),LINESTRING({} {},{} {}),".format(d, c, d, c, b, a)
-    return wkt[:-1]
-
-
 def rectify(layer, point):
     corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     srs = layer["proj"]
@@ -77,11 +60,9 @@ def rectify(layer, point):
     latn = (latn * (lataz - latiz)) + latiz
     lonn = (lons - loni) / (lona - loni)
     lonn = (lonn * (lonaz - loniz)) + loniz
-
     return projections.to4326((lonn, latn), srs)
 
 
-# print(rectify("yasat", (27.679068, 53.885122), ""))
 def r_bbox(layer, bbox):
     corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     srs = layer["proj"]
@@ -99,6 +80,4 @@ def r_bbox(layer, bbox):
         ((cx1 - cx) + (a1 - a) + (c1 - c)) / 3,
         ((cy1 - cy) + (b1 - b) + (d1 - d)) / 3,
     )
-    #    print(dx,dy, file=sys.stderr)
-    #    sys.stderr.flush()
     return projections.to4326((a + dx, b + dy, c + dx, d + dy), srs)

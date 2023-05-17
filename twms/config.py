@@ -30,9 +30,6 @@ See:
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
 
-
-install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), "../"))
-
 # timeout for outer downloads.
 # When time is out, tile will be composited from cached tiles
 deadline = 45
@@ -41,14 +38,13 @@ deadline = 45
 # TWMS saves in cache empty "*.tne" file.
 # This is a timeout for a next attempt to fetch missing tile
 cache_tne_ttl = 60 * 60 * 24 * 30
-default_max_zoom = (
-    19  # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer
-)
-# [19] 30 cm resolution - best Maxar satellite resolution at 2021
 
-default_min_zoom = (
-    0  # Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
-)
+# Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer
+# [19] 30 cm resolution - best Maxar satellite resolution at 2021
+default_max_zoom = 19
+
+# Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
+default_min_zoom = 0
 default_layers = ""  # layer(s) to show when no layers given explicitly. if False, overview page is returned
 default_ext = ".jpg"
 max_ram_cached_tiles = 1024
@@ -57,10 +53,7 @@ max_width = 4095  # maximal allowed requested width
 output_quality = 75  # JPEG output image quality
 output_progressive = True  # JPEG progressive codec
 output_optimize = False  # Optimize PNG images
-default_background = (
-    "#ffffff"  # Default background for empty space (Pillow color string)
-)
-
+default_background = "#ffffff"  # Default background for empty space
 
 # WMS GetCapabilities
 host = "localhost"

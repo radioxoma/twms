@@ -1,7 +1,154 @@
-from twms import config, projections
+import xml.etree.ElementTree as ET
+
+import twms
 
 
-def get(version, ref):
+def get_tms_url(layer):
+    return f"{twms.config.service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', twms.config.default_ext)}"
+
+
+def get_wms_url(layer):
+    """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
+    return f"{twms.config.service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', twms.config.default_ext)}"
+
+
+def get_fs_url(layer):
+    return f"file://{twms.config.tiles_cache}{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', twms.config.default_ext)}"
+
+
+def maps_html():
+    """Available TMS layers summary."""
+    resp = "<!doctype html><html><head>"
+    resp += "<title>" + twms.config.wms_name + "</title>"
+    resp += """<style>\
+    .entry {
+        display: inline-block;
+        vertical-align: top;
+        width:256px;
+        padding: 5px;
+    }
+    </style>
+    """
+    resp += f"</head><body><h2>{twms.config.wms_name}</h2>"
+
+    for layer_id, layer in twms.config.layers.items():
+        bbox = layer.get("bounds", twms.projections.projs[layer["proj"]]["bounds"])
+        resp += '<div class="entry">'
+
+        if "min_zoom" in layer and layer["min_zoom"] > 8:
+            # Too recursive
+            resp += "<p>Preview unavailable</p>"
+        else:
+            resp += (
+                '<img src="wms?layers='
+                + layer_id
+                + '&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png" width="200" />'
+                % bbox
+            )
+
+        if "provider_url" in layer:
+            resp += f"<h3><a referrerpolicy=\"no-referrer\" title=\"Visit tile provider website\" href=\"{layer['provider_url']}\">{layer['name']}</a></h3>"
+        else:
+            resp += "<h3>" + layer["name"] + "</h3>"
+
+        resp += f"<b>Bounding box:</b> {bbox}"
+        resp += (
+            ' (show on <a href="https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>)<br />'
+            % bbox
+        )
+        resp += f"<b>Projection:</b> {layer['proj']}<br />"
+        resp += f"<b>WMS half-link:</b> {twms.config.service_url}?layers={layer_id}&amp;<br />"
+
+        # Links for JOSM control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
+        # 127.0.0.1:8111 stands for local JOSM with remote control enabled
+        # "&valid - georeference = true" to hide annoying message
+        tms_url = get_wms_url(layer)
+        resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}\">{tms_url}</a><br />"
+        if layer["proj"] == "EPSG:3857":
+            file_url = get_fs_url(layer)
+            resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={file_url}\">{file_url}</a>"
+        resp += "</div>"
+
+    resp += "</body></html>"
+    return resp
+
+
+def maps_xml():
+    """Create XML for JOSM 'imagery.layers.sites' property.
+
+    XML spec https://josm.openstreetmap.de/wiki/Maps
+    ELI https://github.com/osmlab/editor-layer-index
+    JOSM source https://josm.openstreetmap.de/doc/org/openstreetmap/josm/data/imagery/ImageryLayerInfo.html
+
+        Mandatory tags: <entry>: (<name>, <id>, <type> and <url>
+
+    XML examples:
+        https://josm.openstreetmap.de/maps%<?ids=>  # JOSM URL for fetching
+        https://osmlab.github.io/editor-layer-index/imagery.xml
+        http://www.imagico.de/map/osmim-imagicode.xml
+
+    :rtype: str
+    """
+    # Green color means it already added
+    # 1. category - shows as an icon
+    # 2. country-code - empty for worldwide
+    # 3. name
+    # 4. url, but with tms prefox, min-max zoom
+    imagery = ET.Element("imagery")
+    for layer_id, layer in twms.config.layers.items():
+        entry = ET.SubElement(imagery, "entry")
+        if "overlay" in layer and layer["overlay"] is True:
+            entry.attrib["overlay"] = "true"
+        # entry.attrib['eli-best'] = 'true'  # Some JOSM hint/tooltip
+        ET.SubElement(
+            entry, "default"
+        ).text = "true"  # Will be added on first JOSM run?
+
+        ET.SubElement(entry, "name").text = f"twms {layer_id}"  # Must be in English
+        ET.SubElement(entry, "id").text = "twms_" + layer_id
+        ET.SubElement(entry, "type").text = "tms"
+        if layer["proj"] == "EPSG:3857":
+            ET.SubElement(entry, "url").text = get_tms_url(layer)  # Implement CDATA?
+        else:
+            # tms_handler not supports reprojection
+            ET.SubElement(entry, "url").text = get_wms_url(layer)  # Implement CDATA?
+        # Optional tags below
+        ET.SubElement(entry, "description").text = layer["name"]  # Must be in English
+        if "bounds" in layer:
+            ET.SubElement(entry, "bounds").attrib.update(
+                {
+                    "min-lon": str(layer["bounds"][0]),
+                    "min-lat": str(layer["bounds"][1]),
+                    "max-lon": str(layer["bounds"][2]),
+                    "max-lat": str(layer["bounds"][3]),
+                }
+            )
+
+        if "dead_tile" in layer:
+            no_tile = ET.SubElement(entry, "no-tile-checksum")
+            no_tile.attrib["type"] = "MD5"  # Upper case only
+            no_tile.attrib["value"] = layer["dead_tile"]["md5"]
+        ET.SubElement(
+            entry, "valid-georeference"
+        ).text = "true"  # Don't annoy with banner
+
+        if "max_zoom" in layer:
+            ET.SubElement(entry, "max-zoom").text = str(layer["max_zoom"])
+        else:
+            max_zoom = ET.SubElement(entry, "max-zoom")
+            max_zoom.text = str(twms.config.default_max_zoom)
+            entry.append(
+                ET.Comment("Overrided with default 'max_zoom' from current TWMS config")
+            )
+
+        if "min_zoom" in layer:
+            ET.SubElement(entry, "min-zoom").text = str(layer["min_zoom"])
+
+    imagery_xml = ET.tostring(imagery, encoding="unicode")
+    return imagery_xml
+
+
+def maps_wms(version, ref):
     content_type = "text/xml"
 
     if version == "1.0.0":
@@ -31,7 +178,7 @@ def get(version, ref):
                 <Name>GetMap</Name>
                 <!-- Human-readable title for pick lists -->
                 <Title>"""
-            + config.wms_name
+            + twms.config.wms_name
             + """</Title>
                 <!-- Narrative description providing additional information -->
 
@@ -91,12 +238,12 @@ def get(version, ref):
                 </Exception>
                 <Layer>
                         <Title>"""
-            + config.wms_name
+            + twms.config.wms_name
             + """</Title>
                         <Abstract/>"""
         )
-        pset = set(projections.projs.keys())
-        pset = pset.union(set(projections.proj_alias.keys()))
+        pset = set(twms.projections.projs.keys())
+        pset = pset.union(set(twms.projections.proj_alias.keys()))
         for proj in pset:
             req += "<SRS>%s</SRS>" % proj
         req += """<LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
@@ -109,9 +256,9 @@ def get(version, ref):
                                 <BoundingBox SRS="EPSG:4326" minx="%s" miny="%s" maxx="%s" maxy="%s"/>
                                 <ScaleHint min="0" max="124000"/>
                         </Layer>"""
-        for i in config.layers.keys():
-            b = config.layers[i].get("bbox", config.default_bbox)
-            req += lala % (i, config.layers[i]["name"], b[0], b[1], b[2], b[3])
+        for i in twms.config.layers.keys():
+            b = twms.config.layers[i].get("bbox", twms.config.default_bbox)
+            req += lala % (i, twms.config.layers[i]["name"], b[0], b[1], b[2], b[3])
 
         req += """          </Layer>
         </Capability>
@@ -136,7 +283,7 @@ def get(version, ref):
                 <Name>twms</Name>
                 <!-- Human-readable title for pick lists -->
                 <Title>"""
-            + config.wms_name
+            + twms.config.wms_name
             + """</Title>
                 <!-- Narrative description providing additional information -->
                 <Abstract>None</Abstract>
@@ -149,14 +296,14 @@ def get(version, ref):
                 <ContactInformation>
                         <ContactPersonPrimary>
                                 <ContactPerson>"""
-            + config.contact_person["real_name"]
+            + twms.config.contact_person["real_name"]
             + """</ContactPerson>
                                 <ContactOrganization>"""
-            + config.contact_person["organization"]
+            + twms.config.contact_person["organization"]
             + """</ContactOrganization>
                         </ContactPersonPrimary>
                         <ContactElectronicMailAddress>"""
-            + config.contact_person["mail"]
+            + twms.config.contact_person["mail"]
             + """</ContactElectronicMailAddress>
                 </ContactInformation>
                 <!-- Fees or access constraints imposed. -->
@@ -208,8 +355,8 @@ def get(version, ref):
                 <Layer>
                         <Title>World Map</Title>"""
         )
-        pset = set(projections.projs.keys())
-        pset = pset.union(set(projections.proj_alias.keys()))
+        pset = set(twms.projections.projs.keys())
+        pset = pset.union(set(twms.projections.proj_alias.keys()))
         for proj in pset:
             req += "<SRS>%s</SRS>" % proj
         req += """
@@ -224,9 +371,9 @@ def get(version, ref):
                                 <ScaleHint min="0" max="124000"/>
                         </Layer>
 """
-        for i in config.layers.keys():
-            b = config.layers[i].get("bbox", config.default_bbox)
-            req += lala % (i, config.layers[i]["name"], b[0], b[1], b[2], b[3])
+        for i in twms.config.layers.keys():
+            b = twms.config.layers[i].get("bbox", twms.config.default_bbox)
+            req += lala % (i, twms.config.layers[i]["name"], b[0], b[1], b[2], b[3])
 
         req += """          </Layer>
         </Capability>

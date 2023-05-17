@@ -4,21 +4,19 @@ import mimetypes
 import os
 import re
 import sys
+import textwrap
 import urllib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import twms
-import twms.twms
-import twms.viewhtml
-import twms.viewjosm
+from twms import api, config, twms
 
 tile_hyperlink = re.compile(r"/wms/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 # main_hyperlink = re.compile(r"/(.*)")
 
 
 class GetHandler(BaseHTTPRequestHandler):
-    TWMS = twms.twms.TWMSMain()  # Will be same for all instances
+    TWMS = twms.TWMSMain()  # Will be same for all instances
 
     def do_GET(self):
         """Parse GET tile request.
@@ -62,13 +60,13 @@ class GetHandler(BaseHTTPRequestHandler):
         elif self.path == "/josm/maps.xml":
             resp = HTTPStatus.OK
             content_type = "text/xml"
-            content = twms.viewjosm.maps_xml()
+            content = api.maps_xml()
             # Cache-Control: no-cache?
         elif self.path == "/":
             # Web page view
             resp = HTTPStatus.OK
             content_type = "text/html"
-            content = twms.viewhtml.html()
+            content = api.maps_html()
         else:
             resp = HTTPStatus.NOT_FOUND
             content_type = "text/plain"
@@ -95,10 +93,16 @@ def main():
     # if len(sys.argv) > 1:
     #     if sys.argv[1].isdigit():
     #         port = int(sys.argv[1])
-    server = ThreadingHTTPServer((twms.config.host, twms.config.port), GetHandler)
-    print(f"{twms.config.service_url} TWMS web-server, use <Ctrl-C> to stop")
+    server = ThreadingHTTPServer((config.host, config.port), GetHandler)
     print(
-        f"Add {twms.config.service_url}josm/maps.xml to JOSM 'imagery.layers.sites' property and check imagery setting"
+        textwrap.dedent(
+            f"""\
+        TWMS server
+        {config.service_url} imagery overview web page
+        {config.service_url}wms WMS API
+        {config.service_url}josm/maps.xml JOSM API. Add to JOSM 'imagery.layers.sites' property and check imagery setting"
+        Press <Ctrl-C> to stop"""
+        )
     )
     server.serve_forever()
 

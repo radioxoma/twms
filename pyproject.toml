@@ -12,15 +12,11 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
 ]
-dependencies = [
-    "pillow",
-    "pyproj",
-]
+dependencies = ["pillow>=9.0.0"]
 
 [project.optional-dependencies]
-dev = [
-    "pre-commit",
-]
+pyproj = ["pyproj>=3.0.0"]
+dev = ["pre-commit"]
 
 [tool.setuptools.dynamic]
 version = {attr = "twms.__version__"}

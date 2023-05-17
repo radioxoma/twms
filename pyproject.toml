@@ -1,0 +1,32 @@
+[project]
+name = "twms"
+dynamic = ["version"]
+description = "Hacky tile proxy for JOSM"
+readme = "README.md"
+requires-python = ">=3.8.10"
+license = {file = "LICENSE"}
+authors = [
+    { name = "Eugene Dvoretsky", email = "radioxoma@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "pillow",
+    "pyproj",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "twms.__version__"}
+
+[project.urls]
+homepage = "https://github.com/radioxoma/twms"
+
+[project.gui-scripts]
+twms = "twms.__main__:main"

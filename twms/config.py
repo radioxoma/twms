@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-"""
+"""TWMS config file.
+
 debug - tile file operations
 info - tile fetching or constructing
 warning - HTTP errors

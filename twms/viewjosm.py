@@ -7,7 +7,6 @@ from twms import config, viewhtml
 def maps_xml(pretty=True):
     """Create XML for JOSM 'imagery.layers.sites' property.
 
-
     XML spec https://josm.openstreetmap.de/wiki/Maps
     ELI https://github.com/osmlab/editor-layer-index
     JOSM source https://josm.openstreetmap.de/doc/org/openstreetmap/josm/data/imagery/ImageryLayerInfo.html

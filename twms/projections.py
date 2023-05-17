@@ -92,9 +92,7 @@ proj_alias = {"EPSG:900913": "EPSG:3857", "EPSG:3785": "EPSG:3857"}
 
 
 def _c4326t3857(t1, t2, lon, lat):
-    """
-    Pure python 4326 -> 3857 transform. About 8x faster than pyproj.
-    """
+    """Pure python 4326 -> 3857 transform. About 8x faster than pyproj."""
     lat_rad = math.radians(lat)
     xtile = lon * 111319.49079327358
     ytile = (
@@ -106,18 +104,14 @@ def _c4326t3857(t1, t2, lon, lat):
 
 
 def _c3857t4326(t1, t2, lon, lat):
-    """
-    Pure python 3857 -> 4326 transform. About 12x faster than pyproj.
-    """
+    """Pure python 3857 -> 4326 transform. About 12x faster than pyproj."""
     xtile = lon / 111319.49079327358
     ytile = math.degrees(math.asin(math.tanh(lat / 20037508.342789244 * math.pi)))
     return (xtile, ytile)
 
 
 def _c4326t3395(t1, t2, lon, lat):
-    """
-    Pure python 4326 -> 3395 transform. About 8x faster than pyproj.
-    """
+    """Pure python 4326 -> 3395 transform. About 8x faster than pyproj."""
     E = 0.0818191908426
     A = 20037508.342789
     F = 53.5865938
@@ -134,9 +128,7 @@ def _c4326t3395(t1, t2, lon, lat):
 
 
 def _c3395t4326(t1, t2, lon, lat):
-    """
-    Pure python 4326 -> 3395 transform. About 3x faster than pyproj.
-    """
+    """Pure python 4326 -> 3395 transform. About 3x faster than pyproj."""
     r_major = 6378137.000
     temp = 6356752.3142 / 6378137.000
     es = 1.0 - (temp * temp)
@@ -172,9 +164,7 @@ pure_python_transformers = {
 
 
 def tile_by_bbox(bbox, zoom, srs="EPSG:3857"):
-    """
-    Converts bbox from 4326 format to tile numbers of given zoom level, with correct wraping around 180th meridian
-    """
+    """Convert bbox from 4326 format to tile numbers of given zoom level, with correct wraping around 180th meridian."""
     a1, a2 = tile_by_coords((bbox[0], bbox[1]), zoom, srs)
     b1, b2 = tile_by_coords((bbox[2], bbox[3]), zoom, srs)
     if b1 < a1:
@@ -183,18 +173,14 @@ def tile_by_bbox(bbox, zoom, srs="EPSG:3857"):
 
 
 def bbox_by_tile(z, x, y, srs="EPSG:3857"):
-    """
-    Tile numbers of given zoom level to EPSG:4326 bbox of srs-projected tile
-    """
+    """Convert tile number to EPSG:4326 bbox of srs-projected tile."""
     a1, a2 = coords_by_tile(z, x, y, srs)
     b1, b2 = coords_by_tile(z, x + 1, y + 1, srs)
     return a1, b2, b1, a2
 
 
 def coords_by_tile(z, x, y, srs="EPSG:3857"):
-    """
-    Converts (z,x,y) to coordinates of corner of srs-projected tile
-    """
+    """Convert (z,x,y) to coordinates of corner of srs-projected tile."""
     # z -= 1  # Should I remove it?
     normalized_tile = (x / (2.0**z), 1.0 - (y / (2.0**z)))
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
@@ -210,8 +196,8 @@ def coords_by_tile(z, x, y, srs="EPSG:3857"):
 
 
 def tile_by_coords(xxx_todo_changeme, zoom, srs="EPSG:3857"):
-    """
-    Converts EPSG:4326 latitude and longitude to tile number of srs-projected tile pyramid.
+    """Convert EPSG:4326 latitude and longitude to tile number of srs-projected tile pyramid.
+
     lat, lon - EPSG:4326 coordinates of a point
     zoom - zoomlevel of tile number
     srs - text string, specifying projection of tile pyramid
@@ -232,8 +218,8 @@ def tile_by_coords(xxx_todo_changeme, zoom, srs="EPSG:3857"):
 
 
 def to4326(line, srs="EPSG:3857"):
-    """
-    Wrapper around transform call for convenience. Transforms line from srs to EPSG:4326
+    """Transform line from srs to EPSG:4326 (convenience shortcut).
+
     line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
     srs - text string, specifying projection
     """
@@ -241,8 +227,8 @@ def to4326(line, srs="EPSG:3857"):
 
 
 def from4326(line, srs="EPSG:3857"):
-    """
-    Wrapper around transform call for convenience. Transforms line from EPSG:4326 to srs
+    """Transform line from EPSG:4326 to srs (convenience shortcut).
+
     line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
     srs - text string, specifying projection
     """
@@ -250,12 +236,11 @@ def from4326(line, srs="EPSG:3857"):
 
 
 def transform(line, srs1, srs2):
-    """
-    Converts a bunch of coordinates from srs1 to srs2.
+    """Convert bunch of coordinates from srs1 to srs2.
+
     line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
     srs[1,2] - text string, specifying projection (srs1 - from, srs2 - to)
     """
-
     srs1 = proj_alias.get(srs1, srs1)
     srs2 = proj_alias.get(srs2, srs2)
     if srs1 == srs2:

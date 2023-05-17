@@ -453,7 +453,7 @@ def tile_to_quadkey(z, x, y):
 
 
 def tile_slippy_to_tms(z, x, y):
-    """OSGeo Tile Map Service Specification style Y coordinate.
+    """Convert to OSGeo Tile Map Service Specification style Y coordinate.
 
     Same meaning as '{-y}'.
 

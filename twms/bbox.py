@@ -2,9 +2,7 @@ from twms import projections
 
 
 def point_is_in(bbox, point):
-    """
-    Check whether EPSG:4326 point is in bbox
-    """
+    """Check whether EPSG:4326 point is in bbox."""
     # bbox = normalize(bbox)[0]
     return (
         point[0] >= bbox[0]
@@ -15,9 +13,7 @@ def point_is_in(bbox, point):
 
 
 def bbox_is_in(bbox_outer, bbox_to_check, fully=True):
-    """
-    Check whether EPSG:4326 bbox is inside outer
-    """
+    """Check whether EPSG:4326 bbox is inside outer."""
     bo = normalize(bbox_outer)[0]
     bc = normalize(bbox_to_check)[0]
     if fully:
@@ -51,24 +47,21 @@ def bbox_is_in(bbox_outer, bbox_to_check, fully=True):
 
 
 def add(b1, b2):
-    """
-    Return bbox containing two bboxes.
-    """
+    """Return bbox containing two bboxes."""
     return (min(b1[0], b2[0]), min(b1[1], b2[1]), max(b1[2], b2[2]), max(b1[3], b2[3]))
 
 
 def expand_to_point(b1, p1):
-    """
-    Expand bbox b1 to contain p1: [(x,y),(x,y)]
-    """
+    """Expand bbox b1 to contain p1: [(x,y),(x,y)]."""
     for p in p1:
         b1 = add(b1, (p[0], p[1], p[0], p[1]))
     return b1
 
 
 def normalize(bbox):
-    """
-    Normalise EPSG:4326 bbox order. Returns normalized bbox, and whether it was flipped on horizontal axis.
+    """Normalise EPSG:4326 bbox order.
+
+    Returns normalized bbox, and whether it was flipped on horizontal axis.
     """
     flip_h = False
     bbox = list(bbox)
@@ -86,9 +79,7 @@ def normalize(bbox):
 
 
 def zoom_for_bbox(bbox, size, layer, min_zoom=1, max_zoom=18, max_size=(10000, 10000)):
-    """
-    Calculate a best-fit zoom level
-    """
+    """Calculate a best-fit zoom level."""
     h, w = size
     for i in range(min_zoom, max_zoom):
         cx1, cy1, cx2, cy2 = projections.tile_by_bbox(bbox, i, layer["proj"])

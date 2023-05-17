@@ -1,5 +1,5 @@
-from twms.config import *
 from twms import projections
+from twms.config import *
 
 
 def get_tms_url(layer):

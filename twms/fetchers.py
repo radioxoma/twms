@@ -1,23 +1,25 @@
-import os
-from pathlib import Path
-from io import BytesIO
-import time
-import re
 import hashlib
-import threading
-from functools import wraps
+import http.cookiejar as http_cookiejar
 import logging
 import mimetypes
+import os
+import re
+import threading
+import time
 import urllib.request as request
-import http.cookiejar as http_cookiejar
+from functools import wraps
 from http import HTTPStatus
-# import ssl
-# ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
+from io import BytesIO
+from pathlib import Path
 
 from PIL import Image
 
-from twms import projections
-from twms import config
+from twms import config, projections
+
+# import ssl
+# ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
+
+
 
 
 DEFAULT_HEADERS = {
@@ -83,7 +85,7 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
     return retry
 
 
-class TileFetcher(object):
+class TileFetcher:
     def __init__(self, layer):
         self.layer = layer
         self.opener = prepare_opener(headers=self.layer.get('headers', dict()))

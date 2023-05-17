@@ -1,5 +1,4 @@
-from twms import config
-from twms import projections
+from twms import config, projections
 
 
 def get(version, ref):

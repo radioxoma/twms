@@ -1,8 +1,7 @@
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-from twms import config
-from twms import viewhtml
+from twms import config, viewhtml
 
 
 def maps_xml(pretty=True):
@@ -67,7 +66,7 @@ def maps_xml(pretty=True):
 
         if 'min_zoom' in layer:
             ET.SubElement(entry, 'min-zoom').text = str(layer['min_zoom'])
-    
+
     imagery_xml = ET.tostring(imagery, encoding='unicode')
     if not pretty:
         return imagery_xml

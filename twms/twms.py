@@ -1,28 +1,25 @@
+import logging
+import mimetypes
 import os
 import sys
 import time
-import mimetypes
 from http import HTTPStatus
-import logging
 
-from PIL import Image, ImageOps, ImageColor
+from PIL import Image, ImageColor, ImageOps
+
+from twms import bbox as bbox_utils
+from twms import config, correctify, fetchers, projections, viewhtml, viewwms
+
 # from PIL import ImageFile
 # ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-from twms import config
-from twms import correctify
-from twms import fetchers
-from twms import bbox as bbox_utils
-from twms import projections
-from twms import viewhtml
-from twms import viewwms
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 install_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '../'))
 
 
-class TWMSMain(object):
+class TWMSMain:
     """Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
 
     WMS http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
@@ -36,7 +33,7 @@ class TWMSMain(object):
         Usually link to WMTSCapabilities.xml
     """
     def __init__(self):
-        super(TWMSMain, self).__init__()
+        super().__init__()
         self.cached_objs = dict()  # a dict. (layer, z, x, y): PIL image
         self.cached_hist_list = list()
         self.fetchers_pool = dict()  # self.fetchers_pool[layer['prefix']]

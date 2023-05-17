@@ -1,7 +1,6 @@
 import os
-from twms import projections
-from twms import twms
 
+from twms import projections, twms
 
 distance = lambda z, x, y, g: ((z - y) ** 2 + (x - g) ** 2) ** (0.5)
 
@@ -13,13 +12,13 @@ def has_corrections(layer):
 
 def corr_wkt(layer):
     corrfile = twms.config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
-    with open(corrfile, "r") as f:
+    with open(corrfile) as f:
         corr = f.read()
     wkt = ""
     for line in corr:
         d, c, b, a, user, ts = line.split()
         d, c, b, a = (float(d), float(c), float(b), float(a))
-        wkt += "POINT(%s %s),LINESTRING(%s %s,%s %s)," % (d, c, d, c, b, a)
+        wkt += "POINT({} {}),LINESTRING({} {},{} {}),".format(d, c, d, c, b, a)
     return wkt[:-1]
 
 
@@ -28,7 +27,7 @@ def rectify(layer, point):
     srs = layer["proj"]
     if not os.path.exists(corrfile):
         return point
-    with open(corrfile, "r") as f:
+    with open(corrfile) as f:
         corr = f.read()
     lons, lats = point
     loni, lati, lona, lata = projections.projs[projections.proj_alias.get(srs, srs)][

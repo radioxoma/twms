@@ -31,7 +31,7 @@ Edit `twms/config.py` and set `tiles_cache` path to your `SAS.Planet/cache_ma/`.
     $ python -m twms
 
 Services provided:
-    
+
 http://localhost:8080 - imagery overview web page. `wms`, `tms:` and JOSM remote control links provided. Open "JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries*" and paste link from here. E.g.: `tms:http://localhost:8080/wms/vesat/{z}/{x}/{y}.jpg`
 
 http://localhost:8080/wms - WMS service, which supports also `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` links

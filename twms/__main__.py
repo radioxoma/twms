@@ -6,19 +6,18 @@ info - tile fetching or constructing
 warning - HTTP errors
 """
 
-import os
-import sys
-import re
-import urllib
 import mimetypes
-from http.server import ThreadingHTTPServer
-from http.server import BaseHTTPRequestHandler
+import os
+import re
+import sys
+import urllib
 from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import twms
 import twms.twms
-import twms.viewjosm
 import twms.viewhtml
+import twms.viewjosm
 
 tile_hyperlink = re.compile(r"/wms/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 # main_hyperlink = re.compile(r"/(.*)")

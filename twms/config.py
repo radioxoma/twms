@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import os
 import logging
+import os
+
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 

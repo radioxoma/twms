@@ -1,3 +1,4 @@
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 import twms
@@ -55,21 +56,34 @@ def maps_html():
             resp.append(f"<h3>{layer['name']}</h3>")
 
         resp.append(
-            f'<a href="{"https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes" % bbox}"><b>Bounding box:</b> {bbox}'
+            f'<b>Bounding box: </b><a href="{"https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes" % bbox}">{bbox}</a><br>'
             f"<b>Projection:</b> {layer['proj']}<br />"
             f"<b>WMS half-link:</b> {twms.config.service_url}?layers={layer_id}&amp;<br />"
         )
         # Links for JOSM remote control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
-        # "&valid - georeference = true" to hide annoying message
-        tms_url = get_wms_url(layer)
-        josm_local_uri = "http://127.0.0.1:8111/imagery"
+        josm_link = "http://127.0.0.1:8111/"
+        josm_params = {
+            "title": layer["name"],
+            "type": "tms",
+            "valid-georeference": "true",  # Hide annoying warning
+            "url": get_wms_url(layer),
+        }
+        tms_tpl = f'<a title="Import layer with JOSM remote control" href="{josm_link}imagery?{{josm_params}}">tms:</a>{{tms_uri}}<br />'
+
         resp.append(
-            f'tms:<a title="Import layer with JOSM remote control" href="{josm_local_uri}?title={layer["name"]}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}">{tms_url}</a><br />'
+            tms_tpl.format(
+                josm_params=urllib.parse.urlencode(josm_params),
+                tms_uri=josm_params["url"],
+            )
         )
+        # Add file:// uri for tiles stored in the same projection
         if layer["proj"] == "EPSG:3857":
-            file_url = get_fs_url(layer)
+            josm_params["url"] = get_fs_url(layer)
             resp.append(
-                f'tms:<a title="Import layer with JOSM remote control" href="{josm_local_uri}?title={layer["name"]}&amp;type=tms&amp;valid-georeference=true&amp;url={file_url}">{file_url}</a>'
+                tms_tpl.format(
+                    josm_params=urllib.parse.urlencode(josm_params),
+                    tms_uri=josm_params["url"],
+                )
             )
         resp.append("</div>")
 

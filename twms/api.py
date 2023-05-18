@@ -18,59 +18,63 @@ def get_fs_url(layer):
 
 def maps_html():
     """Available TMS layers summary."""
-    resp = "<!doctype html><html><head>"
-    resp += "<title>" + twms.config.wms_name + "</title>"
-    resp += """<style>\
-    .entry {
-        display: inline-block;
-        vertical-align: top;
-        width:256px;
-        padding: 5px;
-    }
-    </style>
+    resp = [
+        f"""
+        <!doctype html><html><head>
+        <title>{twms.config.wms_name}</title>
+        <style>
+        .entry {{
+            display: inline-block;
+            vertical-align: top;
+            width:256px;
+            padding: 5px;
+        }}
+        </style>
+        </head><body><h2>{twms.config.wms_name}</h2>
     """
-    resp += f"</head><body><h2>{twms.config.wms_name}</h2>"
+    ]
 
     for layer_id, layer in twms.config.layers.items():
         bbox = layer.get("bounds", twms.projections.projs[layer["proj"]]["bounds"])
-        resp += '<div class="entry">'
+        resp.append('<div class="entry">')
 
         if "min_zoom" in layer and layer["min_zoom"] > 8:
             # Too recursive
-            resp += "<p>Preview unavailable</p>"
+            resp.append("<p>Preview unavailable</p>")
         else:
-            resp += (
-                '<img src="wms?layers='
-                + layer_id
-                + '&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png" width="200" />'
+            resp.append(
+                f'<img src="wms?layers={layer_id}&amp;bbox=%s,%s,%s,%s&amp;width=200&amp;format=image/png" width="200" />'
                 % bbox
             )
 
         if "provider_url" in layer:
-            resp += f"<h3><a referrerpolicy=\"no-referrer\" title=\"Visit tile provider website\" href=\"{layer['provider_url']}\">{layer['name']}</a></h3>"
+            resp.append(
+                f'<h3><a referrerpolicy="no-referrer" title="Visit tile provider website" href="{layer["provider_url"]}">{layer["name"]}</a></h3>'
+            )
         else:
-            resp += "<h3>" + layer["name"] + "</h3>"
+            resp.append(f"<h3>{layer['name']}</h3>")
 
-        resp += f"<b>Bounding box:</b> {bbox}"
-        resp += (
-            ' (show on <a href="https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes">OSM</a>)<br />'
-            % bbox
+        resp.append(
+            f'<a href="{"https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes" % bbox}"><b>Bounding box:</b> {bbox}'
+            f"<b>Projection:</b> {layer['proj']}<br />"
+            f"<b>WMS half-link:</b> {twms.config.service_url}?layers={layer_id}&amp;<br />"
         )
-        resp += f"<b>Projection:</b> {layer['proj']}<br />"
-        resp += f"<b>WMS half-link:</b> {twms.config.service_url}?layers={layer_id}&amp;<br />"
-
-        # Links for JOSM control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
-        # 127.0.0.1:8111 stands for local JOSM with remote control enabled
+        # Links for JOSM remote control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
         # "&valid - georeference = true" to hide annoying message
         tms_url = get_wms_url(layer)
-        resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}\">{tms_url}</a><br />"
+        josm_local_uri = "http://127.0.0.1:8111/imagery"
+        resp.append(
+            f'tms:<a title="Import layer with JOSM remote control" href="{josm_local_uri}?title={layer["name"]}&amp;type=tms&amp;valid-georeference=true&amp;url={tms_url}">{tms_url}</a><br />'
+        )
         if layer["proj"] == "EPSG:3857":
             file_url = get_fs_url(layer)
-            resp += f"tms:<a title=\"Import layer with JOSM remote control\" href=\"http://127.0.0.1:8111/imagery?title={layer['name']}&amp;type=tms&amp;valid-georeference=true&amp;url={file_url}\">{file_url}</a>"
-        resp += "</div>"
+            resp.append(
+                f'tms:<a title="Import layer with JOSM remote control" href="{josm_local_uri}?title={layer["name"]}&amp;type=tms&amp;valid-georeference=true&amp;url={file_url}">{file_url}</a>'
+            )
+        resp.append("</div>")
 
-    resp += "</body></html>"
-    return resp
+    resp.append("</body></html>")
+    return "".join(resp)
 
 
 def maps_xml():

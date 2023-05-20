@@ -66,10 +66,18 @@ def maps_html():
             "title": layer["name"],
             "type": "tms",
             "valid-georeference": "true",  # Hide annoying warning
-            "url": get_wms_url(layer),
         }
         tms_tpl = f'<a title="Import layer with JOSM remote control" href="{josm_link}imagery?{{josm_params}}">tms:</a>{{tms_uri}}<br />'
 
+        josm_params["url"] = get_wms_url(layer)
+        resp.append(
+            tms_tpl.format(
+                josm_params=urllib.parse.urlencode(josm_params),
+                tms_uri=josm_params["url"],
+            )
+        )
+
+        josm_params["url"] = get_tms_url(layer)
         resp.append(
             tms_tpl.format(
                 josm_params=urllib.parse.urlencode(josm_params),

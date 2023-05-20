@@ -60,9 +60,9 @@ default_background = "#ffffff"  # Default background for empty space
 # WMS GetCapabilities
 host = "localhost"
 port = 8080
-service_url = "http://{}:{}/".format(host, port)  # URL service installed at
+service_url = f"http://{host}:{port}/"  # URL service installed at
 
-wms_name = f"twms based web map service {twms.__version__}"
+wms_name = f"twms {twms.__version__}"
 contact_person = {"mail": "", "real_name": "", "organization": ""}
 default_bbox = (
     -180.0,

@@ -14,15 +14,14 @@ import twms.api
 import twms.config
 import twms.twms
 
-tile_hyperlink = re.compile(r"/wms/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
-# main_hyperlink = re.compile(r"/(.*)")
-
 
 class GetHandler(BaseHTTPRequestHandler):
-    TWMS = twms.twms.TWMSMain()  # Will be same for all instances
+    TWMS = twms.twms.TWMSMain()
+    server_version = f"twms/{twms.__version__}"
+    wms_route = re.compile(r"/wms/(.*)/(\d+)/(\d+)/(\d+)(\.[a-zA-Z]+)?(.*)")
 
     def do_GET(self):
-        """Parse GET tile request.
+        """Handle GET request.
 
         wms/layer_id/{z}/{x}/{y}{ext}
         tiles/layer_id/{z}/{x}/{y}
@@ -39,21 +38,18 @@ class GetHandler(BaseHTTPRequestHandler):
             )
 
         elif self.path.startswith("/wms"):
-            # WMS and somewhat like WMS-C emulation for getting tiles directly.
-            wms_c = re.fullmatch(tile_hyperlink, self.path)
+            # WMS and somewhat like WMS-C emulation for getting tiles directly
+            wms_c = self.wms_route.fullmatch(self.path)
             if wms_c:
-                try:
-                    # Guess image format by link extension
-                    content_type = mimetypes.types_map[wms_c.group(5)]
-                except KeyError:
-                    content_type = "image/jpeg"
-                data = {  # Construct WMS-like request
+                # Construct WMS-like request
+                # Guess image format by link extension
+                data = {
                     "request": "GetTile",
                     "layers": wms_c.group(1),
                     "z": wms_c.group(2),
                     "x": wms_c.group(3),
                     "y": wms_c.group(4),
-                    "format": content_type,
+                    "format": mimetypes.types_map.get(wms_c.group(5), "image/jpeg"),
                 }
                 # rest = m.group(6)
             else:
@@ -66,14 +62,13 @@ class GetHandler(BaseHTTPRequestHandler):
             content = twms.api.maps_xml()
             # Cache-Control: no-cache?
         elif self.path == "/":
-            # Web page view
             resp = HTTPStatus.OK
             content_type = "text/html"
             content = twms.api.maps_html()
         else:
             resp = HTTPStatus.NOT_FOUND
             content_type = "text/plain"
-            content = "404 Not Found"
+            content = repr(resp)
 
         self.send_response(resp)
         self.send_header("Content-Type", content_type)
@@ -93,16 +88,14 @@ class GetHandler(BaseHTTPRequestHandler):
 
 def main():
     """Run simple TWMS server."""
-    # if len(sys.argv) > 1:
-    #     if sys.argv[1].isdigit():
-    #         port = int(sys.argv[1])
     server = ThreadingHTTPServer((twms.config.host, twms.config.port), GetHandler)
     print(
         textwrap.dedent(
             f"""\
         TWMS server {twms.__version__}
         {twms.config.service_url} imagery overview web page
-        {twms.config.service_url}wms WMS API
+        {twms.config.service_url}wms WMS endpoint
+        {twms.config.service_url}tiles TMS endpoint
         {twms.config.service_url}josm/maps.xml JOSM API. Add to JOSM 'imagery.layers.sites' property and check imagery setting"
         Press <Ctrl-C> to stop"""
         )

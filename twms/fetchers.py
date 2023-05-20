@@ -19,6 +19,7 @@ from twms import config, projections
 # import ssl
 # ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0",
@@ -72,10 +73,10 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
                 return opener.open(*args, **kwargs)
             except request.HTTPError:
                 # Prevent catching HTTPError as subclass of URLError
-                # logging.error(err)
+                # logger.error(err)
                 raise
             except request.URLError as err:
-                logging.debug(f"{err}, retrying '{args[0]}' in {mdelay} seconds...")
+                logger.debug(f"{err}, retrying '{args[0]}' in {mdelay} seconds...")
                 time.sleep(mdelay)
                 mtries -= 1
                 mdelay *= backoff
@@ -133,7 +134,7 @@ class TileFetcher:
         """
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
         if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
-            logging.debug(f"{tile_id}: zoom limit")
+            logger.debug(f"{tile_id}: zoom limit")
             return None
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
 
@@ -166,7 +167,7 @@ class TileFetcher:
                     if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
                         os.remove(fp)
 
-        logging.info(f"wms: fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
+        logger.info(f"wms: fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
         im_bytes = self.opener(remote).read()
         if im_bytes:
             im = Image.open(BytesIO(im_bytes))
@@ -180,7 +181,7 @@ class TileFetcher:
             "RGBA", (256, 256), self.layer.get("empty_color", config.default_background)
         )
         if im.histogram() == ic.histogram():
-            logging.debug(f"{tile_id}: TNE - empty histogram '{tne_path}'")
+            logger.debug(f"{tile_id}: TNE - empty histogram '{tne_path}'")
             Path(tne_path, exist_ok=True).touch()
             return None
         im.save(tile_path)
@@ -215,7 +216,7 @@ class TileFetcher:
         remote = ""
 
         if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
-            logging.debug(f"{tile_id}: zoom limit")
+            logger.debug(f"{tile_id}: zoom limit")
             return None
 
         # MOBAC cache path style
@@ -232,18 +233,18 @@ class TileFetcher:
         if os.path.exists(tne_path):
             tne_lifespan = time.time() - os.stat(tne_path).st_mtime
             if tne_lifespan > config.cache_tne_ttl:
-                logging.info(f"{tile_id}: TTL tne reached {tne_path}")
+                logger.info(f"{tile_id}: TTL tne reached {tne_path}")
                 need_fetch = True
             else:
-                logging.info(f"{tile_id}: tile cached as TNE {tne_path}")
+                logger.info(f"{tile_id}: tile cached as TNE {tne_path}")
         if "cache_ttl" in self.layer:
             # for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
             if os.path.exists(tile_path):
                 tile_lifespan = time.time() - os.stat(tile_path).st_mtime
                 # tile_lifespan_h = tile_lifespan / 60 / 60
-                # logging.debug(f"{tile_id}: lifespan {tile_lifespan_h:.0f} h {fp}")
+                # logger.debug(f"{tile_id}: lifespan {tile_lifespan_h:.0f} h {fp}")
                 if tile_lifespan > self.layer["cache_ttl"]:
-                    logging.info(f"{tile_id}: TTL tile reached for {tile_path}")
+                    logger.info(f"{tile_id}: TTL tile reached for {tile_path}")
                     need_fetch = True
 
         if not os.path.exists(tile_path) and not os.path.exists(tne_path):
@@ -284,7 +285,7 @@ class TileFetcher:
 
             try:
                 # Got response, need to verify content
-                logging.info(f"{tile_id}: FETCHING {remote}")
+                logger.info(f"{tile_id}: FETCHING {remote}")
                 remote_resp = self.opener(remote)
                 remote_bytes = remote_resp.read()
                 if remote_bytes:
@@ -294,35 +295,35 @@ class TileFetcher:
                         tile_parsed = True
                     except (OSError, AttributeError):
                         # Catching invalid pictures
-                        logging.error(
+                        logger.error(
                             f"{tile_id}: failed to parse response as image {tne_path}"
                         )
-                        logging.debug(
+                        logger.debug(
                             f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
                         )
                         # try:
-                        #     logging.debug(remote_bytes.decode('utf-8'))
+                        #     logger.debug(remote_bytes.decode('utf-8'))
                         # except UnicodeDecodeError:
-                        #     logging.debug(remote_bytes)
-                        # if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+                        #     logger.debug(remote_bytes)
+                        # if logger.getLogger().getEffectiveLevel() == logger.DEBUG:
                         #     with open('err.htm', mode='wb') as f:
                         #         f.write(remote_bytes)
                 else:
-                    logging.warning(f"{tile_id}: empty response")
+                    logger.warning(f"{tile_id}: empty response")
             except request.HTTPError as err:
                 # Heuristic: TNE or server is defending tiles
                 # HTTP 403 must be inspected manually
-                logging.error(
+                logger.error(
                     "\n".join(
                         [str(k) for k in (err, err.headers, err.read().decode("utf-8"))]
                     )
                 )
                 if err.status == HTTPStatus.NOT_FOUND:
-                    logging.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
+                    logger.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
                     Path(tne_path, exist_ok=True).touch()
             except request.URLError as err:
                 # Nothing we can do: no connection, cannot guess TNE or not
-                logging.error(f"{tile_id} URLError '{err}'")
+                logger.error(f"{tile_id} URLError '{err}'")
 
             # Save something in cache
             # Sometimes server returns file instead of empty HTTP response
@@ -335,19 +336,19 @@ class TileFetcher:
                         # Tile is recognized as empty
                         # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
                         # SASPlanet writes empty files with '.tne' ext
-                        logging.warning(f"{tile_id}: TNE - dead tile '{tne_path}'")
+                        logger.warning(f"{tile_id}: TNE - dead tile '{tne_path}'")
                         tile_dead = True
                         Path(tne_path, exist_ok=True).touch()
 
-            logging.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
+            logger.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
             if tile_parsed and not tile_dead:
                 # All well, save tile to cache
-                logging.info(f"{tile_id}: saving {tile_path}")
+                logger.info(f"{tile_id}: saving {tile_path}")
 
                 # Preserving original image if possible, as encoding is lossy
                 # Storing all images into one format, just like SAS.Planet does
                 if im.get_format_mimetype() != target_mimetype:
-                    logging.warning(
+                    logger.warning(
                         f"{tile_id} unexpected image Content-Type {im.get_format_mimetype()}, converting to '{target_mimetype}'"
                     )
                     image_bytes = im_convert(im, target_mimetype)
@@ -365,15 +366,15 @@ class TileFetcher:
             try:
                 im = Image.open(tile_path)
                 im.load()
-                logging.info(f"{tile_id}: cache tms {tile_path}")
+                logger.info(f"{tile_id}: cache tms {tile_path}")
                 return im
             except OSError:
-                logging.warning(
+                logger.warning(
                     f"{tile_id}: failed to parse image from cache '{tile_path}'"
                 )
                 # os.remove(tile_path)  # Cached tile is broken - remove it
 
-        logging.warning(f"{tile_id}: unreachable tile {remote}")
+        logger.warning(f"{tile_id}: unreachable tile {remote}")
 
     def tms_google_sat(self, z, x, y):
         """Construct template URI with version from JS API.
@@ -394,14 +395,14 @@ class TileFetcher:
                         r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp
                     )
                     if not match.group(1):
-                        logging.error("Cannot parse 'v=' from maps_googleapis_js")
+                        logger.error("Cannot parse 'v=' from maps_googleapis_js")
                         raise ValueError("Cannot parse 'v=' from maps_googleapis_js")
                     self.layer["remote_url"] = (
                         "https://khms0.google.com/kh/v="
                         + match.group(1)
                         + "?x={x}&y={y}&z={z}"
                     )
-                    logging.info(
+                    logger.info(
                         f"Setting new {self.layer['name']} URI {self.layer['remote_url']}"
                     )
             except request.URLError:

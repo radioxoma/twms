@@ -14,6 +14,8 @@ import twms.projections
 # from PIL import ImageFile
 # ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+logger = logging.getLogger(__name__)
+
 
 class TWMSMain:
     """Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
@@ -134,10 +136,10 @@ class TWMSMain:
                         z, x, y, twms.config.layers[layer[0]]["ext"]
                     )
                 )
-                logging.debug(f"{layer[0]} z{z}/x{x}/y{y} query cache {tile_path}")
+                logger.debug(f"{layer[0]} z{z}/x{x}/y{y} query cache {tile_path}")
                 if os.path.exists(tile_path):
                     # Not returning HTTP 404
-                    logging.info(
+                    logger.info(
                         f"{layer[0]} z{z}/x{x}/y{y} wms_handler cache hit {tile_path}"
                     )
                     with open(tile_path, "rb") as f:
@@ -239,7 +241,7 @@ class TWMSMain:
 
         Return 404 instead of blank tile.
         """
-        logging.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
+        logger.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
         if twms.config.layers[layer_id]["proj"] != "EPSG:3857":
             raise NotImplementedError(
                 "Reprojection is not supported, use wms for this tile set"
@@ -373,7 +375,7 @@ class TWMSMain:
 
         x = x % (2**z)
         if y < 0 or y >= (2**z) or z < 0:
-            logging.warning(
+            logger.warning(
                 f"{layer['prefix']}/z{z}/x{x}/y{y} impossible tile coordinates"
             )
             return None
@@ -383,14 +385,14 @@ class TWMSMain:
             layer.get("bounds", twms.config.default_bbox),
             fully=False,
         ):
-            logging.info(
+            logger.info(
                 f"{layer['prefix']}/z{z}/x{x}/y{y} ignoring request for a tile outside configured bounds"
             )
             return None
 
         if "prefix" in layer:
             if (layer["prefix"], z, x, y) in self.cached_objs:
-                logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} RAM cache hit")
+                logger.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} RAM cache hit")
                 return self.cached_objs[(layer["prefix"], z, x, y)]
 
         # Working with cache
@@ -400,9 +402,7 @@ class TWMSMain:
             and trybetter
         ):
             # Second, try to glue image of better ones
-            logging.info(
-                f"{layer['prefix']}/z{z}/x{x}/y{y} downscaling from 4 subtiles"
-            )
+            logger.info(f"{layer['prefix']}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
             # # Load upscaled images
             # if os.path.exists(local + "ups" + ext):
             #     try:
@@ -440,12 +440,12 @@ class TWMSMain:
             seconds_spent = time.time() - start_time
             if (twms.config.deadline > seconds_spent) or (z < 4):
                 # Try fetching img from outside
-                logging.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} creating dl thread")
+                logger.debug(f"{layer['prefix']}/z{z}/x{x}/y{y} creating dl thread")
                 tile = self.fetchers_pool[layer["prefix"]].fetch(z, x, y)
 
         if tile is None and real and z > 0:
             # Downscale?
-            logging.info(f"{layer['prefix']}/z{z}/x{x}/y{y} upscaling from top tile")
+            logger.info(f"{layer['prefix']}/z{z}/x{x}/y{y} upscaling from top tile")
             im = self.tile_image(
                 layer,
                 z - 1,

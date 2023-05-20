@@ -8,6 +8,8 @@ warning - HTTP errors
 import logging
 import os
 
+import twms
+
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -60,7 +62,7 @@ host = "localhost"
 port = 8080
 service_url = "http://{}:{}/".format(host, port)  # URL service installed at
 
-wms_name = "twms based web map service"
+wms_name = f"twms based web map service {twms.__version__}"
 contact_person = {"mail": "", "real_name": "", "organization": ""}
 default_bbox = (
     -180.0,

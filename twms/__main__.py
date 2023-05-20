@@ -9,14 +9,17 @@ import urllib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from twms import api, config, twms
+import twms
+import twms.api
+import twms.config
+import twms.twms
 
 tile_hyperlink = re.compile(r"/wms/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 # main_hyperlink = re.compile(r"/(.*)")
 
 
 class GetHandler(BaseHTTPRequestHandler):
-    TWMS = twms.TWMSMain()  # Will be same for all instances
+    TWMS = twms.twms.TWMSMain()  # Will be same for all instances
 
     def do_GET(self):
         """Parse GET tile request.
@@ -60,13 +63,13 @@ class GetHandler(BaseHTTPRequestHandler):
         elif self.path == "/josm/maps.xml":
             resp = HTTPStatus.OK
             content_type = "text/xml"
-            content = api.maps_xml()
+            content = twms.api.maps_xml()
             # Cache-Control: no-cache?
         elif self.path == "/":
             # Web page view
             resp = HTTPStatus.OK
             content_type = "text/html"
-            content = api.maps_html()
+            content = twms.api.maps_html()
         else:
             resp = HTTPStatus.NOT_FOUND
             content_type = "text/plain"
@@ -93,14 +96,14 @@ def main():
     # if len(sys.argv) > 1:
     #     if sys.argv[1].isdigit():
     #         port = int(sys.argv[1])
-    server = ThreadingHTTPServer((config.host, config.port), GetHandler)
+    server = ThreadingHTTPServer((twms.config.host, twms.config.port), GetHandler)
     print(
         textwrap.dedent(
             f"""\
-        TWMS server
-        {config.service_url} imagery overview web page
-        {config.service_url}wms WMS API
-        {config.service_url}josm/maps.xml JOSM API. Add to JOSM 'imagery.layers.sites' property and check imagery setting"
+        TWMS server {twms.__version__}
+        {twms.config.service_url} imagery overview web page
+        {twms.config.service_url}wms WMS API
+        {twms.config.service_url}josm/maps.xml JOSM API. Add to JOSM 'imagery.layers.sites' property and check imagery setting"
         Press <Ctrl-C> to stop"""
         )
     )

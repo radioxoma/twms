@@ -2,18 +2,19 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 
 import twms
+import twms.config
 
 
-def get_tms_url(layer):
+def get_tms_url(layer) -> str:
     return f"{twms.config.service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', twms.config.default_ext)}"
 
 
-def get_wms_url(layer):
+def get_wms_url(layer) -> str:
     """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
     return f"{twms.config.service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', twms.config.default_ext)}"
 
 
-def get_fs_url(layer):
+def get_fs_url(layer) -> str:
     return f"file://{twms.config.tiles_cache}{layer['prefix']}/{{z}}/{{x}}/{{y}}{layer.get('ext', twms.config.default_ext)}"
 
 
@@ -169,9 +170,7 @@ def maps_xml():
 
         if "min_zoom" in layer:
             ET.SubElement(entry, "min-zoom").text = str(layer["min_zoom"])
-
-    imagery_xml = ET.tostring(imagery, encoding="unicode")
-    return imagery_xml
+    return ET.tostring(imagery, encoding="unicode")
 
 
 def maps_wms(version, ref):

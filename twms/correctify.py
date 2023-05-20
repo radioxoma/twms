@@ -63,6 +63,7 @@ def rectify(layer, point):
     return projections.to4326((lonn, latn), srs)
 
 
+"""
 def r_bbox(layer, bbox):
     corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
     srs = layer["proj"]
@@ -81,3 +82,4 @@ def r_bbox(layer, bbox):
         ((cy1 - cy) + (b1 - b) + (d1 - d)) / 3,
     )
     return projections.to4326((a + dx, b + dy, c + dx, d + dy), srs)
+"""

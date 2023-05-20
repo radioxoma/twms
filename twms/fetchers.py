@@ -416,7 +416,7 @@ class TileFetcher:
         return im
 
 
-def tile_to_quadkey(z, x, y):
+def tile_to_quadkey(z: int, x: int, y: int) -> str:
     """Transform tile coordinates to a Bing quadkey.
 
     Slippy map tiles cache numeration starts from 0 level with one tile. On 1 level four tiles etc
@@ -434,11 +434,11 @@ def tile_to_quadkey(z, x, y):
     >>> tile_to_quadkey(16, 38354, 20861)
     '1203010313232212'
 
-    Paramaters
-    ----------
-    :param int z: starts from zero
-    :return: Quadkey string
-    :rtype: str
+    Args:
+        z: zoom, starts from zero
+
+    Returns:
+        Quadkey string
     """
     quadkey = ""
     for i in range(z):
@@ -453,7 +453,7 @@ def tile_to_quadkey(z, x, y):
     return quadkey
 
 
-def tile_slippy_to_tms(z, x, y):
+def tile_slippy_to_tms(z: int, x: int, y: int) -> tuple[int, int, int]:
     """Convert to OSGeo Tile Map Service Specification style Y coordinate.
 
     Same meaning as '{-y}'.
@@ -463,13 +463,8 @@ def tile_slippy_to_tms(z, x, y):
     return z, x, 2**z - 1 - y
 
 
-def im_convert(im, content_type, exif=None):
-    """Convert Pillow image to requested Content-Type.
-
-    :param Image im: Pillow image
-    :param str content_type:
-    :rtype: byte str
-    """
+def im_convert(im: Image, content_type: str, exif=None) -> bytes:
+    """Convert Pillow image to requested Content-Type."""
     # Exif-related code not documented, Pillow can change behavior
     exif = Image.Exif()
     exif[0x0131] = "twms"  # ExifTags.TAGS['Software']

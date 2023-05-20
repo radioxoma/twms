@@ -1,7 +1,7 @@
 from twms import projections
 
 
-def point_is_in(bbox, point):
+def point_is_in(bbox, point) -> bool:
     """Check whether EPSG:4326 point is in bbox."""
     # bbox = normalize(bbox)[0]
     return (
@@ -48,7 +48,7 @@ def bbox_is_in(bbox_outer, bbox_to_check, fully=True):
 
 def add(b1, b2):
     """Return bbox containing two bboxes."""
-    return (min(b1[0], b2[0]), min(b1[1], b2[1]), max(b1[2], b2[2]), max(b1[3], b2[3]))
+    return min(b1[0], b2[0]), min(b1[1], b2[1]), max(b1[2], b2[2]), max(b1[3], b2[3])
 
 
 def expand_to_point(b1, p1):

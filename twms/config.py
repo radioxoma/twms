@@ -48,7 +48,7 @@ default_max_zoom = 19  # <=
 # Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
 default_min_zoom = 0
 default_layers = ""  # layer(s) to show when no layers given explicitly. if False, overview page is returned
-default_ext = ".jpg"
+default_mimetype = "image/jpeg"
 max_ram_cached_tiles = 1024
 max_height = 4095  # maximal allowed requested height
 max_width = 4095  # maximal allowed requested width
@@ -71,14 +71,14 @@ default_bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)
 Layers
 
 name           str - visible layer name
-prefix         str - cache tile subdirectory name
-ext            string - tile image files extension '.ext'
+prefix         str - unique cache tile subdirectory name
+mimetype       str - tiles will be stored and served in this mimetype, converted if necessary
 overlay        bool - default False - transparent hybrid map
 scalable       bool - default False - construct tile of better ones if they are available (better for home use and satellite images, or scanned maps). If False, tWMS will use nearest zoom level (better for rasterized vector maps and production servers)
 proj           str - default 'EPSG:3857' - EPSG code of layer tiles projection.
 
 min_zoom       int - the worst zoom level number service provides
-max_zoom       int - the best zoom level number service provides
+max_zoom       int - the best zoom level number service provides (<=)
 empty_color    str PIL color string - if this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
 cache_ttl      int - time that cache will be considered valid
 bounds         tuple - 4326-bbox - (min-lon, min-lat, max-lon, max-lat) no wms fetching will be performed outside this bbox. Good when caching just one country or a single satellite image.
@@ -104,7 +104,6 @@ layers = {
         "provider_url": "https://yandex.ru/maps/",
         "prefix": "yasat",
         "proj": "EPSG:3395",
-        "ext": ".jpg",
         "scalable": False,
         "fetch": "tms",
         "remote_url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
@@ -114,7 +113,7 @@ layers = {
         "provider_url": "https://yandex.ru/maps/",
         "prefix": "yamapng",
         "proj": "EPSG:3395",
-        "ext": ".png",
+        "mimetype": "image/png",
         "scalable": False,
         "fetch": "tms",
         "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
@@ -125,7 +124,7 @@ layers = {
         "provider_url": "https://yandex.ru/maps/",
         "prefix": "yahyb",  # "maps.yandex.com.Hybrid" for english tiles
         "proj": "EPSG:3395",
-        "ext": ".png",
+        "mimetype": "image/png",
         "overlay": True,
         "scalable": False,
         "min_zoom": 1,
@@ -139,7 +138,7 @@ layers = {
         "provider_url": "https://n.maps.yandex.ru",
         "prefix": "yandextracks",
         "proj": "EPSG:3395",
-        "ext": ".png",
+        "mimetype": "image/png",
         "scalable": False,
         "fetch": "tms",
         "remote_url": "https://core-gpstiles.maps.yandex.net/tiles?style=point&x={x}&y={y}&z={z}",
@@ -152,7 +151,6 @@ layers = {
         "provider_url": "https://www.google.com/maps/",
         "prefix": "sat",
         "proj": "EPSG:3857",
-        "ext": ".jpg",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "fetch": "tms_google_sat",
     },
@@ -163,7 +161,6 @@ layers = {
         "provider_url": "https://www.bing.com/maps?style=h",
         "prefix": "vesat",
         "proj": "EPSG:3857",
-        "ext": ".jpg",
         "scalable": False,
         "min_zoom": 1,  # doesn't serve z0/x0/y0 (400 Bad Request for "https://ecn.t0.tiles.virtualearth.net/tiles/a.jpeg?g=0")
         "fetch": "tms",
@@ -181,7 +178,7 @@ layers = {
         "provider_url": "https://www.openstreetmap.org/",
         "prefix": "osmmapMapnik",  # tile directory prefix
         "proj": "EPSG:3857",  # Projection
-        "ext": ".png",  # tile images extension
+        "mimetype": "image/png",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "max_zoom": 19,  # Allowed if <=
         "fetch": "tms",  # 'tms' or 'wms' imagery source
@@ -196,7 +193,7 @@ layers = {
         "provider_url": "https://www.openstreetmap.org/",
         "prefix": "osm_gps_tile",
         "proj": "EPSG:3857",
-        "ext": ".png",
+        "mimetype": "image/png",
         "overlay": True,
         "scalable": False,
         "fetch": "tms",
@@ -212,7 +209,7 @@ layers = {
         "provider_url": "http://vl.nca.by/",
         "prefix": "ncaby_radr",
         "proj": "EPSG:3857",
-        "ext": ".png",
+        "mimetype": "image/png",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",
@@ -225,7 +222,7 @@ layers = {
         "provider_url": "https://geo.by/navigation/map",
         "prefix": "geoby_mapserver",
         "proj": "EPSG:3857",
-        "ext": ".png",
+        "mimetype": "image/png",
         "scalable": False,
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",
@@ -246,7 +243,6 @@ layers = {
     # "landsat":  {
     #      "name": "Landsat from onearth.jpl.nasa.gov",
     #      "prefix": "landsat",
-    #      "ext": ".jpg",
     #      "scalable": False,
     #      "fetch": 'wms',
     #      string without srs, height, width and bbox
@@ -258,7 +254,7 @@ layers = {
     # "navitel":  {
     #     "name": "Navitel Navigator Maps",
     #     "prefix": "Navitel",
-    #     "ext": ".png",
+    #     "mimetype": "image/png",
     #     "scalable": False,
     #     "fetch": 'tms',
     #     "remote_url": "https://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i";,
@@ -270,7 +266,6 @@ layers = {
     # "latlonsat":  {
     #      "name": "Imagery from latlon.org",
     #      "prefix": "latlonsat",
-    #      "ext": ".jpg",
     #      "scalable": False,
     #      "fetch": 'tms',
     #      string without srs, height, width and bbox
@@ -282,7 +277,6 @@ layers = {
     # "DGsat": {
     #      "name": "Digital Globe Satellite",
     #      "prefix": "DGsat",
-    #      "ext": ".jpg",
     #      "scalable": False,
     #      "proj": "EPSG:3857",
     #      # Could add "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/20867/38349"
@@ -291,7 +285,6 @@ layers = {
         "name": "Maxar Premuim",
         "provider_url": "https://www.maxar.com/",
         "prefix": "maxar_prem",
-        "ext": ".jpg",
         "proj": "EPSG:3857",
         "max_zoom": 18,  # Looks like artificial restriction
         "scalable": False,
@@ -302,7 +295,6 @@ layers = {
     # "irs":  {
     #     "name": "Kosmosnimki.ru IRS Satellite",
     #     "prefix": "irs",
-    #     "ext": ".jpg",
     #     "scalable": False,
     #     "fetch": 'tms',
     #     "remote_url": "https://maps.kosmosnimki.ru/TileSender.ashx?ModeKey=tile&MapName=F7B8CF651682420FA1749D894C8AD0F6&LayerName=950FA578D6DB40ADBDFC6EEBBA469F4A&z=%s&x=%s&y=%s";,
@@ -317,7 +309,6 @@ layers = {
     # "yhsat": {
     #      "name": "Yahoo Satellite",
     #      "prefix": "yhsat",
-    #      "ext": ".jpg",
     #      "scalable": False,
     #      "fetch": 'tms',
     #      "remote_url": "https://aerial.maps.yimg.com/ximg?v=1.8&t=a&s=256&r=1&x=%s&y=%s&z=%s",
@@ -337,7 +328,6 @@ layers = {
         "provider_url": "https://www.dzz.by/izuchdzz/",
         "prefix": "dzzby_orthophoto",
         "proj": "EPSG:3857",
-        "ext": ".jpg",
         "scalable": False,
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",

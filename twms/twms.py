@@ -133,7 +133,14 @@ class TWMSMain:
                     twms.config.tiles_cache
                     + twms.config.layers[layer[0]]["prefix"]
                     + "/{:.0f}/{:.0f}/{:.0f}{}".format(
-                        z, x, y, twms.config.layers[layer[0]]["ext"]
+                        z,
+                        x,
+                        y,
+                        mimetypes.guess_extension(
+                            twms.config.layers[layer[0]].get(
+                                "mimetype", twms.config.default_mimetype
+                            )
+                        ),
                     )
                 )
                 logger.debug(f"{layer[0]} z{z}/x{x}/y{y} query cache {tile_path}")
@@ -232,19 +239,18 @@ class TWMSMain:
             twms.fetchers.im_convert(result_img, content_type),
         )
 
-    def tiles_handler(self, layer_id, z, x, y, content_type):
-        """Partial slippy map implementation. Serve tiles by index, reproject, if required.
+    def tiles_handler(self, layer_id, z, x, y, mimetype):
+        """Serve slippy map tiles as is.
 
-        Experimental handler.
-
-        http://localhost:8080/tiles/vesat/0/0/0.jpg
+        http://localhost:8080/tiles/vesat/1/0/0.jpg OK
+        http://localhost:8080/tiles/yasat/1/0/0.jpg Not OK
 
         Return 404 instead of blank tile.
         """
         logger.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
         if twms.config.layers[layer_id]["proj"] != "EPSG:3857":
             raise NotImplementedError(
-                "Reprojection is not supported, use wms for this tile set"
+                "Reprojection is not supported, use WMS for this tile set"
             )
         z, x, y = int(z), int(x), int(y)
         im = self.tile_image(
@@ -254,8 +260,8 @@ class TWMSMain:
         if im:
             return (
                 HTTPStatus.OK,
-                content_type,
-                twms.fetchers.im_convert(im, content_type),
+                mimetype,
+                twms.fetchers.im_convert(im, mimetype),
             )
         else:
             return HTTPStatus.NOT_FOUND, "text/plain", "404 Not Found"
@@ -353,7 +359,9 @@ class TWMSMain:
             out = out.resize((W, H), Image.ANTIALIAS)
         return out
 
-    def tile_image(self, layer, z, x, y, start_time, trybetter=True, real=False):
+    def tile_image(
+        self, layer, z, x, y, start_time, trybetter=True, real=False
+    ) -> Image | None:
         """Get tile by given coordinates.
 
         Returns asked tile (from cache, fetcher, or recursively rescaled).

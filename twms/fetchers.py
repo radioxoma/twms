@@ -14,6 +14,7 @@ from pathlib import Path
 
 from PIL import Image
 
+import twms.config
 from twms import config, projections
 
 # import ssl
@@ -153,7 +154,14 @@ class TileFetcher:
         tile_path = (
             config.tiles_cache
             + self.layer["prefix"]
-            + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer["ext"])
+            + "/{:.0f}/{:.0f}/{:.0f}{}".format(
+                z,
+                x,
+                y,
+                mimetypes.guess_extension(
+                    self.layer.get("mimetype", twms.config.default_mimetype)
+                ),
+            )
         )
         partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
         tne_path = partial_path + ".tne"
@@ -212,7 +220,7 @@ class TileFetcher:
         tile_parsed = False
         tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
-        target_mimetype = mimetypes.types_map[self.layer["ext"]]
+        target_mimetype = self.layer.get("mimetype", twms.config.default_mimetype)
         remote = ""
 
         if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
@@ -223,7 +231,14 @@ class TileFetcher:
         tile_path = (
             config.tiles_cache
             + self.layer["prefix"]
-            + "/{:.0f}/{:.0f}/{:.0f}{}".format(z, x, y, self.layer["ext"])
+            + "/{:.0f}/{:.0f}/{:.0f}{}".format(
+                z,
+                x,
+                y,
+                mimetypes.guess_extension(
+                    self.layer.get("mimetype", twms.config.default_mimetype)
+                ),
+            )
         )
         partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
         tne_path = partial_path + ".tne"

@@ -5,14 +5,10 @@ info - tile fetching or constructing
 warning - HTTP errors
 """
 
-import logging
 import os
 
 import twms
 import twms.bbox
-
-logging.basicConfig(level=logging.INFO)
-# logging.basicConfig(level=logging.DEBUG)
 
 """
 Cache layout
@@ -30,6 +26,8 @@ See:
   [2] https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
   [3] https://josm.openstreetmap.de/wiki/SharedTileCache
 """
+
+# There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
 

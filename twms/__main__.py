@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 import mimetypes
 import os
 import re
@@ -13,6 +14,9 @@ import twms
 import twms.api
 import twms.config
 import twms.twms
+
+logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 class GetHandler(BaseHTTPRequestHandler):

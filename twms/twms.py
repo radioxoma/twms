@@ -48,7 +48,7 @@ class TWMSMain:
         http://127.0.0.1:8080/wms?request=GetCapabilities&version=1.0.0
         """
         # WMS request keys must be case insensitive, values must not
-        data = {k.lower(): v for k, v in data.items()}
+        data = {k.casefold(): v for k, v in data.items()}
 
         start_time = time.time()
         srs = data.get("srs", "EPSG:4326")

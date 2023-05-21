@@ -8,18 +8,18 @@ import twms.projections
 
 
 def get_tms_url(layer) -> str:
-    ext = mimetypes.guess_extension(twms.config.default_mimetype)
+    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
     return f"{twms.config.service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
 def get_wms_url(layer) -> str:
     """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
-    ext = mimetypes.guess_extension(twms.config.default_mimetype)
+    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
     return f"{twms.config.service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
 def get_fs_url(layer) -> str:
-    ext = mimetypes.guess_extension(twms.config.default_mimetype)
+    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
     return f"file://{twms.config.tiles_cache}{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
@@ -83,15 +83,16 @@ def maps_html():
             )
         )
 
-        josm_params["url"] = get_tms_url(layer)
-        resp.append(
-            tms_tpl.format(
-                josm_params=urllib.parse.urlencode(josm_params),
-                tms_uri=josm_params["url"],
-            )
-        )
-        # Add file:// uri for tiles stored in the same projection
+        # Faster URI for tiles stored in the same projection
         if layer["proj"] == "EPSG:3857":
+            josm_params["url"] = get_tms_url(layer)
+            resp.append(
+                tms_tpl.format(
+                    josm_params=urllib.parse.urlencode(josm_params),
+                    tms_uri=josm_params["url"],
+                )
+            )
+
             josm_params["url"] = get_fs_url(layer)
             resp.append(
                 tms_tpl.format(
@@ -112,7 +113,7 @@ def maps_xml_josm():
     ELI https://github.com/osmlab/editor-layer-index
     JOSM source https://josm.openstreetmap.de/doc/org/openstreetmap/josm/data/imagery/ImageryLayerInfo.html
 
-        Mandatory tags: <entry>: (<name>, <id>, <type> and <url>
+        Mandatory tags: <entry>: (<name>, <id>, <type>, <url>)
 
     XML examples:
         https://josm.openstreetmap.de/maps%<?ids=>  # JOSM URL for fetching

@@ -17,7 +17,7 @@ from pathlib import Path
 from PIL import Image
 
 import twms.config
-from twms import config, projections
+import twms.projections
 
 # import ssl
 # ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
@@ -145,7 +145,9 @@ class TileFetcher:
         width = 256  # Using larger source size to rescale better in python
         height = 256
         tile_bbox = "{},{},{},{}".format(
-            *projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
+            *twms.projections.from4326(
+                twms.projections.bbox_by_tile(z, x, y, req_proj), req_proj
+            )
         )
 
         remote = self.layer["remote_url"].replace("{bbox}", tile_bbox)
@@ -155,7 +157,7 @@ class TileFetcher:
 
         # MOBAC cache path style
         tile_path = (
-            config.tiles_cache
+            twms.config.tiles_cache
             + self.layer["prefix"]
             + "/{:.0f}/{:.0f}/{:.0f}{}".format(
                 z,
@@ -189,7 +191,9 @@ class TileFetcher:
         im = im.convert("RGBA")
 
         ic = Image.new(
-            "RGBA", (256, 256), self.layer.get("empty_color", config.default_background)
+            "RGBA",
+            (256, 256),
+            self.layer.get("empty_color", twms.config.default_background),
         )
         if im.histogram() == ic.histogram():
             logger.debug(f"{tile_id}: TNE - empty histogram '{tne_path}'")
@@ -232,7 +236,7 @@ class TileFetcher:
 
         # MOBAC cache path style
         tile_path = (
-            config.tiles_cache
+            twms.config.tiles_cache
             + self.layer["prefix"]
             + "/{:.0f}/{:.0f}/{:.0f}{}".format(
                 z,
@@ -250,7 +254,7 @@ class TileFetcher:
         # Do not delete, only replace if tile exists!
         if os.path.exists(tne_path):
             tne_lifespan = time.time() - os.stat(tne_path).st_mtime
-            if tne_lifespan > config.cache_tne_ttl:
+            if tne_lifespan > twms.config.cache_tne_ttl:
                 logger.info(f"{tile_id}: TTL tne reached {tne_path}")
                 need_fetch = True
             else:
@@ -291,8 +295,8 @@ class TileFetcher:
             width = 256
             height = 256
             tile_bbox = "{},{},{},{}".format(
-                *projections.from4326(
-                    projections.bbox_by_tile(z, x, y, self.layer["proj"]),
+                *twms.projections.from4326(
+                    twms.projections.bbox_by_tile(z, x, y, self.layer["proj"]),
                     self.layer["proj"],
                 )
             )
@@ -493,24 +497,24 @@ def im_convert(im: Image, content_type: str, exif=None) -> bytes:
         im.save(
             img_buf,
             "JPEG",
-            quality=config.output_quality,
-            progressive=config.output_progressive,
+            quality=twms.config.output_quality,
+            progressive=twms.config.output_progressive,
             exif=exif,
         )
     elif content_type == "image/png":
         im.save(
             img_buf,
             "PNG",
-            progressive=config.output_progressive,
-            optimize=config.output_optimize,
+            progressive=twms.config.output_progressive,
+            optimize=twms.config.output_optimize,
             exif=exif,
         )
     elif content_type == "image/gif":
         im.save(
             img_buf,
             "GIF",
-            quality=config.output_quality,
-            progressive=config.output_progressive,
+            quality=twms.config.output_quality,
+            progressive=twms.config.output_progressive,
             exif=exif,
         )
     else:
@@ -518,8 +522,8 @@ def im_convert(im: Image, content_type: str, exif=None) -> bytes:
         im.save(
             img_buf,
             content_type.split("/")[1],
-            quality=config.output_quality,
-            progressive=config.output_progressive,
+            quality=twms.config.output_quality,
+            progressive=twms.config.output_progressive,
             exif=exif,
         )
     return img_buf.getvalue()

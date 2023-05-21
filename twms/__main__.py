@@ -5,7 +5,7 @@ import os
 import re
 import sys
 import textwrap
-import urllib
+import urllib.parse
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -59,7 +59,7 @@ class GetHandler(BaseHTTPRequestHandler):
         elif self.path == "/josm/maps.xml":
             status = HTTPStatus.OK
             content_type = "text/xml"
-            content = twms.api.maps_xml()
+            content = twms.api.maps_xml_josm()
             # Cache-Control: no-cache?
         elif self.path == "/":
             status = HTTPStatus.OK
@@ -95,8 +95,9 @@ def main():
         TWMS server {twms.__version__}
         {twms.config.service_url} imagery overview web page
         {twms.config.service_url}wms WMS endpoint
-        {twms.config.service_url}tiles TMS endpoint
-        {twms.config.service_url}josm/maps.xml JOSM API. Add to JOSM 'imagery.layers.sites' property and check imagery setting"
+        {twms.config.service_url}tiles TMS endpoint (no reprojection support)
+        {twms.config.service_url}josm/maps.xml Add this to JOSM 'imagery.layers.sites' property and check imagery setting"
+        Change `twms/config.py` for new layers and custom settings.
         Press <Ctrl-C> to stop"""
         )
     )

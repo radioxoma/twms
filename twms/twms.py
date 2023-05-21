@@ -6,6 +6,7 @@ from http import HTTPStatus
 
 from PIL import Image, ImageColor, ImageOps
 
+import twms.api
 import twms.bbox
 import twms.config
 import twms.fetchers
@@ -43,8 +44,8 @@ class TWMSMain:
         data - dictionary of params.
         returns (HTTP_code, content_type, resp)
 
-        http://127.0.0.1:8080/?request=GetCapabilities&
-        http://127.0.0.1:8080/?request=GetCapabilities&version=1.0.0
+        http://127.0.0.1:8080/wms?request=GetCapabilities&
+        http://127.0.0.1:8080/wms?request=GetCapabilities&version=1.0.0
         """
         # WMS request keys must be case insensitive, values must not
         data = {k.lower(): v for k, v in data.items()}
@@ -59,7 +60,7 @@ class TWMSMain:
         ref = data.get("ref", twms.config.service_url)
 
         if req_type == "GetCapabilities":
-            content_type, resp = twms.api.maps_wms(version, ref)
+            content_type, resp = twms.api.maps_xml_wms(version, ref)
             return HTTPStatus.OK, content_type, resp
 
         layer = data.get("layers", twms.config.default_layers).split(",")
@@ -89,17 +90,13 @@ class TWMSMain:
         except KeyError:
             pass
 
-        width = 0
-        height = 0
         z = int(data.get("z", 0))
         x = int(data.get("x", 0))
         y = int(data.get("y", 0))
         if req_type == "GetTile":
             # Both TMS and WMS
-            width = 256
-            height = 256
-            height = int(data.get("height", height))
-            width = int(data.get("width", width))
+            height = int(data.get("height", 256))
+            width = int(data.get("width", 256))
             srs = data.get("srs", "EPSG:3857")
             # Try to return tile as is, if possible
             if all(
@@ -150,8 +147,8 @@ class TWMSMain:
         req_bbox, flip_h = twms.bbox.normalize(req_bbox)
         box = req_bbox
 
-        width = int(data.get("width", width))
-        height = int(data.get("height", height))
+        width = int(data.get("width", 0))
+        height = int(data.get("height", 0))
         width = min(width, twms.config.max_width)
         height = min(height, twms.config.max_height)
         if width == height == 0:

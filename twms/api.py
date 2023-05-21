@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 
 import twms
 import twms.config
+import twms.projections
 
 
 def get_tms_url(layer) -> str:
@@ -23,7 +24,7 @@ def get_fs_url(layer) -> str:
 
 
 def maps_html():
-    """Available TMS layers summary."""
+    """Render TMS layers summary."""
     resp = [
         f"""
         <!doctype html><html><head>
@@ -104,7 +105,7 @@ def maps_html():
     return "".join(resp)
 
 
-def maps_xml():
+def maps_xml_josm():
     """Create XML for JOSM 'imagery.layers.sites' property.
 
     XML spec https://josm.openstreetmap.de/wiki/Maps
@@ -177,7 +178,8 @@ def maps_xml():
     return ET.tostring(imagery, encoding="unicode")
 
 
-def maps_wms(version, ref):
+def maps_xml_wms(version, ref):
+    """Create XML for WMS."""
     content_type = "text/xml"
 
     if version == "1.0.0":

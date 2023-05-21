@@ -1,4 +1,4 @@
-from twms import projections
+import twms.projections
 
 Bbox = tuple[float, float, float, float]
 Point = tuple[float, float]
@@ -77,7 +77,7 @@ def zoom_for_bbox(
     """Calculate a best-fit zoom level."""
     h, w = size
     for i in range(min_zoom, max_zoom):
-        cx1, cy1, cx2, cy2 = projections.tile_by_bbox(bbox, i, layer["proj"])
+        cx1, cy1, cx2, cy2 = twms.projections.tile_by_bbox(bbox, i, layer["proj"])
         if w != 0:
             if (cx2 - cx1) * 256 >= w * 0.9:
                 return i

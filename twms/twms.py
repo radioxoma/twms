@@ -361,7 +361,7 @@ class TWMSMain:
 
     def tile_image(
         self, layer, z, x, y, start_time, trybetter=True, real=False
-    ) -> Image | None:
+    ) -> Image.Image | None:
         """Get tile by given coordinates.
 
         Returns asked tile (from cache, fetcher, or recursively rescaled).

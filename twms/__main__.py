@@ -33,7 +33,7 @@ class GetHandler(BaseHTTPRequestHandler):
             root, ext = os.path.splitext(self.path)
             r_parts = root.split("/")
             layer_id, z, x, y = r_parts[2], r_parts[3], r_parts[4], r_parts[5]
-            resp, content_type, content = self.TWMS.tiles_handler(
+            status, content_type, content = self.TWMS.tiles_handler(
                 layer_id, z, x, y, mimetypes.types_map[ext]
             )
 
@@ -54,23 +54,23 @@ class GetHandler(BaseHTTPRequestHandler):
                 # rest = m.group(6)
             else:
                 data = dict(urllib.parse.parse_qsl(self.path.split("?")[1]))
-            resp, content_type, content = self.TWMS.wms_handler(data)
+            status, content_type, content = self.TWMS.wms_handler(data)
 
         elif self.path == "/josm/maps.xml":
-            resp = HTTPStatus.OK
+            status = HTTPStatus.OK
             content_type = "text/xml"
             content = twms.api.maps_xml()
             # Cache-Control: no-cache?
         elif self.path == "/":
-            resp = HTTPStatus.OK
+            status = HTTPStatus.OK
             content_type = "text/html"
             content = twms.api.maps_html()
         else:
-            resp = HTTPStatus.NOT_FOUND
+            status = HTTPStatus.NOT_FOUND
             content_type = "text/plain"
-            content = repr(resp)
+            content = repr(status)
 
-        self.send_response(resp)
+        self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.end_headers()
         if "text/" in content_type or "xml" in content_type:

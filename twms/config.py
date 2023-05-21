@@ -9,6 +9,7 @@ import logging
 import os
 
 import twms
+import twms.bbox
 
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
@@ -64,7 +65,7 @@ service_url = f"http://{host}:{port}/"  # URL service installed at
 wms_name = f"twms {twms.__version__}"
 contact_person = {"mail": "", "real_name": "", "organization": ""}
 # Spherical mercator maximum
-default_bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)
+default_bbox: twms.bbox.Bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)
 
 
 """

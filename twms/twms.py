@@ -7,7 +7,7 @@ from http import HTTPStatus
 from PIL import Image, ImageColor, ImageOps
 
 import twms.bbox
-import twms.correctify
+import twms.config
 import twms.fetchers
 import twms.projections
 
@@ -65,20 +65,6 @@ class TWMSMain:
         layer = data.get("layers", twms.config.default_layers).split(",")
         if "layers" in data and not layer[0]:
             layer = ["transparent"]
-
-        if req_type == "GetCorrections":
-            points = data.get("points", "").split("=")
-            points = [a.split(",") for a in points]
-            points = [(float(a[0]), float(a[1])) for a in points]
-
-            resp = ""
-            for lay in layer:
-                for point in points:
-                    resp += "%s,%s;" % (
-                        twms.correctify.rectify(twms.config.layers[lay], point)
-                    )
-                resp += "\n"
-            return HTTPStatus.OK, "text/plain", resp
 
         force = data.get("force", "")
         if force != "":
@@ -266,7 +252,15 @@ class TWMSMain:
         else:
             return HTTPStatus.NOT_FOUND, "text/plain", "404 Not Found"
 
-    def getimg(self, bbox, request_proj, size, layer, start_time, force):
+    def getimg(
+        self,
+        bbox: twms.bbox.Bbox,
+        request_proj: str,
+        size: tuple[int, int],
+        layer,
+        start_time,
+        force,
+    ):
         """Get tile by a given bbox."""
         # Making 4-corner maximal bbox
         bbox_p = twms.projections.from4326(bbox, request_proj)
@@ -274,17 +268,12 @@ class TWMSMain:
             (bbox_p[2], bbox_p[1], bbox_p[0], bbox_p[3]), request_proj
         )
 
-        bbox_4 = (
+        bbox_4: twms.bbox.Bbox4 = (
             (bbox_p[2], bbox_p[3]),
             (bbox[0], bbox[1]),
             (bbox_p[0], bbox_p[1]),
             (bbox[2], bbox[3]),
         )
-        if "nocorrect" not in force:
-            bb4 = []
-            for point in bbox_4:
-                bb4.append(twms.correctify.rectify(layer, point))
-            bbox_4 = bb4
         bbox = twms.bbox.expand_to_point(bbox, bbox_4)
         H, W = size
 
@@ -352,10 +341,8 @@ class TWMSMain:
             quad.append(y)
 
         if trans_needed:
-            quad = tuple(quad)
-            out = out.transform((W, H), Image.QUAD, quad, Image.BICUBIC)
+            out = out.transform((W, H), Image.QUAD, tuple(quad), Image.BICUBIC)
         elif (W != out.size[0]) or (H != out.size[1]):
-            "just resize"
             out = out.resize((W, H), Image.ANTIALIAS)
         return out
 

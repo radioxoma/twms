@@ -1,7 +1,11 @@
 from twms import projections
 
+Bbox = tuple[float, float, float, float]
+Point = tuple[float, float]
+Bbox4 = tuple[Point, Point, Point, Point]
 
-def point_is_in(bbox, point) -> bool:
+
+def point_is_in(bbox: Bbox, point: Point) -> bool:
     """Check whether EPSG:4326 point is in bbox."""
     # bbox = normalize(bbox)[0]
     return (
@@ -12,7 +16,7 @@ def point_is_in(bbox, point) -> bool:
     )
 
 
-def bbox_is_in(bbox_outer, bbox_to_check, fully=True):
+def bbox_is_in(bbox_outer: Bbox, bbox_to_check: Bbox, fully: bool = True) -> bool:
     """Check whether EPSG:4326 bbox is inside outer."""
     bo = normalize(bbox_outer)[0]
     bc = normalize(bbox_to_check)[0]
@@ -29,36 +33,20 @@ def bbox_is_in(bbox_outer, bbox_to_check, fully=True):
             return bc[1] <= bo[3]
         return False
 
-        return (
-            ((bo[0] <= bc[0] and bo[2] >= bc[0]) or (bo[0] <= bc[2] and bo[2] >= bc[2]))
-            and (
-                (bo[1] <= bc[1] and bo[3] >= bc[1])
-                or (bo[1] <= bc[3] and bo[3] >= bc[3])
-            )
-            or (
-                (bc[0] <= bo[0] and bc[2] >= bo[0])
-                or (bc[0] <= bo[2] and bc[2] >= bo[2])
-            )
-            and (
-                (bc[1] <= bo[1] and bc[3] >= bo[1])
-                or (bc[1] <= bo[3] and bc[3] >= bo[3])
-            )
-        )
 
-
-def add(b1, b2):
+def add(b1: Bbox, b2: Bbox) -> Bbox:
     """Return bbox containing two bboxes."""
     return min(b1[0], b2[0]), min(b1[1], b2[1]), max(b1[2], b2[2]), max(b1[3], b2[3])
 
 
-def expand_to_point(b1, p1):
+def expand_to_point(b1: Bbox, p1: Bbox4) -> Bbox:
     """Expand bbox b1 to contain p1: [(x,y),(x,y)]."""
     for p in p1:
         b1 = add(b1, (p[0], p[1], p[0], p[1]))
     return b1
 
 
-def normalize(bbox):
+def normalize(bbox) -> tuple[Bbox, bool]:
     """Normalise EPSG:4326 bbox order.
 
     Returns normalized bbox, and whether it was flipped on horizontal axis.
@@ -78,7 +66,14 @@ def normalize(bbox):
     return bbox, flip_h
 
 
-def zoom_for_bbox(bbox, size, layer, min_zoom=1, max_zoom=18, max_size=(10000, 10000)):
+def zoom_for_bbox(
+    bbox: Bbox,
+    size: tuple[int, int],
+    layer,
+    min_zoom: int = 1,
+    max_zoom: int = 18,
+    max_size: tuple[int, int] = (10000, 10000),
+) -> int:
     """Calculate a best-fit zoom level."""
     h, w = size
     for i in range(min_zoom, max_zoom):

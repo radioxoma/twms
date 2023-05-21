@@ -163,7 +163,7 @@ pure_python_transformers = {
 }
 
 
-def tile_by_bbox(bbox, zoom, srs="EPSG:3857"):
+def tile_by_bbox(bbox, zoom: int, srs: str = "EPSG:3857"):
     """Convert bbox from 4326 format to tile numbers of given zoom level, with correct wraping around 180th meridian."""
     a1, a2 = tile_by_coords((bbox[0], bbox[1]), zoom, srs)
     b1, b2 = tile_by_coords((bbox[2], bbox[3]), zoom, srs)
@@ -172,14 +172,14 @@ def tile_by_bbox(bbox, zoom, srs="EPSG:3857"):
     return a1, a2, b1, b2
 
 
-def bbox_by_tile(z, x, y, srs="EPSG:3857"):
+def bbox_by_tile(z, x, y, srs: str = "EPSG:3857"):
     """Convert tile number to EPSG:4326 bbox of srs-projected tile."""
     a1, a2 = coords_by_tile(z, x, y, srs)
     b1, b2 = coords_by_tile(z, x + 1, y + 1, srs)
     return a1, b2, b1, a2
 
 
-def coords_by_tile(z, x, y, srs="EPSG:3857"):
+def coords_by_tile(z, x, y, srs: str = "EPSG:3857"):
     """Convert (z,x,y) to coordinates of corner of srs-projected tile."""
     # z -= 1  # Should I remove it?
     normalized_tile = (x / (2.0**z), 1.0 - (y / (2.0**z)))
@@ -195,7 +195,7 @@ def coords_by_tile(z, x, y, srs="EPSG:3857"):
     return to4326(projected_coords, srs)
 
 
-def tile_by_coords(xxx_todo_changeme, zoom, srs="EPSG:3857"):
+def tile_by_coords(xxx_todo_changeme, zoom: int, srs: str = "EPSG:3857"):
     """Convert EPSG:4326 latitude and longitude to tile number of srs-projected tile pyramid.
 
     lat, lon - EPSG:4326 coordinates of a point
@@ -217,7 +217,7 @@ def tile_by_coords(xxx_todo_changeme, zoom, srs="EPSG:3857"):
     return point[0] * (2**zoom), (1 - point[1]) * (2**zoom)
 
 
-def to4326(line, srs="EPSG:3857"):
+def to4326(line, srs: str = "EPSG:3857"):
     """Transform line from srs to EPSG:4326 (convenience shortcut).
 
     line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
@@ -226,7 +226,7 @@ def to4326(line, srs="EPSG:3857"):
     return transform(line, srs, "EPSG:4326")
 
 
-def from4326(line, srs="EPSG:3857"):
+def from4326(line, srs: str = "EPSG:3857"):
     """Transform line from EPSG:4326 to srs (convenience shortcut).
 
     line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]

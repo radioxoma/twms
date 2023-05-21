@@ -1,4 +1,5 @@
 import hashlib
+import http.client
 import http.cookiejar as http_cookiejar
 import logging
 import mimetypes
@@ -6,6 +7,7 @@ import os
 import re
 import threading
 import time
+import urllib.error
 import urllib.request as request
 from functools import wraps
 from http import HTTPStatus
@@ -28,7 +30,9 @@ DEFAULT_HEADERS = {
 }
 
 
-def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
+def prepare_opener(
+    tries: int = 4, delay: int = 3, backoff: int = 2, headers: dict = dict()
+):
     """Build HTTP opener with custom headers (User-Agent) and cookie support.
 
     Retry HTTP request using an exponential backoff:
@@ -38,13 +42,12 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
     https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
     http://www.katasonov.com/ru/2014/10/python-urllib2-decorators-and-exceptions-fun/
 
-    :param int tries: number of times to try (not retry) before giving up
-    :param int delay: initial delay between retries in seconds
-    :param int backoff: backoff multiplier e.g. value of 2 will double the
+    Args:
+        tries: number of times to try (not retry) before giving up
+        delay: initial delay between retries in seconds
+        backoff: backoff multiplier e.g. value of 2 will double the
         delay each retry
-    :param dict headers: Update opener headers (add new and spoof existing).
-
-    :rtype: http.client.HTTPResponse
+        headers: Update opener headers (add new and spoof existing)
     """
     cj = http_cookiejar.CookieJar()
 
@@ -67,16 +70,16 @@ def prepare_opener(tries=4, delay=3, backoff=2, headers=dict()):
     opener.addheaders = list(hdrs.items())
 
     @wraps(opener.open)
-    def retry(*args, **kwargs):
+    def retry(*args, **kwargs) -> http.client.HTTPResponse:
         mtries, mdelay = tries, delay
         while mtries > 1:
             try:
                 return opener.open(*args, **kwargs)
-            except request.HTTPError:
+            except urllib.error.HTTPError:
                 # Prevent catching HTTPError as subclass of URLError
                 # logger.error(err)
                 raise
-            except request.URLError as err:
+            except urllib.error.URLError as err:
                 logger.debug(f"{err}, retrying '{args[0]}' in {mdelay} seconds...")
                 time.sleep(mdelay)
                 mtries -= 1
@@ -325,7 +328,7 @@ class TileFetcher:
                         #         f.write(remote_bytes)
                 else:
                     logger.warning(f"{tile_id}: empty response")
-            except request.HTTPError as err:
+            except urllib.error.HTTPError as err:
                 # Heuristic: TNE or server is defending tiles
                 # HTTP 403 must be inspected manually
                 logger.error(
@@ -336,7 +339,7 @@ class TileFetcher:
                 if err.status == HTTPStatus.NOT_FOUND:
                     logger.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
                     Path(tne_path, exist_ok=True).touch()
-            except request.URLError as err:
+            except urllib.error.URLError as err:
                 # Nothing we can do: no connection, cannot guess TNE or not
                 logger.error(f"{tile_id} URLError '{err}'")
 
@@ -420,7 +423,7 @@ class TileFetcher:
                     logger.info(
                         f"Setting new {self.layer['name']} URI {self.layer['remote_url']}"
                     )
-            except request.URLError:
+            except urllib.error.URLError:
                 pass
 
         # URL version can expiry, reset if no image

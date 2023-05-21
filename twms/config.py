@@ -39,11 +39,11 @@ deadline = 45
 # If server returns no tile (HTTP 404) or dead tile,
 # TWMS saves in cache empty "*.tne" file.
 # This is a timeout for a next attempt to fetch missing tile
-cache_tne_ttl = 60 * 60 * 24 * 30
+cache_tne_ttl = 60 * 60 * 24 * 30  # Month
 
 # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer
 # [19] 30 cm resolution - best Maxar satellite resolution at 2021
-default_max_zoom = 19
+default_max_zoom = 19  # <=
 
 # Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
 default_min_zoom = 0
@@ -61,19 +61,15 @@ default_background = "#ffffff"  # Default background for empty space
 host = "localhost"
 port = 8080
 service_url = f"http://{host}:{port}/"  # URL service installed at
-
 wms_name = f"twms {twms.__version__}"
 contact_person = {"mail": "", "real_name": "", "organization": ""}
-default_bbox = (
-    -180.0,
-    -85.0511287798,
-    180.0,
-    85.0511287798,
-)  # spherical mercator maximum
+# Spherical mercator maximum
+default_bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)
 
 
-# Layers
 """
+Layers
+
 name           str - visible layer name
 prefix         str - cache tile subdirectory name
 ext            string - tile image files extension '.ext'
@@ -94,11 +90,11 @@ fetch          function (z, x, y, layer_dict) - function that fetches given tile
     * **dead_tile** dict, if given, loaded tiles matching pattern won't be saved.
         size - tile size in bytes
         md5 - md5sum hash of that tile
-* **fetchers.wns**
+* **fetchers.wms**
     * **remote_url** _str_ - Base WMS URL. A GetMap request with omitted srs, height, width and bbox. Should probably end in "?" or "&".
     * **wms_proj** _str_ - projection for WMS request. Note that images probably won't be properly reprojected if it differs from **proj**. Helps to cope with WMS services unable to serve properly reprojected imagery.
 
-See other WMTS configs https://github.com/bertt/wmts
+Other WMTS configs https://github.com/bertt/wmts
 """
 
 
@@ -111,7 +107,7 @@ layers = {
         "ext": ".jpg",
         "scalable": False,
         "fetch": "tms",
-        "remote_url": "https://sat01.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}",
+        "remote_url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
     },
     "yamapng": {
         "name": "Yandex Map",
@@ -121,7 +117,7 @@ layers = {
         "ext": ".png",
         "scalable": False,
         "fetch": "tms",
-        "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}",
+        "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
         "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
     "yahyb": {
@@ -134,7 +130,7 @@ layers = {
         "scalable": False,
         "min_zoom": 1,
         "fetch": "tms",
-        "remote_url": "https://vec01.maps.yandex.net/tiles?l=skl&lang=ru_RU&x={x}&y={y}&z={z}",
+        "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
         "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
     # https://core-gpstiles.maps.yandex.net/tiles?style=red_combined&x={x}&y={y}&z={z}

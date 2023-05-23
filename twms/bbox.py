@@ -1,5 +1,3 @@
-import twms.projections
-
 Bbox = tuple[float, float, float, float]
 Point = tuple[float, float]
 Bbox4 = tuple[Point, Point, Point, Point]
@@ -64,28 +62,3 @@ def normalize(bbox) -> tuple[Bbox, bool]:
         bbox = (bbox[0], bbox[3], bbox[2], bbox[1])
 
     return bbox, flip_h
-
-
-def zoom_for_bbox(
-    bbox: Bbox,
-    size: tuple[int, int],
-    layer,
-    min_zoom: int = 1,
-    max_zoom: int = 18,
-    max_size: tuple[int, int] = (10000, 10000),
-) -> int:
-    """Calculate a best-fit zoom level."""
-    h, w = size
-    for i in range(min_zoom, max_zoom):
-        cx1, cy1, cx2, cy2 = twms.projections.tile_by_bbox(bbox, i, layer["proj"])
-        if w != 0:
-            if (cx2 - cx1) * 256 >= w * 0.9:
-                return i
-        if h != 0:
-            if (cy1 - cy2) * 256 >= h * 0.9:
-                return i
-        if (cy1 - cy2) * 256 >= max_size[0] / 2:
-            return i
-        if (cx2 - cx1) * 256 >= max_size[1] / 2:
-            return i
-    return max_zoom

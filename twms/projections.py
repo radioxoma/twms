@@ -1,4 +1,7 @@
+import collections.abc
 import math
+
+import twms.bbox
 
 try:
     import pyproj
@@ -18,7 +21,7 @@ except ImportError:
                 )
 
 
-projs = {
+projs: dict[str, dict[str, pyproj.Proj | twms.bbox.Bbox]] = {
     "EPSG:4326": {
         "proj": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
@@ -91,7 +94,7 @@ projs = {
 proj_alias = {"EPSG:900913": "EPSG:3857", "EPSG:3785": "EPSG:3857"}
 
 
-def _c4326t3857(t1, t2, lon, lat):
+def _c4326t3857(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
     """Pure python 4326 -> 3857 transform. About 8x faster than pyproj."""
     lat_rad = math.radians(lat)
     xtile = lon * 111319.49079327358
@@ -100,17 +103,17 @@ def _c4326t3857(t1, t2, lon, lat):
         / math.pi
         * 20037508.342789244
     )
-    return (xtile, ytile)
+    return xtile, ytile
 
 
-def _c3857t4326(t1, t2, lon, lat):
+def _c3857t4326(t1, t2, lon: float, lat: float):
     """Pure python 3857 -> 4326 transform. About 12x faster than pyproj."""
     xtile = lon / 111319.49079327358
     ytile = math.degrees(math.asin(math.tanh(lat / 20037508.342789244 * math.pi)))
     return (xtile, ytile)
 
 
-def _c4326t3395(t1, t2, lon, lat):
+def _c4326t3395(t1, t2, lon: float, lat: float):
     """Pure python 4326 -> 3395 transform. About 8x faster than pyproj."""
     E = 0.0818191908426
     # A = 20037508.342789
@@ -127,7 +130,7 @@ def _c4326t3395(t1, t2, lon, lat):
     return (x, y)
 
 
-def _c3395t4326(t1, t2, lon, lat):
+def _c3395t4326(t1, t2, lon: float, lat: float):
     """Pure python 4326 -> 3395 transform. About 3x faster than pyproj."""
     r_major = 6378137.000
     temp = 6356752.3142 / 6378137.000
@@ -141,7 +144,7 @@ def _c3395t4326(t1, t2, lon, lat):
     TOL = 1e-7
     i = N_ITER
     dphi = 0.1
-    while (abs(dphi) > TOL) and (i > 0):
+    while abs(dphi) > TOL and i > 0:
         i -= 1
         con = eccent * math.sin(Phi)
         dphi = (
@@ -163,7 +166,7 @@ pure_python_transformers = {
 }
 
 
-def tile_by_bbox(bbox, zoom: int, srs: str = "EPSG:3857"):
+def tile_by_bbox(bbox: twms.bbox.Bbox, zoom: int, srs: str = "EPSG:3857"):
     """Convert bbox from 4326 format to tile numbers of given zoom level, with correct wraping around 180th meridian."""
     a1, a2 = tile_by_coords((bbox[0], bbox[1]), zoom, srs)
     b1, b2 = tile_by_coords((bbox[2], bbox[3]), zoom, srs)
@@ -172,17 +175,41 @@ def tile_by_bbox(bbox, zoom: int, srs: str = "EPSG:3857"):
     return a1, a2, b1, b2
 
 
-def bbox_by_tile(z, x, y, srs: str = "EPSG:3857"):
+def bbox_by_tile(z: int, x: int, y: int, srs: str = "EPSG:3857"):
     """Convert tile number to EPSG:4326 bbox of srs-projected tile."""
     a1, a2 = coords_by_tile(z, x, y, srs)
     b1, b2 = coords_by_tile(z, x + 1, y + 1, srs)
     return a1, b2, b1, a2
 
 
-def coords_by_tile(z, x, y, srs: str = "EPSG:3857"):
+def zoom_for_bbox(
+    bbox: twms.bbox.Bbox,
+    size: tuple[int, int],
+    layer,
+    min_zoom: int = 1,
+    max_zoom: int = 18,
+    max_size: tuple[int, int] = (10000, 10000),
+) -> int:
+    """Calculate a best-fit zoom level."""
+    h, w = size
+    for i in range(min_zoom, max_zoom):
+        cx1, cy1, cx2, cy2 = tile_by_bbox(bbox, i, layer["proj"])
+        if w != 0:
+            if (cx2 - cx1) * 256 >= w * 0.9:
+                return i
+        if h != 0:
+            if (cy1 - cy2) * 256 >= h * 0.9:
+                return i
+        if (cy1 - cy2) * 256 >= max_size[0] / 2:
+            return i
+        if (cx2 - cx1) * 256 >= max_size[1] / 2:
+            return i
+    return max_zoom
+
+
+def coords_by_tile(z: int, x: int, y: int, srs: str = "EPSG:3857"):
     """Convert (z,x,y) to coordinates of corner of srs-projected tile."""
-    # z -= 1  # Should I remove it?
-    normalized_tile = (x / (2.0**z), 1.0 - (y / (2.0**z)))
+    normalized_tile = x / (2.0**z), 1.0 - (y / (2.0**z))
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
     maxp = [
         projected_bounds[2] - projected_bounds[0],
@@ -235,11 +262,13 @@ def from4326(line, srs: str = "EPSG:3857"):
     return transform(line, "EPSG:4326", srs)
 
 
-def transform(line, srs1, srs2):
+def transform(line: collections.abc.Sequence, srs1: str, srs2: str):
     """Convert bunch of coordinates from srs1 to srs2.
 
-    line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
-    srs[1,2] - text string, specifying projection (srs1 - from, srs2 - to)
+    Args:
+        line: [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
+        srs1: from projection
+        srs2: to projection)
     """
     srs1 = proj_alias.get(srs1, srs1)
     srs2 = proj_alias.get(srs2, srs2)
@@ -247,14 +276,13 @@ def transform(line, srs1, srs2):
         return line
     if (srs1, srs2) in pure_python_transformers:
         func = pure_python_transformers[(srs1, srs2)]
-        # print("pure")
     else:
         func = pyproj.transform
     line = list(line)
     serial = False
-    if (not isinstance(line[0], tuple)) and (not isinstance(line[0], list)):
+    if not isinstance(line[0], collections.abc.Sequence):
         serial = True
-        l1 = []
+        l1 = list()
         while line:
             a = line.pop(0)
             b = line.pop(0)
@@ -274,77 +302,16 @@ def transform(line, srs1, srs2):
 
 
 if __name__ == "__main__":
-    # import debug
-
     print(_c4326t3857(1, 2, 27.6, 53.2))
     print(from4326((27.6, 53.2), "EPSG:3857"))
+
     a = _c4326t3857(1, 2, 27.6, 53.2)
     print(to4326(a, "EPSG:3857"))
     print(_c3857t4326(1, 2, a[0], a[1]))
+
     print("3395:")
     print(_c4326t3395(1, 2, 27.6, 53.2))
     print(from4326((27.6, 53.2), "EPSG:3395"))
     a = _c4326t3395(1, 2, 27.6, 53.2)
     print(to4326(a, "EPSG:3395"))
     print(_c3395t4326(1, 2, a[0], a[1]))
-
-    # a = debug.Timer("Pure python 4326<3857")
-    for i in range(0, 100000):
-        t = _c3857t4326(1, 2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-    # a = debug.Timer("TWMS wrapped 4326<3857")
-    for i in range(0, 100000):
-        t = to4326((3072417.9458943508, 7020078.5326420991), "EPSG:3857")
-    a.stop()
-    # a = debug.Timer("Pyproj unwrapped 4326<3857")
-    pr1 = projs["EPSG:3857"]["proj"]
-    pr2 = projs["EPSG:4326"]["proj"]
-    for i in range(0, 100000):
-        t = pyproj.transform(pr1, pr2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-
-    # a = debug.Timer("Pure python 4326<3395")
-    for i in range(0, 100000):
-        t = _c3395t4326(1, 2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-    # a = debug.Timer("TWMS wrapped 4326<3395")
-    for i in range(0, 100000):
-        t = to4326((3072417.9458943508, 7020078.5326420991), "EPSG:3395")
-    a.stop()
-    # a = debug.Timer("Pyproj unwrapped 4326<3395")
-    pr1 = projs["EPSG:3395"]["proj"]
-    pr2 = projs["EPSG:4326"]["proj"]
-    for i in range(0, 100000):
-        t = pyproj.transform(pr1, pr2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-
-    # a = debug.Timer("Pure python 4326>3857")
-    for i in range(0, 100000):
-        t = _c4326t3857(1, 2, 27.6, 53.2)
-    a.stop()
-    # a = debug.Timer("TWMS wrapped 4326>3857")
-    for i in range(0, 100000):
-        t = from4326((27.6, 53.2), "EPSG:3857")
-    a.stop()
-    # a = debug.Timer("Pyproj unwrapped 4326>3857")
-    pr2 = projs["EPSG:3857"]["proj"]
-
-    pr1 = projs["EPSG:4326"]["proj"]
-    for i in range(0, 100000):
-        t = pyproj.transform(pr1, pr2, 27.6, 53.2)
-    a.stop()
-
-    # a = debug.Timer("Pure python 4326>3395")
-    for i in range(0, 100000):
-        t = _c4326t3395(1, 2, 27.6, 53.2)
-    a.stop()
-    # a = debug.Timer("TWMS wrapped 4326>3395")
-    for i in range(0, 100000):
-        t = from4326((27.6, 53.2), "EPSG:3395")
-    a.stop()
-    # a = debug.Timer("Pyproj unwrapped 4326>3395")
-    pr2 = projs["EPSG:3395"]["proj"]
-    pr1 = projs["EPSG:4326"]["proj"]
-    for i in range(0, 100000):
-        t = pyproj.transform(pr1, pr2, 27.6, 53.2)
-    a.stop()

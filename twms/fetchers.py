@@ -97,7 +97,7 @@ class TileFetcher:
         self.thread_responses = {}  # Dicts are thread safe
         self.zhash_lock = {}
 
-    def fetch(self, z, x, y):
+    def fetch(self, z: int, x: int, y: int):
         """Return None if no image can be served."""
         zhash = repr((z, x, y, self.layer))
         try:
@@ -118,7 +118,7 @@ class TileFetcher:
             del self.zhash_lock[zhash]
         return resp
 
-    def threadworker(self, z, x, y, zhash):
+    def threadworker(self, z: int, x: int, y: int, zhash):
         f_names = ("tms", "wms", "tms_google_sat")
         if self.layer["fetch"] not in f_names:
             raise ValueError("fetch must be " + ", ".join(f_names))
@@ -126,7 +126,7 @@ class TileFetcher:
         # Call fetcher by it's name
         self.thread_responses[zhash] = getattr(self, self.layer["fetch"])(z, x, y)
 
-    def wms(self, z, x, y):
+    def wms(self, z: int, x: int, y: int) -> Image.Image | None:
         """Use tms instead.
 
         Possible features to implement:
@@ -202,7 +202,7 @@ class TileFetcher:
         im.save(tile_path)
         return im
 
-    def tms(self, z, x, y):
+    def tms(self, z: int, x: int, y: int) -> Image.Image | None:
         """Fetch tile by coordinates, r/w cache.
 
         Function fetches image, checks it validity and detects actual
@@ -397,8 +397,9 @@ class TileFetcher:
                 # os.remove(tile_path)  # Cached tile is broken - remove it
 
         logger.warning(f"{tile_id}: unreachable tile {remote}")
+        return None
 
-    def tms_google_sat(self, z, x, y):
+    def tms_google_sat(self, z: int, x: int, y: int) -> Image.Image:
         """Construct template URI with version from JS API.
 
         May be use different servers in future:
@@ -407,26 +408,21 @@ class TileFetcher:
         """
         if "remote_url" not in self.layer:
             try:
-                resp = (
-                    self.opener("https://maps.googleapis.com/maps/api/js")
-                    .read()
-                    .decode("utf-8")
-                )
+                resp = self.opener("https://maps.googleapis.com/maps/api/js").read()
                 if resp:
                     match = re.search(
-                        r"https://khms\d+.googleapis\.com/kh\?v=(\d+)", resp
+                        r"https://khms\d+.googleapis\.com/kh\?v=(\d+)",
+                        resp.decode("utf-8"),
                     )
-                    if not match.group(1):
-                        logger.error("Cannot parse 'v=' from maps_googleapis_js")
+                    if match and match.group(1):
+                        self.layer[
+                            "remote_url"
+                        ] = f"https://khms0.google.com/kh/v={match.group(1)}?x={x}&y={y}&z={z}"
+                        logger.info(
+                            f"Setting new {self.layer['name']} URI {self.layer['remote_url']}"
+                        )
+                    else:
                         raise ValueError("Cannot parse 'v=' from maps_googleapis_js")
-                    self.layer["remote_url"] = (
-                        "https://khms0.google.com/kh/v="
-                        + match.group(1)
-                        + "?x={x}&y={y}&z={z}"
-                    )
-                    logger.info(
-                        f"Setting new {self.layer['name']} URI {self.layer['remote_url']}"
-                    )
             except urllib.error.URLError:
                 pass
 
@@ -476,16 +472,14 @@ def tile_to_quadkey(z: int, x: int, y: int) -> str:
 
 
 def tile_slippy_to_tms(z: int, x: int, y: int) -> tuple[int, int, int]:
-    """Convert to OSGeo Tile Map Service Specification style Y coordinate.
-
-    Same meaning as '{-y}'.
+    """Convert Slippy map coordinate system to OSGeo TMS `{-y}`.
 
     https://josm.openstreetmap.de/wiki/Maps
     """
     return z, x, 2**z - 1 - y
 
 
-def im_convert(im: Image, content_type: str, exif=None) -> bytes:
+def im_convert(im: Image.Image, content_type: str, exif=None) -> bytes:
     """Convert Pillow image to requested Content-Type."""
     # Exif-related code not documented, Pillow can change behavior
     exif = Image.Exif()

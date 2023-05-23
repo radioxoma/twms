@@ -38,7 +38,7 @@ class TWMSMain:
         self.cached_hist_list = list()
         self.fetchers_pool = dict()  # self.fetchers_pool[layer['prefix']]
 
-    def wms_handler(self, data):
+    def wms_handler(self, data: dict):
         """Do main TWMS work. Some WMS implementation.
 
         data - dictionary of params.
@@ -222,13 +222,16 @@ class TWMSMain:
             twms.fetchers.im_convert(result_img, content_type),
         )
 
-    def tiles_handler(self, layer_id, z, x, y, mimetype):
+    def tiles_handler(
+        self, layer_id: str, z: int, x: int, y: int, mimetype: str
+    ) -> tuple[HTTPStatus, str, Image.Image | str]:
         """Serve slippy map tiles as is.
 
         http://localhost:8080/tiles/vesat/1/0/0.jpg OK
         http://localhost:8080/tiles/yasat/1/0/0.jpg Not OK
 
-        Return 404 instead of blank tile.
+        Returns:
+            Return 404 instead of blank tile.
         """
         logger.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
         if twms.config.layers[layer_id]["proj"] != "EPSG:3857":
@@ -255,9 +258,9 @@ class TWMSMain:
         request_proj: str,
         size: tuple[int, int],
         layer,
-        start_time,
+        start_time: float,
         force,
-    ):
+    ) -> Image.Image:
         """Get tile by a given bbox."""
         # Making 4-corner maximal bbox
         bbox_p = twms.projections.from4326(bbox, request_proj)
@@ -277,7 +280,7 @@ class TWMSMain:
         max_zoom = layer.get("max_zoom", twms.config.default_max_zoom)
         min_zoom = layer.get("min_zoom", twms.config.default_min_zoom)
 
-        zoom = twms.bbox.zoom_for_bbox(
+        zoom = twms.projections.zoom_for_bbox(
             bbox,
             size,
             layer,
@@ -344,7 +347,14 @@ class TWMSMain:
         return out
 
     def tile_image(
-        self, layer, z, x, y, start_time, trybetter=True, real=False
+        self,
+        layer,
+        z: int,
+        x: int,
+        y: int,
+        start_time: float,
+        trybetter=True,
+        real=False,
     ) -> Image.Image | None:
         """Get tile by given coordinates.
 

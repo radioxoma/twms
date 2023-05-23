@@ -23,7 +23,7 @@ def get_fs_url(layer) -> str:
     return f"file://{twms.config.tiles_cache}{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
-def maps_html():
+def maps_html() -> str:
     """Render TMS layers summary."""
     resp = [
         f"""
@@ -106,7 +106,7 @@ def maps_html():
     return "".join(resp)
 
 
-def maps_xml_josm():
+def maps_xml_josm() -> str:
     """Create XML for JOSM 'imagery.layers.sites' property.
 
     XML spec https://josm.openstreetmap.de/wiki/Maps
@@ -179,8 +179,16 @@ def maps_xml_josm():
     return ET.tostring(imagery, encoding="unicode")
 
 
-def maps_xml_wms(version, ref):
-    """Create XML for WMS."""
+def maps_xml_wms(version: str, ref: str) -> tuple[str, str]:
+    """Create XML for WMS.
+
+    Args:
+        version: Spec version
+        ref: Service URL
+
+    Returns:
+        content type, xml
+    """
     content_type = "text/xml"
 
     if version == "1.0.0":

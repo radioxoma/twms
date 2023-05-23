@@ -6,6 +6,7 @@ warning - HTTP errors
 """
 
 import os
+import typing
 
 import twms
 import twms.bbox
@@ -97,7 +98,7 @@ Other WMTS configs https://github.com/bertt/wmts
 """
 
 
-layers = {
+layers: dict[str, dict[str, typing.Any]] = {
     "yasat": {
         "name": "Yandex Satellite",
         "provider_url": "https://yandex.ru/maps/",

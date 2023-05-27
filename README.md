@@ -1,4 +1,4 @@
-# twms web map server
+# twms
 
 Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStreetMap contributing.
 
@@ -9,13 +9,13 @@ Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStree
 ## About this fork
 
 * [`http.server`](https://docs.python.org/3/library/http.server.html) from standard python library is used instead of [webpy](https://webpy.org/)
-* [Slippy map](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) cache and proxy URL, compatible with [JOSM](https://josm.openstreetmap.de/), [SAS.Planet](http://www.sasgis.org/sasplaneta/), Leaflet etc
+* [Slippy map](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) cache and proxy URL, compatible with [JOSM](https://josm.openstreetmap.de/), [SAS.Planet](http://www.sasgis.org/sasplaneta/), [MOBAC](https://mobac.sourceforge.io/) etc
 * [JOSM remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from web
 * [JOSM imagery XML](https://josm.openstreetmap.de/wiki/Maps) for `imagery.layers.sites`
 * Conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
-* Functional regression - unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
-* Due to huge refactoring and removing half of the original code the changes ineligible for a pull request
+* Huge refactoring: unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
 * Consider it as hacky replacement for [MapProxy](https://wiki.openstreetmap.org/wiki/MapProxy)
+* Few dependencies (only python-pillow is mandatory)
 
 
 ## Setting up TWMS
@@ -41,7 +41,7 @@ http://localhost:8080/tiles/{layer_id}/{z}/{x}/{y}{ext} - EPSG:3857 only tile pr
 http://localhost:8080/josm/maps.xml - imagery list for JOSM's `imagery.layers.sites` property
 
 
-## Shared cache with SAS.Planet
+## Shared "Slippy Map" cache
 
 SAS.Planet works fine with [wine](https://www.winehq.org/). Open "Settings > Options > Cache tab > Set *Default cache type* to *Mobile atlas creator (MOBAC)*". So tile path will conform "Slippy Map" standard e.g. `SAS.Planet/cache_ma/vesat/{z}/{x}/{y}.jpg`.
 
@@ -56,9 +56,9 @@ At 2021 JOSM uses [Java cache system](https://commons.apache.org/proper/commons-
 2. Set property 'imagery.cache.max_disk_size' to reasonable value, e.g. 64 Mb, to not exceed RAM
 
 
-### Load tiles directly from disk cache
+### Load tiles directly from disk
 
-JOSM supports `file://` URL pointing to 256x256 tiles in EPSG:3857 projection (like OSM, Bing or Google, but not Yandex as it uses EPSG:3395). **So it's possible to make JOSM load tiles directly from SAS.Planet cache, without running any server.**
+JOSM supports `file://` URL pointing to 256x256 tiles in EPSG:3857 projection (like OSM, Bing or Google, but not Yandex as it uses EPSG:3395). **So it's possible to make JOSM load tiles directly from SAS.Planet MOBAC cache, without running any server.**
 
 1. Check [http://127.0.0.1:8080](http://127.0.0.1:8080) for available `file://` links
 2. Open JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries* and paste link. E.g.:

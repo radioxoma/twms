@@ -103,7 +103,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "Yandex Satellite",
         "provider_url": "https://yandex.ru/maps/",
         "prefix": "yasat",
-        "proj": "EPSG:3395",
+        "proj": "EPSG:3395",  # WGS84 World mercator, ellipsoid
         "scalable": False,
         "fetch": "tms",
         "remote_url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",

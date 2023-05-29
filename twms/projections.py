@@ -131,7 +131,11 @@ def _c4326t3395(t1, t2, lon: float, lat: float):
 
 
 def _c3395t4326(t1, t2, lon: float, lat: float):
-    """Pure python 4326 -> 3395 transform. About 3x faster than pyproj."""
+    """Pure python 4326 -> 3395 transform.
+
+    Typically used for Yandex tiles reprojection to Slippy map.
+    About 3x faster than pyproj.
+    """
     r_major = 6378137.000
     temp = 6356752.3142 / 6378137.000
     es = 1.0 - (temp * temp)

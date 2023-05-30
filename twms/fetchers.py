@@ -5,10 +5,10 @@ import logging
 import mimetypes
 import os
 import re
-import threading
 import time
 import urllib.error
 import urllib.request as request
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from http import HTTPStatus
 from io import BytesIO
@@ -93,38 +93,20 @@ class TileFetcher:
     def __init__(self, layer):
         self.layer = layer
         self.opener = prepare_opener(headers=self.layer.get("headers", dict()))
-        self.fetching_now = {}
-        self.thread_responses = {}  # Dicts are thread safe
-        self.zhash_lock = {}
+        self.thread_pool = ThreadPoolExecutor(max_workers=10)
 
     def fetch(self, z: int, x: int, y: int):
         """Return None if no image can be served."""
         zhash = repr((z, x, y, self.layer))
-        try:
-            self.zhash_lock[zhash] += 1
-        except KeyError:
-            self.zhash_lock[zhash] = 1
-        if zhash not in self.fetching_now:
-            thread = threading.Thread(None, self.threadworker, None, (z, x, y, zhash))
-            thread.start()
-            self.fetching_now[zhash] = thread
-        if self.fetching_now[zhash].is_alive():
-            self.fetching_now[zhash].join()
-        resp = self.thread_responses[zhash]
-        self.zhash_lock[zhash] -= 1
-        if not self.zhash_lock[zhash]:
-            del self.thread_responses[zhash]
-            del self.fetching_now[zhash]
-            del self.zhash_lock[zhash]
-        return resp
+        future = self.thread_pool.submit(self.threadworker, z, x, y, zhash)
+        return future.result()
 
     def threadworker(self, z: int, x: int, y: int, zhash):
         f_names = ("tms", "wms", "tms_google_sat")
         if self.layer["fetch"] not in f_names:
             raise ValueError("fetch must be " + ", ".join(f_names))
-
         # Call fetcher by it's name
-        self.thread_responses[zhash] = getattr(self, self.layer["fetch"])(z, x, y)
+        return getattr(self, self.layer["fetch"])(z, x, y)
 
     def wms(self, z: int, x: int, y: int) -> Image.Image | None:
         """Use tms instead.

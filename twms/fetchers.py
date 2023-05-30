@@ -266,7 +266,7 @@ class TileFetcher:
                 # tile_lifespan_h = tile_lifespan / 60 / 60
                 # logger.debug(f"{tile_id}: lifespan {tile_lifespan_h:.0f} h {fp}")
                 if tile_lifespan > self.layer["cache_ttl"]:
-                    logger.info(f"{tile_id}: TTL tile reached for {tile_path}")
+                    logger.debug(f"{tile_id}: TTL tile reached for {tile_path}")
                     need_fetch = True
 
         if not os.path.exists(tile_path) and not os.path.exists(tne_path):
@@ -365,7 +365,7 @@ class TileFetcher:
             logger.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
             if tile_parsed and not tile_dead:
                 # All well, save tile to cache
-                logger.info(f"{tile_id}: saving {tile_path}")
+                logger.debug(f"{tile_id}: saving {tile_path}")
 
                 # Preserving original image if possible, as encoding is lossy
                 # Storing all images into one format, just like SAS.Planet does
@@ -417,7 +417,7 @@ class TileFetcher:
                     if match and match.group(1):
                         self.layer[
                             "remote_url"
-                        ] = f"https://khms0.google.com/kh/v={match.group(1)}?x={x}&y={y}&z={z}"
+                        ] = f"https://kh.google.com/kh/v={match.group(1)}?x={{x}}&y={{y}}&z={{z}}"
                         logger.info(
                             f"Setting new {self.layer['name']} URI {self.layer['remote_url']}"
                         )

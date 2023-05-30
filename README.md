@@ -13,6 +13,7 @@ Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStree
 * [JOSM remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from web
 * [JOSM imagery XML](https://josm.openstreetmap.de/wiki/Maps) for `imagery.layers.sites`
 * Conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
+* Time To Live (TTL), tile not exist `*.tne` file support
 * Huge refactoring: unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
 * Consider it as hacky replacement for [MapProxy](https://wiki.openstreetmap.org/wiki/MapProxy)
 * Few dependencies (only python-pillow is mandatory)

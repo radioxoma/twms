@@ -91,22 +91,21 @@ def prepare_opener(
 
 class TileFetcher:
     def __init__(self, layer):
+        fetcher_names = ("tms", "wms", "tms_google_sat")
+        if layer["fetch"] not in fetcher_names:
+            raise ValueError(f"'fetch' must be one of {fetcher_names}")
+        self.__worker = getattr(self, layer["fetch"])  # Choose fetcher
         self.layer = layer
         self.opener = prepare_opener(headers=self.layer.get("headers", dict()))
-        self.thread_pool = ThreadPoolExecutor(max_workers=10)
+        self.thread_pool = ThreadPoolExecutor(max_workers=5)
 
-    def fetch(self, z: int, x: int, y: int):
-        """Return None if no image can be served."""
-        zhash = repr((z, x, y, self.layer))
-        future = self.thread_pool.submit(self.threadworker, z, x, y, zhash)
-        return future.result()
+    def fetch(self, z: int, x: int, y: int) -> Image.Image | None:
+        """Fetch tile asynchronously.
 
-    def threadworker(self, z: int, x: int, y: int, zhash):
-        f_names = ("tms", "wms", "tms_google_sat")
-        if self.layer["fetch"] not in f_names:
-            raise ValueError("fetch must be " + ", ".join(f_names))
-        # Call fetcher by it's name
-        return getattr(self, self.layer["fetch"])(z, x, y)
+        Returns:
+            Image or None if no image can be served.
+        """
+        return self.thread_pool.submit(self.__worker, z, x, y).result()
 
     def wms(self, z: int, x: int, y: int) -> Image.Image | None:
         """Use tms instead.

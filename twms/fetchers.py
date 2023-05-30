@@ -1,6 +1,6 @@
 import hashlib
 import http.client
-import http.cookiejar as http_cookiejar
+import http.cookiejar
 import logging
 import mimetypes
 import os
@@ -49,7 +49,7 @@ def prepare_opener(
         delay each retry
         headers: Update opener headers (add new and spoof existing)
     """
-    cj = http_cookiejar.CookieJar()
+    cj = http.cookiejar.CookieJar()
 
     # if use_proxy:
     #     proxy_info = {

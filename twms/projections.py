@@ -1,7 +1,10 @@
 import collections.abc
 import math
+from typing import NewType
 
 import twms.bbox
+
+EPSG = NewType("EPSG", str)
 
 try:
     import pyproj
@@ -131,10 +134,9 @@ def _c4326t3395(t1, t2, lon: float, lat: float):
 
 
 def _c3395t4326(t1, t2, lon: float, lat: float):
-    """Pure python 4326 -> 3395 transform.
+    """Pure python 4326 -> 3395 transform. About 3x faster than pyproj.
 
     Typically used for Yandex tiles reprojection to Slippy map.
-    About 3x faster than pyproj.
     """
     r_major = 6378137.000
     temp = 6356752.3142 / 6378137.000
@@ -171,7 +173,7 @@ pure_python_transformers = {
 
 
 def tile_by_bbox(bbox: twms.bbox.Bbox, zoom: int, srs: str = "EPSG:3857"):
-    """Convert bbox from 4326 format to tile numbers of given zoom level, with correct wraping around 180th meridian."""
+    """Convert bbox from EPSG:4326 format to tile numbers of given zoom level, with correct wraping around 180th meridian."""
     a1, a2 = tile_by_coords((bbox[0], bbox[1]), zoom, srs)
     b1, b2 = tile_by_coords((bbox[2], bbox[3]), zoom, srs)
     if b1 < a1:
@@ -229,9 +231,10 @@ def coords_by_tile(z: int, x: int, y: int, srs: str = "EPSG:3857"):
 def tile_by_coords(xxx_todo_changeme, zoom: int, srs: str = "EPSG:3857"):
     """Convert EPSG:4326 latitude and longitude to tile number of srs-projected tile pyramid.
 
-    lat, lon - EPSG:4326 coordinates of a point
-    zoom - zoomlevel of tile number
-    srs - text string, specifying projection of tile pyramid
+    Args:
+        xxx_todo_changeme: lat, lon - EPSG:4326 coordinates of a point
+        zoom: zoomlevel of tile number
+        srs: text string, specifying projection of tile pyramid
     """
     (lon, lat) = xxx_todo_changeme
     # zoom -= 1
@@ -251,8 +254,9 @@ def tile_by_coords(xxx_todo_changeme, zoom: int, srs: str = "EPSG:3857"):
 def to4326(line, srs: str = "EPSG:3857"):
     """Transform line from srs to EPSG:4326 (convenience shortcut).
 
-    line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
-    srs - text string, specifying projection
+    Args:
+        line: list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
+        srs: projection
     """
     return transform(line, srs, "EPSG:4326")
 
@@ -260,8 +264,9 @@ def to4326(line, srs: str = "EPSG:3857"):
 def from4326(line, srs: str = "EPSG:3857"):
     """Transform line from EPSG:4326 to srs (convenience shortcut).
 
-    line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
-    srs - text string, specifying projection
+    Args:
+        line: list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
+        srs: projection
     """
     return transform(line, "EPSG:4326", srs)
 

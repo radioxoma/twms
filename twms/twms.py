@@ -34,18 +34,23 @@ class TWMSMain:
 
     def __init__(self):
         super().__init__()
-        self.cached_objs = dict()  # a dict. (layer, z, x, y): PIL image
-        self.cached_hist_list = list()
-        self.fetchers_pool = dict()  # self.fetchers_pool[layer['prefix']]
+        self.cached_objs = dict()  # dict[(layer, z, x, y): Image.Image]
+        self.cached_hist_list = list()  # list[layer["prefix"], z, x, y]
+        self.fetchers_pool = (
+            dict()
+        )  # dict[layer['prefix']: twms.fetchers.TileFetcher(layer)]
 
     def wms_handler(self, data: dict):
         """Do main TWMS work. Some WMS implementation.
 
-        data - dictionary of params.
-        returns (HTTP_code, content_type, resp)
-
         http://127.0.0.1:8080/wms?request=GetCapabilities&
         http://127.0.0.1:8080/wms?request=GetCapabilities&version=1.0.0
+
+        Args:
+            data: url params
+
+        Returns:
+            (http.HTTPStatus, content_type, resp)
         """
         # WMS request keys must be case insensitive, values must not
         data = {k.casefold(): v for k, v in data.items()}
@@ -228,7 +233,7 @@ class TWMSMain:
         """Serve slippy map tiles as is.
 
         http://localhost:8080/tiles/vesat/1/0/0.jpg OK
-        http://localhost:8080/tiles/yasat/1/0/0.jpg Not OK
+        http://localhost:8080/tiles/yasat/1/0/0.jpg not OK
 
         Returns:
             Return 404 instead of blank tile.
@@ -261,7 +266,10 @@ class TWMSMain:
         start_time: float,
         force,
     ) -> Image.Image:
-        """Get tile by a given bbox."""
+        """Get tile by a given bbox.
+
+        start_time: time.time()
+        """
         # Making 4-corner maximal bbox
         bbox_p = twms.projections.from4326(bbox, request_proj)
         bbox_p = twms.projections.to4326(
@@ -356,18 +364,16 @@ class TWMSMain:
         trybetter=True,
         real=False,
     ) -> Image.Image | None:
-        """Get tile by given coordinates.
+        """Get tile by Slippy map coordinates.
 
-        Returns asked tile (from cache, fetcher, or recursively rescaled).
+        Args:
+            start_time: time.time()
+            trybetter: combine this tile from better ones
+            real: return the tile even in not good quality
 
-        again - is this a second pass on this tile?
-        trybetter - should we try to combine this tile from better ones?
-        real - should we return the tile even in not good quality?
-
-        dsc.downscale?
-        ups.upscale?
-
-        Function must return None if image is invalid  or unavailable
+        Returns:
+            Tile (from cache, fetcher, or recursively rescaled) or
+            None if image is invalid or unavailable.
         """
         tile = None
         # Dedicated fetcher for each imagery layer - if one fetcher hangs,

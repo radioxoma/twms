@@ -40,7 +40,7 @@ class TWMSMain:
             dict()
         )  # dict[layer['prefix']: twms.fetchers.TileFetcher(layer)]
 
-    def wms_handler(self, data: dict):
+    def wms_handler(self, data: dict) -> tuple[HTTPStatus, str, bytes | str]:
         """Do main TWMS work. Some WMS implementation.
 
         http://127.0.0.1:8080/wms?request=GetCapabilities&
@@ -169,7 +169,7 @@ class TWMSMain:
 
         try:
             # WMS image
-            result_img = self.getimg(
+            result_img = self.bbox_image(
                 box, srs, (height, width), twms.config.layers[ll], start_time, force
             )
         except KeyError:
@@ -182,7 +182,7 @@ class TWMSMain:
                     wkt = "," + wkt
                 srs = twms.config.layers[ll]["proj"]
 
-            im2 = self.getimg(
+            im2 = self.bbox_image(
                 box, srs, (height, width), twms.config.layers[ll], start_time, force
             )
             if "empty_color" in twms.config.layers[ll]:
@@ -229,7 +229,7 @@ class TWMSMain:
 
     def tiles_handler(
         self, layer_id: str, z: int, x: int, y: int, mimetype: str
-    ) -> tuple[HTTPStatus, str, Image.Image | str]:
+    ) -> tuple[HTTPStatus, str, bytes | str]:
         """Serve slippy map tiles as is.
 
         http://localhost:8080/tiles/vesat/1/0/0.jpg OK
@@ -257,7 +257,7 @@ class TWMSMain:
         else:
             return HTTPStatus.NOT_FOUND, "text/plain", "404 Not Found"
 
-    def getimg(
+    def bbox_image(
         self,
         bbox: twms.bbox.Bbox,
         request_proj: str,

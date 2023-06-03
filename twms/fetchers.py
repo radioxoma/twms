@@ -460,14 +460,15 @@ def tile_slippy_to_tms(z: int, x: int, y: int) -> tuple[int, int, int]:
     return z, x, 2**z - 1 - y
 
 
-def im_convert(im: Image.Image, content_type: str, exif=None) -> bytes:
-    """Convert Pillow image to requested Content-Type."""
+def im_convert(im: Image.Image, mimetype: str) -> bytes:
+    """Convert Pillow image to requested mimetype."""
     # Exif-related code not documented, Pillow can change behavior
     exif = Image.Exif()
-    exif[0x0131] = "twms"  # ExifTags.TAGS['Software']
+    exif[0x0131] = twms.config.wms_name  # ExifTags.TAGS['Software']
 
     img_buf = BytesIO()
-    if content_type == "image/jpeg":
+
+    if mimetype == "image/jpeg":
         im = im.convert("RGB")
         im.save(
             img_buf,
@@ -476,7 +477,7 @@ def im_convert(im: Image.Image, content_type: str, exif=None) -> bytes:
             progressive=twms.config.output_progressive,
             exif=exif,
         )
-    elif content_type == "image/png":
+    elif mimetype == "image/png":
         im.save(
             img_buf,
             "PNG",
@@ -484,7 +485,7 @@ def im_convert(im: Image.Image, content_type: str, exif=None) -> bytes:
             optimize=twms.config.output_optimize,
             exif=exif,
         )
-    elif content_type == "image/gif":
+    elif mimetype == "image/gif":
         im.save(
             img_buf,
             "GIF",
@@ -496,7 +497,7 @@ def im_convert(im: Image.Image, content_type: str, exif=None) -> bytes:
         im = im.convert("RGB")
         im.save(
             img_buf,
-            content_type.split("/")[1],
+            mimetype.split("/")[1],
             quality=twms.config.output_quality,
             progressive=twms.config.output_progressive,
             exif=exif,

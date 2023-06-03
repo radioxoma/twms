@@ -73,7 +73,7 @@ class TWMSMain:
             layer = ["transparent"]
 
         force = data.get("force", "")
-        if force != "":
+        if force:
             force = force.split(",")
         force = tuple(force)
 

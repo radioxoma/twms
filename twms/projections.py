@@ -4,97 +4,64 @@ from typing import NewType
 
 import twms.bbox
 
-EPSG = NewType("EPSG", str)
+EPSG = NewType("EPSG", str)  # Like pyproj.CRS
 
-try:
-    import pyproj
-except ImportError:
-
-    class pyproj:  # type: ignore
-        class Proj:
-            def __init__(self, pstring):
-                self.pstring = pstring
-
-        def transform(self, pr1, pr2, c1, c2):
-            if pr1.pstring == pr2.pstring:
-                return c1, c2
-            else:
-                raise NotImplementedError(
-                    "Pyproj is required for projection transformations"
-                )
-
-
-projs: dict[str, dict[str, pyproj.Proj | twms.bbox.Bbox]] = {
+projs: dict[str, dict[str, str | twms.bbox.Bbox]] = {
     "EPSG:4326": {
-        "proj": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
+        "proj": "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "NASA:4326": {
-        "proj": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
+        "proj": "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs",
         "bounds": (-180.0, -166.0, 332.0, 346.0),
     },
     "EPSG:3395": {
-        "proj": pyproj.Proj(
-            "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -85.0840591556, 180.0, 85.0840590501),
     },
     "EPSG:3857": {
-        "proj": pyproj.Proj(
-            "+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"
-        ),
+        "proj": "+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs",
         "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
     },
     "EPSG:32635": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=35 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=35 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32636": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=36 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=36 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32637": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=37 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=37 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32638": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=38 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=38 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32639": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=39 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=39 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32640": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=40 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=40 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32641": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=41 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=41 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32642": {
-        "proj": pyproj.Proj(
-            "+proj=utm +zone=42 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        ),
+        "proj": "+proj=utm +zone=42 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
 }
-proj_alias = {"EPSG:900913": "EPSG:3857", "EPSG:3785": "EPSG:3857"}
+
+
+proj_alias = {
+    EPSG("EPSG:900913"): EPSG("EPSG:3857"),
+    EPSG("EPSG:3785"): EPSG("EPSG:3857"),
+}
 
 
 def _c4326t3857(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
@@ -113,7 +80,7 @@ def _c3857t4326(t1, t2, lon: float, lat: float):
     """Pure python 3857 -> 4326 transform. About 12x faster than pyproj."""
     xtile = lon / 111319.49079327358
     ytile = math.degrees(math.asin(math.tanh(lat / 20037508.342789244 * math.pi)))
-    return (xtile, ytile)
+    return xtile, ytile
 
 
 def _c4326t3395(t1, t2, lon: float, lat: float):
@@ -130,7 +97,7 @@ def _c4326t3395(t1, t2, lon: float, lat: float):
     )
     x = lon * 111319.49079327358
     y = 6378137.0 * math.log(tmp / pow_tmp)
-    return (x, y)
+    return x, y
 
 
 def _c3395t4326(t1, t2, lon: float, lat: float):
@@ -161,18 +128,18 @@ def _c3395t4326(t1, t2, lon: float, lat: float):
         Phi += dphi
 
     x = lon / 111319.49079327358
-    return (x, math.degrees(Phi))
+    return x, math.degrees(Phi)
 
 
 pure_python_transformers = {
-    ("EPSG:4326", "EPSG:3857"): _c4326t3857,
-    ("EPSG:3857", "EPSG:4326"): _c3857t4326,
-    ("EPSG:4326", "EPSG:3395"): _c4326t3395,
-    ("EPSG:3395", "EPSG:4326"): _c3395t4326,
+    (EPSG("EPSG:4326"), EPSG("EPSG:3857")): _c4326t3857,
+    (EPSG("EPSG:3857"), EPSG("EPSG:4326")): _c3857t4326,
+    (EPSG("EPSG:4326"), EPSG("EPSG:3395")): _c4326t3395,
+    (EPSG("EPSG:3395"), EPSG("EPSG:4326")): _c3395t4326,
 }
 
 
-def tile_by_bbox(bbox: twms.bbox.Bbox, zoom: int, srs: str = "EPSG:3857"):
+def tile_by_bbox(bbox: twms.bbox.Bbox, zoom: int, srs: EPSG = EPSG("EPSG:3857")):
     """Convert bbox from EPSG:4326 format to tile numbers of given zoom level, with correct wraping around 180th meridian."""
     a1, a2 = tile_by_coords((bbox[0], bbox[1]), zoom, srs)
     b1, b2 = tile_by_coords((bbox[2], bbox[3]), zoom, srs)
@@ -181,7 +148,7 @@ def tile_by_bbox(bbox: twms.bbox.Bbox, zoom: int, srs: str = "EPSG:3857"):
     return a1, a2, b1, b2
 
 
-def bbox_by_tile(z: int, x: int, y: int, srs: str = "EPSG:3857"):
+def bbox_by_tile(z: int, x: int, y: int, srs: EPSG = EPSG("EPSG:3857")):
     """Convert tile number to EPSG:4326 bbox of srs-projected tile."""
     a1, a2 = coords_by_tile(z, x, y, srs)
     b1, b2 = coords_by_tile(z, x + 1, y + 1, srs)
@@ -213,7 +180,7 @@ def zoom_for_bbox(
     return max_zoom
 
 
-def coords_by_tile(z: int, x: int, y: int, srs: str = "EPSG:3857"):
+def coords_by_tile(z: int, x: int, y: int, srs: EPSG = EPSG("EPSG:3857")):
     """Convert (z,x,y) to coordinates of corner of srs-projected tile."""
     normalized_tile = x / (2.0**z), 1.0 - (y / (2.0**z))
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
@@ -228,7 +195,7 @@ def coords_by_tile(z: int, x: int, y: int, srs: str = "EPSG:3857"):
     return to4326(projected_coords, srs)
 
 
-def tile_by_coords(xxx_todo_changeme, zoom: int, srs: str = "EPSG:3857"):
+def tile_by_coords(xxx_todo_changeme, zoom: int, srs: EPSG = EPSG("EPSG:3857")):
     """Convert EPSG:4326 latitude and longitude to tile number of srs-projected tile pyramid.
 
     Args:
@@ -251,27 +218,27 @@ def tile_by_coords(xxx_todo_changeme, zoom: int, srs: str = "EPSG:3857"):
     return point[0] * (2**zoom), (1 - point[1]) * (2**zoom)
 
 
-def to4326(line, srs: str = "EPSG:3857"):
+def to4326(line, srs: EPSG = EPSG("EPSG:3857")):
     """Transform line from srs to EPSG:4326 (convenience shortcut).
 
     Args:
         line: list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
         srs: projection
     """
-    return transform(line, srs, "EPSG:4326")
+    return transform(line, srs, EPSG("EPSG:4326"))
 
 
-def from4326(line, srs: str = "EPSG:3857"):
+def from4326(line, srs: EPSG = EPSG("EPSG:3857")):
     """Transform line from EPSG:4326 to srs (convenience shortcut).
 
     Args:
         line: list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
         srs: projection
     """
-    return transform(line, "EPSG:4326", srs)
+    return transform(line, EPSG("EPSG:4326"), srs)
 
 
-def transform(line: collections.abc.Sequence, srs1: str, srs2: str):
+def transform(line: collections.abc.Sequence, srs1: EPSG, srs2: EPSG):
     """Convert bunch of coordinates from srs1 to srs2.
 
     Args:
@@ -286,7 +253,8 @@ def transform(line: collections.abc.Sequence, srs1: str, srs2: str):
     if (srs1, srs2) in pure_python_transformers:
         func = pure_python_transformers[(srs1, srs2)]
     else:
-        func = pyproj.transform
+        # func = pyproj.transform
+        raise NotImplementedError()
     line = list(line)
     serial = False
     if not isinstance(line[0], collections.abc.Sequence):
@@ -312,15 +280,15 @@ def transform(line: collections.abc.Sequence, srs1: str, srs2: str):
 
 if __name__ == "__main__":
     print(_c4326t3857(1, 2, 27.6, 53.2))
-    print(from4326((27.6, 53.2), "EPSG:3857"))
+    print(from4326((27.6, 53.2), EPSG("EPSG:3857")))
 
     a = _c4326t3857(1, 2, 27.6, 53.2)
-    print(to4326(a, "EPSG:3857"))
+    print(to4326(a, EPSG("EPSG:3857")))
     print(_c3857t4326(1, 2, a[0], a[1]))
 
     print("3395:")
     print(_c4326t3395(1, 2, 27.6, 53.2))
-    print(from4326((27.6, 53.2), "EPSG:3395"))
+    print(from4326((27.6, 53.2), EPSG("EPSG:3395")))
     a = _c4326t3395(1, 2, 27.6, 53.2)
-    print(to4326(a, "EPSG:3395"))
+    print(to4326(a, EPSG("EPSG:3395")))
     print(_c3395t4326(1, 2, a[0], a[1]))

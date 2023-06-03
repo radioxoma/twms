@@ -260,7 +260,7 @@ class TWMSMain:
     def bbox_image(
         self,
         bbox: twms.bbox.Bbox,
-        request_proj: str,
+        request_proj: twms.projections.EPSG,
         size: tuple[int, int],
         layer,
         start_time: float,

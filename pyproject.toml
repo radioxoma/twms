@@ -17,7 +17,6 @@ classifiers = [
 dependencies = ["pillow>=9.0.0"]
 
 [project.optional-dependencies]
-pyproj = ["pyproj>=3.0.0"]
 dev = ["pre-commit"]
 
 [tool.setuptools.dynamic]

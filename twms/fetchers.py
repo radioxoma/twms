@@ -97,7 +97,9 @@ class TileFetcher:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
         self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
         self.opener = prepare_opener(headers=self.layer.get("headers", dict()))
-        self.thread_pool = ThreadPoolExecutor(max_workers=5)
+        self.thread_pool = ThreadPoolExecutor(
+            max_workers=twms.config.dl_threads_per_layer
+        )
 
     def fetch(self, z: int, x: int, y: int) -> Image.Image | None:
         """Fetch tile asynchronously.

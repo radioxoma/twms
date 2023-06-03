@@ -1,7 +1,7 @@
+import functools
 import logging
 import mimetypes
 import os
-import time
 from http import HTTPStatus
 
 from PIL import Image, ImageColor, ImageOps
@@ -34,9 +34,8 @@ class TWMSMain:
 
     def __init__(self):
         super().__init__()
-        self.fetchers_pool = (
-            dict()
-        )  # dict[layer['prefix']: twms.fetchers.TileFetcher(layer)]
+        # dict[layer_id]: twms.fetchers.TileFetcher(layer)]
+        self.fetchers_pool = dict()
 
     def wms_handler(self, data: dict) -> tuple[HTTPStatus, str, bytes | str]:
         """Do main TWMS work. Some WMS implementation.
@@ -53,7 +52,6 @@ class TWMSMain:
         # WMS request keys must be case insensitive, values must not
         data = {k.casefold(): v for k, v in data.items()}
 
-        start_time = time.time()
         srs = data.get("srs", "EPSG:4326")
         wkt = data.get("wkt", "")
         # color = data.get("color", data.get("colour", "")).split(",")
@@ -170,9 +168,7 @@ class TWMSMain:
 
         try:
             # WMS image
-            result_img = self.bbox_image(
-                box, srs, (height, width), ll, start_time, force
-            )
+            result_img = self.bbox_image(box, srs, (height, width), ll, force)
         except KeyError:
             result_img = Image.new("RGBA", (width, height))
 
@@ -183,7 +179,7 @@ class TWMSMain:
                     wkt = "," + wkt
                 srs = twms.config.layers[ll].get("proj", twms.config.default_src)
 
-            im2 = self.bbox_image(box, srs, (height, width), ll, start_time, force)
+            im2 = self.bbox_image(box, srs, (height, width), ll, force)
             if "empty_color" in twms.config.layers[ll]:
                 ec = ImageColor.getcolor(twms.config.layers[ll]["empty_color"], "RGBA")
                 sec = set(ec)
@@ -244,8 +240,7 @@ class TWMSMain:
                 "Reprojection is not implemented, use WMS for this tile set"
             )
         z, x, y = int(z), int(x), int(y)
-        im = self.tile_image(layer_id, z, x, y, time.time(), real=True)
-
+        im = self.tile_image(layer_id, z, x, y, real=True)
         if im:
             return (
                 HTTPStatus.OK,
@@ -261,13 +256,9 @@ class TWMSMain:
         request_proj: twms.projections.EPSG,
         size: tuple[int, int],
         layer_id: str,
-        start_time: float,
         force,
     ) -> Image.Image:
-        """Get tile by a given bbox.
-
-        start_time: time.time()
-        """
+        """Get tile by a given bbox."""
         # Making 4-corner maximal bbox
         bbox_p = twms.projections.from4326(bbox, request_proj)
         bbox_p = twms.projections.to4326(
@@ -322,7 +313,7 @@ class TWMSMain:
         out = Image.new("RGBA", (x, y))
         for x in range(from_tile_x, to_tile_x + 1):
             for y in range(to_tile_y, from_tile_y + 1):
-                im1 = self.tile_image(layer_id, zoom, x, y, start_time, real=True)
+                im1 = self.tile_image(layer_id, zoom, x, y, real=True)
                 if not im1:
                     ec = ImageColor.getcolor(
                         twms.config.layers[layer_id].get(
@@ -361,20 +352,19 @@ class TWMSMain:
             out = out.resize((W, H), Image.ANTIALIAS)
         return out
 
+    @functools.lru_cache(maxsize=twms.config.ram_cache_tiles)
     def tile_image(
         self,
         layer_id: str,
         z: int,
         x: int,
         y: int,
-        start_time: float,
         trybetter=True,
         real=False,
     ) -> Image.Image | None:
         """Get tile by Slippy map coordinates.
 
         Args:
-            start_time: time.time()
             trybetter: combine this tile from better ones
             real: return the tile even in not good quality
 
@@ -382,12 +372,6 @@ class TWMSMain:
             Tile (from cache, fetcher, or recursively rescaled) or
             None if image is invalid or unavailable.
         """
-        tile = None
-        # Dedicated fetcher for each imagery layer - if one fetcher hangs,
-        # others should be responsive
-        if layer_id not in self.fetchers_pool:
-            self.fetchers_pool[layer_id] = twms.fetchers.TileFetcher(layer_id)
-
         x = x % (2**z)
         if y < 0 or y >= (2**z) or z < 0:
             logger.warning(f"{layer_id}/z{z}/x{x}/y{y} impossible tile coordinates")
@@ -408,7 +392,8 @@ class TWMSMain:
             )
             return None
 
-        # Working with cache
+        tile = None
+        # Reconstructiong from cache
         if (
             twms.config.layers[layer_id]["scalable"]
             and (
@@ -421,7 +406,7 @@ class TWMSMain:
         ):
             # Second, try to glue image of better ones
             logger.info(f"{layer_id}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
-            # # Load upscaled images
+            # Load upscaled images
             # if os.path.exists(local + "ups" + ext):
             #     try:
             #         im = Image.open(local + "ups" + ext)
@@ -434,17 +419,16 @@ class TWMSMain:
                 ),
                 "RGBA",
             )
-            ec = (ec[0], ec[1], ec[2], 0)
-            im = Image.new("RGBA", (512, 512), ec)
-            im1 = self.tile_image(layer_id, z + 1, x * 2, y * 2, start_time)
+            empty_color = (ec[0], ec[1], ec[2], 0)
+            logger.info(f"{layer_id}/z{z}/x{x}/y{y} downscaling from bottom tiles")
+            im = Image.new("RGBA", (512, 512), empty_color)
+            im1 = self.tile_image(layer_id, z + 1, x * 2, y * 2)
             if im1:
-                im2 = self.tile_image(layer_id, z + 1, x * 2 + 1, y * 2, start_time)
+                im2 = self.tile_image(layer_id, z + 1, x * 2 + 1, y * 2)
                 if im2:
-                    im3 = self.tile_image(layer_id, z + 1, x * 2, y * 2 + 1, start_time)
+                    im3 = self.tile_image(layer_id, z + 1, x * 2, y * 2 + 1)
                     if im3:
-                        im4 = self.tile_image(
-                            layer_id, z + 1, x * 2 + 1, y * 2 + 1, start_time
-                        )
+                        im4 = self.tile_image(layer_id, z + 1, x * 2 + 1, y * 2 + 1)
                         if im4:
                             im.paste(im1, (0, 0))
                             im.paste(im2, (256, 0))
@@ -458,21 +442,18 @@ class TWMSMain:
                             #         pass
 
         if tile is None and "fetch" in twms.config.layers[layer_id]:
-            seconds_spent = time.time() - start_time
-            if twms.config.deadline > seconds_spent or z < 4:
-                # Try fetching img from outside
-                logger.debug(f"{layer_id}/z{z}/x{x}/y{y} creating dl thread")
-                tile = self.fetchers_pool[layer_id].fetch(z, x, y)
+            # Dedicated fetcher for each imagery layer
+            if layer_id not in self.fetchers_pool:
+                self.fetchers_pool[layer_id] = twms.fetchers.TileFetcher(layer_id)
+            tile = self.fetchers_pool[layer_id].fetch(z, x, y)
 
-        if tile is None and real and z > 0:
-            # Downscale?
+        if tile is None and real:
             logger.info(f"{layer_id}/z{z}/x{x}/y{y} upscaling from top tile")
             im = self.tile_image(
                 layer_id,
                 z - 1,
                 int(x // 2),
                 int(y // 2),
-                start_time,
                 trybetter=False,
                 real=True,
             )

@@ -32,10 +32,6 @@ See:
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
 
-# timeout for outer downloads.
-# When time is out, tile will be composited from cached tiles
-deadline = 45
-
 # If server returns no tile (HTTP 404) or dead tile,
 # TWMS saves in cache empty "*.tne" file.
 # This is a timeout for a next attempt to fetch missing tile
@@ -50,7 +46,8 @@ default_min_zoom = 0
 default_layers = ""  # layer(s) to show when no layers given explicitly. if False, overview page is returned
 default_mimetype = "image/jpeg"
 default_src = "EPSG:3857"
-max_ram_cached_tiles = 1024
+ram_cache_tiles = 2048  # Number of tiles in RAM cache
+dl_threads_per_layer = 5
 max_height = 4095  # maximal allowed requested height
 max_width = 4095  # maximal allowed requested width
 output_quality = 75  # JPEG output image quality

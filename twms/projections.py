@@ -3,6 +3,7 @@ import math
 from typing import NewType
 
 import twms.bbox
+import twms.config
 
 EPSG = NewType("EPSG", str)  # Like pyproj.CRS
 
@@ -158,7 +159,7 @@ def bbox_by_tile(z: int, x: int, y: int, srs: EPSG = EPSG("EPSG:3857")):
 def zoom_for_bbox(
     bbox: twms.bbox.Bbox,
     size: tuple[int, int],
-    layer,
+    layer_id: str,
     min_zoom: int = 1,
     max_zoom: int = 18,
     max_size: tuple[int, int] = (10000, 10000),
@@ -166,7 +167,9 @@ def zoom_for_bbox(
     """Calculate a best-fit zoom level."""
     h, w = size
     for i in range(min_zoom, max_zoom):
-        cx1, cy1, cx2, cy2 = tile_by_bbox(bbox, i, layer["proj"])
+        cx1, cy1, cx2, cy2 = tile_by_bbox(
+            bbox, i, twms.config.layers[layer_id].get("proj", twms.config.default_src)
+        )
         if w != 0:
             if (cx2 - cx1) * 256 >= w * 0.9:
                 return i

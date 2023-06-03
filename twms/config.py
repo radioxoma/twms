@@ -49,6 +49,7 @@ default_max_zoom = 19  # <=
 default_min_zoom = 0
 default_layers = ""  # layer(s) to show when no layers given explicitly. if False, overview page is returned
 default_mimetype = "image/jpeg"
+default_src = "EPSG:3857"
 max_ram_cached_tiles = 1024
 max_height = 4095  # maximal allowed requested height
 max_width = 4095  # maximal allowed requested width
@@ -150,7 +151,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "Google Satellite",
         "provider_url": "https://www.google.com/maps/",
         "prefix": "sat",
-        "proj": "EPSG:3857",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "fetch": "tms_google_sat",
     },
@@ -160,7 +160,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "Bing Satellite",
         "provider_url": "https://www.bing.com/maps?style=h",
         "prefix": "vesat",
-        "proj": "EPSG:3857",
         "scalable": False,
         "min_zoom": 1,  # doesn't serve z0/x0/y0 (400 Bad Request for "https://ecn.t0.tiles.virtualearth.net/tiles/a.jpeg?g=0")
         "fetch": "tms",
@@ -177,7 +176,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "OSM Mapnik",
         "provider_url": "https://www.openstreetmap.org/",
         "prefix": "osmmapMapnik",  # tile directory prefix
-        "proj": "EPSG:3857",  # Projection
         "mimetype": "image/png",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "max_zoom": 19,  # Allowed if <=
@@ -192,7 +190,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "OSM GPS Traces",
         "provider_url": "https://www.openstreetmap.org/",
         "prefix": "osm_gps_tile",
-        "proj": "EPSG:3857",
         "mimetype": "image/png",
         "overlay": True,
         "scalable": False,
@@ -208,7 +205,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "nca.by Capital buildings and addresses",
         "provider_url": "http://vl.nca.by/",
         "prefix": "ncaby_radr",
-        "proj": "EPSG:3857",
         "mimetype": "image/png",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
@@ -221,7 +217,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "geo.by Belgeodesy Map",
         "provider_url": "https://geo.by/navigation/map",
         "prefix": "geoby_mapserver",
-        "proj": "EPSG:3857",
         "mimetype": "image/png",
         "scalable": False,
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
@@ -236,7 +231,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     #    "cached": False,
     #    "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
     #    "fetch": fetchers.kothic_fetcher,    # function that fetches given tile. should return None if tile wasn't fetched
-    #    "proj": "EPSG:3857",
     #    "empty_color": "#f2efe9",
     #    "bounds": (23.16722,51.25930,32.82244,56.18162),
     # },
@@ -260,7 +254,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     #     "remote_url": "https://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i";,
     #     "transform_tile_number": lambda z,x,y: (x, 2**(z-1)-y-1, z-1),
     #     "min_zoom": 5,
-    #     "proj": "EPSG:3857",
     #     "bounds": (17.999999997494381, 39.999999995338634, 172.99999997592218, 77.999999996263981),
     # },
     # "latlonsat":  {
@@ -278,14 +271,12 @@ layers: dict[str, dict[str, typing.Any]] = {
     #      "name": "Digital Globe Satellite",
     #      "prefix": "DGsat",
     #      "scalable": False,
-    #      "proj": "EPSG:3857",
     #      # Could add "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/20867/38349"
     # },
     "maxar_prem": {
         "name": "Maxar Premuim",
         "provider_url": "https://www.maxar.com/",
         "prefix": "maxar_prem",
-        "proj": "EPSG:3857",
         "max_zoom": 18,  # Looks like artificial restriction
         "scalable": False,
         "fetch": "tms",
@@ -315,7 +306,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     #      "transform_tile_number": lambda z,x,y: (x,((2**(z-1)/2)-1)-y,z),
     #      "min_zoom": 2,
     #      "max_zoom": 18,
-    #      "proj": "EPSG:3857",
     # },
     "dzzby_orthophoto": {
         # [19] 30 cm most of Belarus
@@ -327,7 +317,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "dzz.by Aerophotography (Belarus)",
         "provider_url": "https://www.dzz.by/izuchdzz/",
         "prefix": "dzzby_orthophoto",
-        "proj": "EPSG:3857",
         "scalable": False,
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",

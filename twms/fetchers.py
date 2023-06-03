@@ -90,12 +90,12 @@ def prepare_opener(
 
 
 class TileFetcher:
-    def __init__(self, layer):
+    def __init__(self, layer_id: str):
+        self.layer = twms.config.layers[layer_id]
         fetcher_names = ("tms", "wms", "tms_google_sat")
-        if layer["fetch"] not in fetcher_names:
+        if self.layer["fetch"] not in fetcher_names:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
-        self.__worker = getattr(self, layer["fetch"])  # Choose fetcher
-        self.layer = layer
+        self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
         self.opener = prepare_opener(headers=self.layer.get("headers", dict()))
         self.thread_pool = ThreadPoolExecutor(max_workers=5)
 
@@ -275,16 +275,17 @@ class TileFetcher:
             # WMS, no real difference with TMS except missing *.tne feature
             width = 256
             height = 256
+            proj = self.layer.get("proj", twms.config.default_src)
             tile_bbox = "{},{},{},{}".format(
                 *twms.projections.from4326(
-                    twms.projections.bbox_by_tile(z, x, y, self.layer["proj"]),
-                    self.layer["proj"],
+                    twms.projections.bbox_by_tile(z, x, y, proj),
+                    proj,
                 )
             )
             remote = remote.replace("{bbox}", tile_bbox)
             remote = remote.replace("{width}", str(width))
             remote = remote.replace("{height}", str(height))
-            remote = remote.replace("{proj}", self.layer["proj"])
+            remote = remote.replace("{proj}", proj)
 
             try:
                 # Got response, need to verify content

@@ -42,7 +42,8 @@ def maps_html() -> str:
     ]
 
     for layer_id, layer in twms.config.layers.items():
-        bbox = layer.get("bounds", twms.projections.projs[layer["proj"]]["bounds"])
+        proj = layer.get("proj", twms.config.default_src)
+        bbox = layer.get("bounds", twms.projections.projs[proj]["bounds"])
         resp.append('<div class="entry">')
 
         if "min_zoom" in layer and layer["min_zoom"] > 8:
@@ -63,7 +64,7 @@ def maps_html() -> str:
 
         resp.append(
             f'<b>Bounding box: </b><a href="{"https://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes" % bbox}">{bbox}</a><br>'
-            f"<b>Projection:</b> {layer['proj']}<br />"
+            f"<b>Projection:</b> {proj}<br />"
             f"<b>WMS half-link:</b> {twms.config.service_url}?layers={layer_id}&amp;<br />"
         )
         # Links for JOSM remote control. See https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands#imagery
@@ -84,7 +85,7 @@ def maps_html() -> str:
         )
 
         # Faster URI for tiles stored in the same projection
-        if layer["proj"] == "EPSG:3857":
+        if proj == "EPSG:3857":
             josm_params["url"] = get_tms_url(layer)
             resp.append(
                 tms_tpl.format(
@@ -129,6 +130,7 @@ def maps_xml_josm() -> str:
     # 4. url, but with tms prefox, min-max zoom
     imagery = ET.Element("imagery")
     for layer_id, layer in twms.config.layers.items():
+        proj = layer.get("proj", twms.config.default_src)
         entry = ET.SubElement(imagery, "entry")
         if "overlay" in layer and layer["overlay"] is True:
             entry.attrib["overlay"] = "true"
@@ -140,7 +142,7 @@ def maps_xml_josm() -> str:
         ET.SubElement(entry, "name").text = f"twms {layer_id}"  # Must be in English
         ET.SubElement(entry, "id").text = "twms_" + layer_id
         ET.SubElement(entry, "type").text = "tms"
-        if layer["proj"] == "EPSG:3857":
+        if proj == "EPSG:3857":
             ET.SubElement(entry, "url").text = get_tms_url(layer)  # Implement CDATA?
         else:
             # tms_handler not supports reprojection
@@ -181,6 +183,8 @@ def maps_xml_josm() -> str:
 
 def maps_xml_wms(version: str, ref: str) -> tuple[str, str]:
     """Create XML for WMS.
+
+    http://localhost:8080/wms?REQUEST=GetCapabilities&SERVICE=WMS
 
     Args:
         version: Spec version

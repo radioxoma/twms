@@ -442,7 +442,7 @@ def tile_to_quadkey(z: int, x: int, y: int) -> str:
     Returns:
         Quadkey string
     """
-    quadkey = ""
+    quadkey = list()
     for i in range(z):
         bit = z - i
         digit = ord("0")
@@ -451,16 +451,21 @@ def tile_to_quadkey(z: int, x: int, y: int) -> str:
             digit += 1
         if (y & mask) != 0:
             digit += 2
-        quadkey += chr(digit)
-    return quadkey
+        quadkey.append(chr(digit))
+    return "".join(quadkey)
 
 
 def tile_slippy_to_tms(z: int, x: int, y: int) -> tuple[int, int, int]:
     """Convert Slippy map coordinate system to OSGeo TMS `{-y}`.
 
     https://josm.openstreetmap.de/wiki/Maps
+
+    >>> tile_slippy_to_tms(4, 3, 2)
+    (4, 3, 13)
+    >>> tile_slippy_to_tms(10, 10, 10)
+    (10, 10, 1013)
     """
-    return z, x, 2**z - 1 - y
+    return z, x, (1 << z) - y - 1
 
 
 def im_convert(im: Image.Image, mimetype: str) -> bytes:

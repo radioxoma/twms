@@ -66,7 +66,11 @@ proj_alias = {
 
 
 def _c4326t3857(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
-    """Pure python 4326 -> 3857 transform. About 8x faster than pyproj."""
+    """Pure python 4326 -> 3857 transform. About 8x faster than pyproj.
+
+    >>> _c4326t3857(1, 2, 27.6, 53.2)
+    (3072417.9458943508, 7020078.532642099)
+    """
     lat_rad = math.radians(lat)
     xtile = lon * 111319.49079327358
     ytile = (
@@ -77,23 +81,30 @@ def _c4326t3857(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
     return xtile, ytile
 
 
-def _c3857t4326(t1, t2, lon: float, lat: float):
-    """Pure python 3857 -> 4326 transform. About 12x faster than pyproj."""
+def _c3857t4326(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
+    """Pure python 3857 -> 4326 transform. About 12x faster than pyproj.
+
+    >>> point = _c4326t3857(1, 2, 27.6, 53.2)
+    >>> _c3857t4326(1, 2, point[0], point[1])
+    (27.599999999999998, 53.20000000000001)
+    """
     xtile = lon / 111319.49079327358
     ytile = math.degrees(math.asin(math.tanh(lat / 20037508.342789244 * math.pi)))
     return xtile, ytile
 
 
-def _c4326t3395(t1, t2, lon: float, lat: float):
-    """Pure python 4326 -> 3395 transform. About 8x faster than pyproj."""
+def _c4326t3395(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
+    """Pure python 4326 -> 3395 transform. About 8x faster than pyproj.
+
+    >>> _c4326t3395(1, 2, 27.6, 53.2)
+    (3072417.9458943508, 6985840.123947986)
+    """
     E = 0.0818191908426
     # A = 20037508.342789
     # F = 53.5865938
-    tmp = math.tan(0.78539816339744830962 + math.radians(lat) / 2.0)
+    tmp = math.tan(math.pi / 4 + math.radians(lat) / 2.0)
     pow_tmp = math.pow(
-        math.tan(
-            0.78539816339744830962 + math.asin(E * math.sin(math.radians(lat))) / 2.0
-        ),
+        math.tan(math.pi / 4 + math.asin(E * math.sin(math.radians(lat))) / 2.0),
         E,
     )
     x = lon * 111319.49079327358
@@ -101,17 +112,21 @@ def _c4326t3395(t1, t2, lon: float, lat: float):
     return x, y
 
 
-def _c3395t4326(t1, t2, lon: float, lat: float):
+def _c3395t4326(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
     """Pure python 4326 -> 3395 transform. About 3x faster than pyproj.
 
     Typically used for Yandex tiles reprojection to Slippy map.
+
+    >>> point = _c4326t3395(1, 2, 27.6, 53.2)
+    >>> _c3395t4326(1, 2, point[0], point[1])
+    (27.599999999999998, 53.19999999779212)
     """
     r_major = 6378137.000
     temp = 6356752.3142 / 6378137.000
     es = 1.0 - (temp * temp)
     eccent = math.sqrt(es)
     ts = math.exp(-lat / r_major)
-    HALFPI = 1.5707963267948966
+    HALFPI = math.pi / 2
     eccnth = 0.5 * eccent
     Phi = HALFPI - 2.0 * math.atan(ts)
     N_ITER = 15
@@ -149,7 +164,9 @@ def tile_by_bbox(bbox: twms.bbox.Bbox, zoom: int, srs: EPSG = EPSG("EPSG:3857"))
     return a1, a2, b1, b2
 
 
-def bbox_by_tile(z: int, x: int, y: int, srs: EPSG = EPSG("EPSG:3857")):
+def bbox_by_tile(
+    z: int, x: int, y: int, srs: EPSG = EPSG("EPSG:3857")
+) -> twms.bbox.Bbox:
     """Convert tile number to EPSG:4326 bbox of srs-projected tile."""
     a1, a2 = coords_by_tile(z, x, y, srs)
     b1, b2 = coords_by_tile(z, x + 1, y + 1, srs)
@@ -183,7 +200,9 @@ def zoom_for_bbox(
     return max_zoom
 
 
-def coords_by_tile(z: int, x: int, y: int, srs: EPSG = EPSG("EPSG:3857")):
+def coords_by_tile(
+    z: int, x: int, y: int, srs: EPSG = EPSG("EPSG:3857")
+) -> twms.bbox.Point:
     """Convert (z,x,y) to coordinates of corner of srs-projected tile."""
     normalized_tile = x / (2.0**z), 1.0 - (y / (2.0**z))
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
@@ -227,6 +246,14 @@ def to4326(line, srs: EPSG = EPSG("EPSG:3857")):
     Args:
         line: list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
         srs: projection
+
+    >>> point = _c4326t3857(1, 2, 27.6, 53.2)
+    >>> to4326(point, EPSG("EPSG:3857"))
+    [27.599999999999998, 53.20000000000001]
+
+    >>> point = _c4326t3395(1, 2, 27.6, 53.2)
+    >>> to4326(point, EPSG("EPSG:3395"))
+    [27.599999999999998, 53.19999999779212]
     """
     return transform(line, srs, EPSG("EPSG:4326"))
 
@@ -237,17 +264,24 @@ def from4326(line, srs: EPSG = EPSG("EPSG:3857")):
     Args:
         line: list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
         srs: projection
+
+    >>> from4326((27.6, 53.2), EPSG("EPSG:3857"))
+    [3072417.9458943508, 7020078.532642099]
+    >>> from4326((27.6, 53.2), EPSG("EPSG:3395"))
+    [3072417.9458943508, 6985840.123947986]
     """
     return transform(line, EPSG("EPSG:4326"), srs)
 
 
-def transform(line: collections.abc.Sequence, srs1: EPSG, srs2: EPSG):
+def transform(
+    line: collections.abc.Sequence, srs1: EPSG, srs2: EPSG
+) -> collections.abc.Sequence:
     """Convert bunch of coordinates from srs1 to srs2.
 
     Args:
         line: [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
-        srs1: from projection
-        srs2: to projection)
+        srs1: source projection
+        srs2: destination projection
     """
     srs1 = proj_alias.get(srs1, srs1)
     srs2 = proj_alias.get(srs2, srs2)
@@ -268,7 +302,7 @@ def transform(line: collections.abc.Sequence, srs1: EPSG, srs2: EPSG):
             b = line.pop(0)
             l1.append([a, b])
         line = l1
-    ans = []
+    ans: list[twms.bbox.Point | float] = list()
     pr1 = projs[srs1]["proj"]
     pr2 = projs[srs2]["proj"]
     for point in line:
@@ -279,19 +313,3 @@ def transform(line: collections.abc.Sequence, srs1: EPSG, srs2: EPSG):
         else:
             ans.append(p)
     return ans
-
-
-if __name__ == "__main__":
-    print(_c4326t3857(1, 2, 27.6, 53.2))
-    print(from4326((27.6, 53.2), EPSG("EPSG:3857")))
-
-    a = _c4326t3857(1, 2, 27.6, 53.2)
-    print(to4326(a, EPSG("EPSG:3857")))
-    print(_c3857t4326(1, 2, a[0], a[1]))
-
-    print("3395:")
-    print(_c4326t3395(1, 2, 27.6, 53.2))
-    print(from4326((27.6, 53.2), EPSG("EPSG:3395")))
-    a = _c4326t3395(1, 2, 27.6, 53.2)
-    print(to4326(a, EPSG("EPSG:3395")))
-    print(_c3395t4326(1, 2, a[0], a[1]))

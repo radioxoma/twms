@@ -9,13 +9,13 @@ import twms.projections
 
 def get_tms_url(layer) -> str:
     ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
-    return f"{twms.config.service_url}tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
+    return f"{twms.config.service_url}/tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
 def get_wms_url(layer) -> str:
     """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
     ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
-    return f"{twms.config.service_url}wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
+    return f"{twms.config.service_url}/wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
 def get_fs_url(layer) -> str:
@@ -232,16 +232,14 @@ def maps_xml_wms111() -> str:
 
     exceptions = ET.SubElement(capability, "Exception")
     for exc_mimetype in (
+        "application/vnd.ogc.se_xml",
         "application/vnd.ogc.se_inimage",
         "application/vnd.ogc.se_blank",
-        "application/vnd.ogc.se_xml",
-        "text/xml",
-        "text/plain",
     ):
         ET.SubElement(exceptions, "Format").text = exc_mimetype
 
     parent_layer = ET.SubElement(capability, "Layer")
-    ET.SubElement(parent_layer, "Title").text = "World"
+    ET.SubElement(parent_layer, "Title").text = twms.config.wms_name
 
     for proj in sorted(
         twms.projections.projs.keys() | twms.projections.proj_alias.keys()

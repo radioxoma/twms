@@ -210,24 +210,21 @@ def maps_xml_wms() -> tuple[str, str]:
                                             <Get>
                                                     <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
         + twms.config.service_wms_url
-        + """?"/>
+        + """"/>
                                             </Get>
                                     </HTTP>
                             </DCPType>
                     </GetCapabilities>
                     <GetMap>
-                            <Format>image/png</Format>
                             <Format>image/jpeg</Format>
-                            <Format>image/gif</Format>
-                            <Format>image/bmp</Format>
+                            <Format>image/png</Format>
+                            <Format>image/webp</Format>
                             <DCPType>
                                     <HTTP>
                                             <Get>
-                                                    <!-- The URL here for invoking GetCapabilities using HTTP GET
-        is only a prefix to which a query string is appended. -->
                                                     <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
         + twms.config.service_wms_url
-        + """?"/>
+        + """"/>
                                             </Get>
                                     </HTTP>
                             </DCPType>
@@ -240,29 +237,26 @@ def maps_xml_wms() -> tuple[str, str]:
                     <Format>text/xml</Format>
                     <Format>text/plain</Format>
             </Exception>
-            <VendorSpecificCapabilities/>
             <Layer>
-                    <Title>World Map</Title>"""
+                    <Title>World</Title>"""
     )
-    pset = set(twms.projections.projs.keys())
-    pset = pset.union(set(twms.projections.proj_alias.keys()))
-    for proj in pset:
+    for proj in sorted(
+        twms.projections.projs.keys() | twms.projections.proj_alias.keys()
+    ):
         req += "<SRS>%s</SRS>" % proj
-    req += """
-                    <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-                    <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-"""
+    # req += """
+    #                 <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
+    #                 <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>"""
     lala = """
-                    <Layer queryable="0" opaque="1">
-                            <Name>%s</Name>
+                    <Layer>
                             <Title>%s</Title>
-                            <BoundingBox SRS="EPSG:4326" minx="%s" miny="%s" maxx="%s" maxy="%s"/>
-                            <ScaleHint min="0" max="124000"/>
+                            <Name>%s</Name>
+                            <LatLonBoundingBox minx="%s" miny="%s" maxx="%s" maxy="%s"/>
                     </Layer>
 """
     for i in twms.config.layers.keys():
         b = twms.config.layers[i].get("bbox", twms.config.default_bbox)
-        req += lala % (i, twms.config.layers[i]["name"], b[0], b[1], b[2], b[3])
+        req += lala % (twms.config.layers[i]["name"], i, b[0], b[1], b[2], b[3])
 
     req += """          </Layer>
     </Capability>
@@ -276,6 +270,20 @@ def maps_xml_wms111() -> str:
     Returns:
         XML
     """
+
+    def add_url(parent) -> None:
+        """Pass link with path to client."""
+        ET.SubElement(
+            ET.SubElement(
+                ET.SubElement(ET.SubElement(parent, "DCPType"), "HTTP"), "Get"
+            ),
+            "OnlineResource",
+            attrib={
+                "{http://www.w3.org/1999/xlink}type": "simple",
+                "{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url,
+            },
+        )
+
     ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
     # See 7.2.4 GetCapabilities response
     root = ET.Element(
@@ -298,27 +306,41 @@ def maps_xml_wms111() -> str:
     capability = ET.SubElement(root, "Capability")
     request = ET.SubElement(capability, "Request")
 
-    getmap = ET.SubElement(request, "GetMap")
+    get_capabilities = ET.SubElement(request, "GetCapabilities")
+    ET.SubElement(get_capabilities, "Format").text = "application/vnd.ogc.wms_xml"
+    add_url(get_capabilities)
+
+    get_map = ET.SubElement(request, "GetMap")
     for image_mimetype in ("image/jpeg", "image/png", "image/webp"):
-        ET.SubElement(getmap, "Format").text = image_mimetype
-    # Way to pass link with path to client
-    ET.SubElement(
-        ET.SubElement(ET.SubElement(ET.SubElement(getmap, "DCPType"), "HTTP"), "Get"),
-        "OnlineResource",
-        attrib={
-            "{http://www.w3.org/1999/xlink}type": "simple",
-            "{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url,
-        },
-    )
+        ET.SubElement(get_map, "Format").text = image_mimetype
+    add_url(get_map)
+
+    exceptions = ET.SubElement(capability, "Exception")
+    for exc_mimetype in (
+        "application/vnd.ogc.se_inimage",
+        "application/vnd.ogc.se_blank",
+        "application/vnd.ogc.se_xml",
+        "text/xml",
+        "text/plain",
+    ):
+        ET.SubElement(exceptions, "Format").text = exc_mimetype
+
+    parent_layer = ET.SubElement(capability, "Layer")
+    ET.SubElement(parent_layer, "Title").text = "World"
+
+    for proj in sorted(
+        twms.projections.projs.keys() | twms.projections.proj_alias.keys()
+    ):
+        ET.SubElement(parent_layer, "SRS").text = proj
 
     for layer_id, layer_item in twms.config.layers.items():
-        layer = ET.SubElement(capability, "Layer")
-        ET.SubElement(layer, "Title").text = layer_id
+        layer = ET.SubElement(parent_layer, "Layer")
+        ET.SubElement(layer, "Title").text = layer_item["name"]
+        ET.SubElement(layer, "Name").text = layer_id
         # Only "named layers" shall be requested by a client
-        ET.SubElement(layer, "Name").text = layer_id  # layer_item["name"]
-        ET.SubElement(layer, "SRS").text = layer_item.get(
-            "proj", twms.config.default_src
-        )
+        # ET.SubElement(layer, "SRS").text = layer_item.get(
+        #     "proj", twms.config.default_src
+        # )
         bbox = tuple(map(str, layer_item.get("bounds", twms.config.default_bbox)))
         ET.SubElement(
             layer,

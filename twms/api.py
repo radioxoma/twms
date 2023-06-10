@@ -424,3 +424,88 @@ def maps_xml_wms(version: str, ref: str) -> tuple[str, str]:
 </WMT_MS_Capabilities>"""
 
     return content_type, req
+
+
+def maps_xml_wms130() -> tuple[str, str]:
+    """Minimal WMS 1.3.0 GetCapabilities XML implementation.
+
+    http://localhost:8080/wms?REQUEST=GetCapabilities&SERVICE=WMS  # Fixed order
+
+    WMS_Capabilities
+        Service
+            Name
+            OnlineResource
+        Capability
+            Request
+            Exception
+            Layer
+    See https://github.com/JOSM/josm/blob/master/src/org/openstreetmap/josm/io/imagery/WMSImagery.java
+
+    1.1.1 vs 1.3.0 https://docs.geoserver.org/latest/en/user/services/wms/basics.html
+
+    Returns:
+        XML, content type
+    """
+    url = twms.config.service_url + "wms?"
+    ET.register_namespace("", "http://www.opengis.net/wms")
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    # See 7.2.4 GetCapabilities response
+    root = ET.Element(
+        "{http://www.opengis.net/wms}WMS_Capabilities",
+        attrib={"version": "1.3.0"},
+    )
+    service = ET.SubElement(root, "Service")
+    # It shall include a Name, Title, and Online Resource URL
+    ET.SubElement(service, "Name").text = "WMS"  # Shall always be "WMS"
+    ET.SubElement(service, "Title").text = twms.config.wms_name
+    # This is superseeded by DCPType/HTTP/Get anuway
+    ET.SubElement(
+        service,
+        "OnlineResource",
+        attrib={"{http://www.w3.org/1999/xlink}href": url},
+    )
+    capability = ET.SubElement(root, "Capability")
+    request = ET.SubElement(capability, "Request")
+
+    getmap = ET.SubElement(request, "GetMap")
+    for image_mimetype in ("image/jpeg", "image/png", "image/webp"):
+        ET.SubElement(getmap, "Format").text = image_mimetype
+    # Way to pass link with path to client
+    ET.SubElement(
+        ET.SubElement(ET.SubElement(ET.SubElement(getmap, "DCPType"), "HTTP"), "Get"),
+        "OnlineResource",
+        attrib={"{http://www.w3.org/1999/xlink}href": url},
+    )
+
+    for layer_id, layer_item in twms.config.layers.items():
+        layer = ET.SubElement(capability, "Layer")
+        ET.SubElement(layer, "Title").text = layer_id
+        # Only "named layers" shall be requested by a client
+        ET.SubElement(layer, "Name").text = layer_item["name"]
+        # CRS="CRS:84 May be inherited from parent
+
+        # Not sure about coordinates reprojection
+        geo_bbox = ET.SubElement(layer, "EX_GeographicBoundingBox")
+        bbox = tuple(map(str, layer_item.get("bounds", twms.config.default_bbox)))
+        ET.SubElement(geo_bbox, "westBoundLongitude").text = bbox[0]
+        ET.SubElement(geo_bbox, "eastBoundLongitude").text = bbox[2]
+        ET.SubElement(geo_bbox, "southBoundLatitude").text = bbox[1]
+        ET.SubElement(geo_bbox, "northBoundLatitude").text = bbox[3]
+        # May be inherited from parent. May be multiple.
+        ET.SubElement(layer, "CRS").text = layer_item.get(
+            "proj", twms.config.default_src
+        )
+        # NON-FLIPPED. At least for native CRS
+        ET.SubElement(
+            layer,
+            "BoundingBox",
+            attrib={
+                "CRS": layer_item.get("proj", twms.config.default_src),
+                "minx": bbox[0],
+                "miny": bbox[1],
+                "maxx": bbox[2],
+                "maxy": bbox[3],
+            },
+        )
+    ET.indent(root)
+    return ET.tostring(root, encoding="unicode", xml_declaration=True), "text/xml"

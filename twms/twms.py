@@ -52,16 +52,17 @@ class TWMSMain:
         # WMS request keys must be case insensitive, values must not
         data = {k.casefold(): v for k, v in data.items()}
 
-        srs = data.get("srs", "EPSG:4326")
+        srs = data.get("crs", "EPSG:4326")
         wkt = data.get("wkt", "")
         # color = data.get("color", data.get("colour", "")).split(",")
 
         req_type = data.get("request", "GetMap")
-        version = data.get("version", "1.1.1")
-        ref = data.get("ref", twms.config.service_url)
+        # version = data.get("version", "1.1.1")
+        # ref = data.get("ref", twms.config.service_url)
 
         if req_type == "GetCapabilities":
-            content_type, resp = twms.api.maps_xml_wms(version, ref + "wms")
+            # content_type, resp = twms.api.maps_xml_wms(version, ref + "wms")
+            resp, content_type = twms.api.maps_xml_wms130()
             return HTTPStatus.OK, content_type, resp
 
         layers_list = data.get("layers", twms.config.default_layers).split(",")

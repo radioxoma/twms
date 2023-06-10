@@ -28,6 +28,10 @@ See:
   [3] https://josm.openstreetmap.de/wiki/SharedTileCache
 """
 
+host = "0.0.0.0"
+port = 8080
+service_url = f"http://{host}:{port}/"
+
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
@@ -36,32 +40,32 @@ tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # TWMS saves in cache empty "*.tne" file.
 # This is a timeout for a next attempt to fetch missing tile
 cache_tne_ttl = 60 * 60 * 24 * 30  # Month
+ram_cache_tiles = 2048  # Number of tiles in RAM cache
+dl_threads_per_layer = 5
+
+# Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
+default_min_zoom = 0
 
 # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer
 # [19] 30 cm resolution - best Maxar satellite resolution at 2021
 default_max_zoom = 19  # <=
 
-# Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
-default_min_zoom = 0
-default_layers = ""  # layer(s) to show when no layers given explicitly. if False, overview page is returned
+
 default_mimetype = "image/jpeg"
-default_src = "EPSG:3857"
-ram_cache_tiles = 2048  # Number of tiles in RAM cache
-dl_threads_per_layer = 5
-max_height = 4095  # maximal allowed requested height
-max_width = 4095  # maximal allowed requested width
 output_quality = 75  # JPEG output image quality
 output_progressive = True  # JPEG progressive codec
 output_optimize = False  # Optimize PNG images
 default_background = "#ffffff"  # Default background for empty space
 
 # WMS GetCapabilities
-host = "localhost"
-port = 8080
-service_url = f"http://{host}:{port}/"  # URL service installed at
+default_layers = ""  # layer(s) to show when no layers given explicitly. if False, overview page is returned
+max_height = 4095  # WMS maximal allowed requested height
+max_width = 4095  # WMS maximal allowed requested width
 wms_name = f"twms {twms.__version__}"
 contact_person = {"mail": "", "real_name": "", "organization": ""}
+
 # Spherical mercator maximum
+default_src = "EPSG:3857"
 default_bbox: twms.bbox.Bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)
 
 
@@ -79,7 +83,7 @@ min_zoom       int - the worst zoom level number service provides
 max_zoom       int - the best zoom level number service provides (<=)
 empty_color    str PIL color string - if this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
 cache_ttl      int - time that cache will be considered valid
-bounds         tuple - 4326-bbox - (min-lon, min-lat, max-lon, max-lat) no wms fetching will be performed outside this bbox. Good when caching just one country or a single satellite image.
+bounds         tuple - WGS84 (EPSG:4326) bbox - (min-lon, min-lat, max-lon, max-lat; DL-TR; W, S, E, N) no wms fetching will be performed outside this bbox. Good when caching just one country or a single satellite image.
 fetch          function (z, x, y, layer_dict) - function that fetches given tile. should return None if tile wasn't fetched.
 
 * **fetchers.tms** - TMS fetcher

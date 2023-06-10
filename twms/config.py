@@ -28,9 +28,10 @@ See:
   [3] https://josm.openstreetmap.de/wiki/SharedTileCache
 """
 
-host = "0.0.0.0"
+host = "localhost"
 port = 8080
-service_url = f"http://{host}:{port}/"
+service_url = f"http://{host}:{port}"
+service_wms_url = service_url + "/wms"
 
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
@@ -58,11 +59,10 @@ output_optimize = False  # Optimize PNG images
 default_background = "#ffffff"  # Default background for empty space
 
 # WMS GetCapabilities
-default_layers = ""  # layer(s) to show when no layers given explicitly. if False, overview page is returned
+default_layers = ""  # layer(s) to show when no layers given explicitly
 max_height = 4095  # WMS maximal allowed requested height
 max_width = 4095  # WMS maximal allowed requested width
 wms_name = f"twms {twms.__version__}"
-contact_person = {"mail": "", "real_name": "", "organization": ""}
 
 # Spherical mercator maximum
 default_src = "EPSG:3857"
@@ -83,7 +83,7 @@ min_zoom       int - the worst zoom level number service provides
 max_zoom       int - the best zoom level number service provides (<=)
 empty_color    str PIL color string - if this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
 cache_ttl      int - time that cache will be considered valid
-bounds         tuple - WGS84 (EPSG:4326) bbox - (min-lon, min-lat, max-lon, max-lat; DL-TR; W, S, E, N) no wms fetching will be performed outside this bbox. Good when caching just one country or a single satellite image.
+bounds         tuple - WGS84 (EPSG:4326) (min-lon, min-lat, max-lon, max-lat; lower left and upper right corners; W, S, E, N) no wms fetching will be performed outside this bbox.
 fetch          function (z, x, y, layer_dict) - function that fetches given tile. should return None if tile wasn't fetched.
 
 * **fetchers.tms** - TMS fetcher

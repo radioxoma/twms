@@ -38,10 +38,11 @@ class TWMSMain:
         self.fetchers_pool = dict()
 
     def wms_handler(self, data: dict) -> tuple[HTTPStatus, str, bytes | str]:
-        """Do main TWMS work. Some WMS implementation.
+        """Do main TWMS work.
+
+        Implied support for WMS 1.1.1 and 1.3.0 as most widespread.
 
         http://127.0.0.1:8080/wms?request=GetCapabilities&
-        http://127.0.0.1:8080/wms?request=GetCapabilities&version=1.0.0
 
         Args:
             data: url params
@@ -49,28 +50,28 @@ class TWMSMain:
         Returns:
             (http.HTTPStatus, content_type, resp)
         """
-        # WMS request keys must be case insensitive, values must not
+        # logger.info(data)
+        # WMS request keys must be case-insensitive, values must not
         data = {k.casefold(): v for k, v in data.items()}
 
-        srs = data.get("crs", "EPSG:4326")
+        # Support both 1.1.1, 1.3.0 spec projection names
+        srs = data.get("crs", data.get("srs", "EPSG:4326"))
+
         wkt = data.get("wkt", "")
         # color = data.get("color", data.get("colour", "")).split(",")
 
         req_type = data.get("request", "GetMap")
-        # version = data.get("version", "1.1.1")
-        # ref = data.get("ref", twms.config.service_url)
 
         if req_type == "GetCapabilities":
-            # content_type, resp = twms.api.maps_xml_wms(version, ref + "wms")
-            resp, content_type = twms.api.maps_xml_wms130()
-            return HTTPStatus.OK, content_type, resp
+            # version = data.get("version", "1.1.1")
+            # ref = data.get("ref", twms.config.service_url)
+            # resp = twms.api.maps_xml_wms(version, ref + "wms")[1]
+            resp = twms.api.maps_xml_wms111()
+            return HTTPStatus.OK, "text/xml", resp
 
         layers_list = data.get("layers", twms.config.default_layers).split(",")
         if "layers" in data and not layers_list[0]:
             layers_list = ["transparent"]
-
-        if not layers_list:
-            return HTTPStatus.OK, "text/html", twms.api.maps_html()
 
         force = data.get("force", "")
         if force:
@@ -82,7 +83,7 @@ class TWMSMain:
         try:
             # Get requested content type from standard WMS 'format' parameter,
             # https://docs.geoserver.org/stable/en/user/services/wms/outputformats.html
-            content_type = data["format"]
+            content_type = data["format"]  # Shell be no default format
             if content_type not in mimetypes.types_map.values():
                 return (
                     HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -168,7 +169,6 @@ class TWMSMain:
             srs = twms.config.layers[ll].get("proj", twms.config.default_src)
 
         try:
-            # WMS image
             result_img = self.bbox_image(box, srs, (height, width), ll, force)
         except KeyError:
             result_img = Image.new("RGBA", (width, height))

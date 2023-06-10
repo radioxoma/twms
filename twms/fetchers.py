@@ -506,8 +506,6 @@ def im_convert(im: Image.Image, mimetype: str) -> bytes:
         im.save(
             img_buf,
             mimetype.split("/")[1],
-            quality=twms.config.output_quality,
-            progressive=twms.config.output_progressive,
             exif=exif,
         )
     return img_buf.getvalue()

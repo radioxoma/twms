@@ -120,8 +120,6 @@ def maps_xml_josm() -> str:
         https://josm.openstreetmap.de/maps%<?ids=>  # JOSM URL for fetching
         https://osmlab.github.io/editor-layer-index/imagery.xml
         http://www.imagico.de/map/osmim-imagicode.xml
-
-    :rtype: str
     """
     # Green color means it already added
     # 1. category - shows as an icon
@@ -212,15 +210,12 @@ def maps_xml_wms(version: str, ref: str) -> tuple[str, str]:
 
  ]>
 
-<!-- end of DOCTYPE declaration -->
 <!-- The version number listed in the WMT_MS_Capabilities element here must correspond to the DTD declared above.  See the WMT specification document for how to respond when a client requests a version number not implemented by the server. -->
 <WMT_MS_Capabilities version=\""""
             + str(version)
             + """">
         <Service>
-                <!-- The WMT-defined name for this type of service -->
                 <Name>GetMap</Name>
-                <!-- Human-readable title for pick lists -->
                 <Title>"""
             + twms.config.wms_name
             + """</Title>
@@ -232,10 +227,6 @@ def maps_xml_wms(version: str, ref: str) -> tuple[str, str]:
                 <OnlineResource>"""
             + ref
             + """</OnlineResource>
-                <!-- Fees or access constraints imposed. -->
-                <Fees>none</Fees>
-                <AccessConstraints>none</AccessConstraints>
-
         </Service>
         <Capability>
                 <Request>
@@ -321,38 +312,16 @@ def maps_xml_wms(version: str, ref: str) -> tuple[str, str]:
 <WMT_MS_Capabilities version=\""""
             + str(version)
             + """">
-        <!-- Service Metadata -->
         <Service>
-                <!-- The WMT-defined name for this type of service -->
                 <Name>twms</Name>
-                <!-- Human-readable title for pick lists -->
                 <Title>"""
             + twms.config.wms_name
             + """</Title>
-                <!-- Narrative description providing additional information -->
-                <Abstract>None</Abstract>
                 <!-- Top-level web address of service or service provider.  See also OnlineResource
   elements under <DCPType>. -->
                 <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
             + ref
             + """"/>
-                <!-- Contact information -->
-                <ContactInformation>
-                        <ContactPersonPrimary>
-                                <ContactPerson>"""
-            + twms.config.contact_person["real_name"]
-            + """</ContactPerson>
-                                <ContactOrganization>"""
-            + twms.config.contact_person["organization"]
-            + """</ContactOrganization>
-                        </ContactPersonPrimary>
-                        <ContactElectronicMailAddress>"""
-            + twms.config.contact_person["mail"]
-            + """</ContactElectronicMailAddress>
-                </ContactInformation>
-                <!-- Fees or access constraints imposed. -->
-                <Fees>none</Fees>
-                <AccessConstraints>none</AccessConstraints>
         </Service>
         <Capability>
                 <Request>
@@ -422,14 +391,75 @@ def maps_xml_wms(version: str, ref: str) -> tuple[str, str]:
         req += """          </Layer>
         </Capability>
 </WMT_MS_Capabilities>"""
-
     return content_type, req
 
 
-def maps_xml_wms130() -> tuple[str, str]:
-    """Minimal WMS 1.3.0 GetCapabilities XML implementation.
+def maps_xml_wms111() -> str:
+    """Minimal WMS GetCapabilities v1.1.1 XML implementation.
 
-    http://localhost:8080/wms?REQUEST=GetCapabilities&SERVICE=WMS  # Fixed order
+    Returns:
+        XML
+    """
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    # See 7.2.4 GetCapabilities response
+    root = ET.Element(
+        "WMT_MS_Capabilities",
+        attrib={"version": "1.1.1"},
+    )
+    service = ET.SubElement(root, "Service")
+    # It shall include a Name, Title, and Online Resource URL
+    ET.SubElement(service, "Name").text = "OGC:WMS"  # Shall  be "OGC:WMS" for v1.1.1
+    ET.SubElement(service, "Title").text = twms.config.wms_name
+    # This is superseeded by DCPType/HTTP/Get anuway
+    ET.SubElement(
+        service,
+        "OnlineResource",
+        attrib={
+            "{http://www.w3.org/1999/xlink}type": "simple",
+            "{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url,
+        },
+    )
+    capability = ET.SubElement(root, "Capability")
+    request = ET.SubElement(capability, "Request")
+
+    getmap = ET.SubElement(request, "GetMap")
+    for image_mimetype in ("image/jpeg", "image/png", "image/webp"):
+        ET.SubElement(getmap, "Format").text = image_mimetype
+    # Way to pass link with path to client
+    ET.SubElement(
+        ET.SubElement(ET.SubElement(ET.SubElement(getmap, "DCPType"), "HTTP"), "Get"),
+        "OnlineResource",
+        attrib={
+            "{http://www.w3.org/1999/xlink}type": "simple",
+            "{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url,
+        },
+    )
+
+    for layer_id, layer_item in twms.config.layers.items():
+        layer = ET.SubElement(capability, "Layer")
+        ET.SubElement(layer, "Title").text = layer_id
+        # Only "named layers" shall be requested by a client
+        ET.SubElement(layer, "Name").text = layer_id  # layer_item["name"]
+        ET.SubElement(layer, "SRS").text = layer_item.get(
+            "proj", twms.config.default_src
+        )
+        bbox = tuple(map(str, layer_item.get("bounds", twms.config.default_bbox)))
+        ET.SubElement(
+            layer,
+            "LatLonBoundingBox",  # EPSG: 4326
+            attrib={
+                "minx": bbox[0],
+                "miny": bbox[1],
+                "maxx": bbox[2],
+                "maxy": bbox[3],
+            },
+        )
+    ET.indent(root)
+    return ET.tostring(root, encoding="unicode", xml_declaration=True)
+
+
+def maps_xml_wms130() -> str:
+    """Minimal WMS GetCapabilities v1.3.0 XML implementation.
 
     WMS_Capabilities
         Service
@@ -441,12 +471,13 @@ def maps_xml_wms130() -> tuple[str, str]:
             Layer
     See https://github.com/JOSM/josm/blob/master/src/org/openstreetmap/josm/io/imagery/WMSImagery.java
 
-    1.1.1 vs 1.3.0 https://docs.geoserver.org/latest/en/user/services/wms/basics.html
+    1.1.1 vs 1.3.0
+        https://docs.qgis.org/3.28/en/docs/server_manual/services/wms.html
+        https://docs.geoserver.org/latest/en/user/services/wms/basics.html
 
     Returns:
-        XML, content type
+        XML
     """
-    url = twms.config.service_url + "wms?"
     ET.register_namespace("", "http://www.opengis.net/wms")
     ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
     # See 7.2.4 GetCapabilities response
@@ -462,7 +493,7 @@ def maps_xml_wms130() -> tuple[str, str]:
     ET.SubElement(
         service,
         "OnlineResource",
-        attrib={"{http://www.w3.org/1999/xlink}href": url},
+        attrib={"{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url},
     )
     capability = ET.SubElement(root, "Capability")
     request = ET.SubElement(capability, "Request")
@@ -474,33 +505,32 @@ def maps_xml_wms130() -> tuple[str, str]:
     ET.SubElement(
         ET.SubElement(ET.SubElement(ET.SubElement(getmap, "DCPType"), "HTTP"), "Get"),
         "OnlineResource",
-        attrib={"{http://www.w3.org/1999/xlink}href": url},
+        attrib={"{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url},
     )
 
     for layer_id, layer_item in twms.config.layers.items():
         layer = ET.SubElement(capability, "Layer")
         ET.SubElement(layer, "Title").text = layer_id
         # Only "named layers" shall be requested by a client
-        ET.SubElement(layer, "Name").text = layer_item["name"]
+        ET.SubElement(layer, "Name").text = layer_id  # layer_item["name"]
         # CRS="CRS:84 May be inherited from parent
 
         # Not sure about coordinates reprojection
-        geo_bbox = ET.SubElement(layer, "EX_GeographicBoundingBox")
         bbox = tuple(map(str, layer_item.get("bounds", twms.config.default_bbox)))
+        geo_bbox = ET.SubElement(layer, "EX_GeographicBoundingBox")
         ET.SubElement(geo_bbox, "westBoundLongitude").text = bbox[0]
         ET.SubElement(geo_bbox, "eastBoundLongitude").text = bbox[2]
         ET.SubElement(geo_bbox, "southBoundLatitude").text = bbox[1]
         ET.SubElement(geo_bbox, "northBoundLatitude").text = bbox[3]
         # May be inherited from parent. May be multiple.
-        ET.SubElement(layer, "CRS").text = layer_item.get(
-            "proj", twms.config.default_src
-        )
-        # NON-FLIPPED. At least for native CRS
+        ET.SubElement(layer, "CRS").text = "EPSG:4326"
+        # ET.SubElement(layer, "CRS").text = layer_item.get("proj", twms.config.default_src)
+        # Lower left and upper right corners in a specified CRS
         ET.SubElement(
             layer,
             "BoundingBox",
             attrib={
-                "CRS": layer_item.get("proj", twms.config.default_src),
+                "CRS": "EPSG:4326",  # WGS84, note the "CoordinateRS"
                 "minx": bbox[0],
                 "miny": bbox[1],
                 "maxx": bbox[2],
@@ -508,4 +538,4 @@ def maps_xml_wms130() -> tuple[str, str]:
             },
         )
     ET.indent(root)
-    return ET.tostring(root, encoding="unicode", xml_declaration=True), "text/xml"
+    return ET.tostring(root, encoding="unicode", xml_declaration=True)

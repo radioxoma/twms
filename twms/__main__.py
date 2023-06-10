@@ -17,6 +17,7 @@ import twms.twms
 
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class GetHandler(BaseHTTPRequestHandler):
@@ -32,6 +33,7 @@ class GetHandler(BaseHTTPRequestHandler):
         josm/maps.xml
         any overview
         """
+        logger.info(f"{twms.config.service_url}{self.path}")
         if self.path.startswith("/tiles"):
             # TMS handler
             root, ext = os.path.splitext(self.path)
@@ -50,10 +52,10 @@ class GetHandler(BaseHTTPRequestHandler):
                 data = {
                     "request": "GetTile",
                     "layers": wms_c.group(1),
-                    "z": wms_c.group(2),
+                    "format": mimetypes.types_map.get(wms_c.group(5), None),
+                    "z": wms_c.group(2),  # Not a part of the WMS spec
                     "x": wms_c.group(3),
                     "y": wms_c.group(4),
-                    "format": mimetypes.types_map.get(wms_c.group(5), "image/jpeg"),
                 }
                 # rest = m.group(6)
             else:
@@ -98,9 +100,9 @@ def main():
             f"""\
         TWMS server {twms.__version__}
         {twms.config.service_url} imagery overview web page
-        {twms.config.service_url}wms WMS endpoint
-        {twms.config.service_url}tiles TMS endpoint (no reprojection support)
-        {twms.config.service_url}josm/maps.xml Add this to JOSM 'imagery.layers.sites' property and check imagery setting"
+        {twms.config.service_wms_url}?SERVICE=WMS&REQUEST=GetCapabilities WMS endpoint
+        {twms.config.service_url}/tiles TMS endpoint (no reprojection support)
+        {twms.config.service_url}/josm/maps.xml Add this to JOSM 'imagery.layers.sites' property and check imagery setting"
         Change `twms/config.py` for new layers and custom settings.
         Press <Ctrl-C> to stop"""
         )

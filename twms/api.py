@@ -179,96 +179,11 @@ def maps_xml_josm() -> str:
     return ET.tostring(imagery, encoding="unicode")
 
 
-def maps_xml_wms() -> tuple[str, str]:
-    """Create XML for WMS.
-
-    http://localhost:8080/wms?REQUEST=GetCapabilities&SERVICE=WMS
-
-    Returns:
-        content type, xml
-    """
-    content_type = "application/vnd.ogc.wms_xml"
-    req = (
-        """<?xml version="1.0"?>
-<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www2.demis.nl/WMS/capabilities_1_1_1.dtd">
-<WMT_MS_Capabilities version="1.1.1">
-    <Service>
-            <Name>OGC:WMS</Name>
-            <Title>"""
-        + twms.config.wms_name
-        + """</Title>
-            <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
-        + twms.config.service_wms_url
-        + """"/>
-    </Service>
-    <Capability>
-            <Request>
-                    <GetCapabilities>
-                            <Format>application/vnd.ogc.wms_xml</Format>
-                            <DCPType>
-                                    <HTTP>
-                                            <Get>
-                                                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
-        + twms.config.service_wms_url
-        + """"/>
-                                            </Get>
-                                    </HTTP>
-                            </DCPType>
-                    </GetCapabilities>
-                    <GetMap>
-                            <Format>image/jpeg</Format>
-                            <Format>image/png</Format>
-                            <Format>image/webp</Format>
-                            <DCPType>
-                                    <HTTP>
-                                            <Get>
-                                                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
-        + twms.config.service_wms_url
-        + """"/>
-                                            </Get>
-                                    </HTTP>
-                            </DCPType>
-                    </GetMap>
-            </Request>
-            <Exception>
-                    <Format>application/vnd.ogc.se_inimage</Format>
-                    <Format>application/vnd.ogc.se_blank</Format>
-                    <Format>application/vnd.ogc.se_xml</Format>
-                    <Format>text/xml</Format>
-                    <Format>text/plain</Format>
-            </Exception>
-            <Layer>
-                    <Title>World</Title>"""
-    )
-    for proj in sorted(
-        twms.projections.projs.keys() | twms.projections.proj_alias.keys()
-    ):
-        req += "<SRS>%s</SRS>" % proj
-    # req += """
-    #                 <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-    #                 <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>"""
-    lala = """
-                    <Layer>
-                            <Title>%s</Title>
-                            <Name>%s</Name>
-                            <LatLonBoundingBox minx="%s" miny="%s" maxx="%s" maxy="%s"/>
-                    </Layer>
-"""
-    for i in twms.config.layers.keys():
-        b = twms.config.layers[i].get("bbox", twms.config.default_bbox)
-        req += lala % (twms.config.layers[i]["name"], i, b[0], b[1], b[2], b[3])
-
-    req += """          </Layer>
-    </Capability>
-    </WMT_MS_Capabilities>"""
-    return content_type, req
-
-
 def maps_xml_wms111() -> str:
     """Minimal WMS GetCapabilities v1.1.1 XML implementation.
 
     Returns:
-        XML
+        XML "application/vnd.ogc.wms_xml"
     """
 
     def add_url(parent) -> None:

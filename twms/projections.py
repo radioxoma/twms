@@ -68,16 +68,35 @@ proj_alias = {
 def _c4326t3857(t1, t2, lon: float, lat: float) -> twms.bbox.Point:
     """Pure python 4326 -> 3857 transform. About 8x faster than pyproj.
 
-    >>> _c4326t3857(1, 2, 27.6, 53.2)
+    Args:
+        lon: -180...180 degrees
+        lat: -85.06...85.06 degrees
+
+    Returns:
+        EPSG:3857 bounds must be in range `6378137 * math.pi`.
+
+    >>> _c4326t3857(0, 0, 27.6, 53.2)
     (3072417.9458943508, 7020078.532642099)
+
+    >>> _c4326t3857(0, 0, -180, 85)
+    (-20037508.342789244, 19971868.880408566)
+
+    >>> _c4326t3857(0, 0, -180, -90.0)
+    (-20037508.342789244, -20037508.342789244)
+
+    >>> _c4326t3857(0, 0, 180, 90.0)
+    (20037508.342789244, 20037508.342789244)
     """
+    maxbounds = 6378137 * math.pi
+    xtile = maxbounds / 180 * lon
     lat_rad = math.radians(lat)
-    xtile = lon * 111319.49079327358
-    ytile = (
-        math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))
-        / math.pi
-        * 20037508.342789244
-    )
+    # Limit lat, otherwise log(0) will cause exception
+    if abs(lat) <= 85.0511287798:
+        ytile = (
+            math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi * maxbounds
+        )
+    else:
+        ytile = math.copysign(maxbounds, lat)
     return xtile, ytile
 
 

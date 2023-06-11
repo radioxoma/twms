@@ -389,6 +389,9 @@ class TileFetcher:
         May be use different servers in future:
         https://khms0.google.com/kh/v=889?x=39595&y=20473&z=16
         https://khms3.google.com/kh/v=889?x=39595&y=20472&z=16
+
+        # No 'v=?' required?
+        https://mt0.google.com/vt/lyrs=s@0&hl=en&z={z}&x={x}&y={y}
         """
         if "remote_url" not in self.layer:
             try:

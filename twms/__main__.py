@@ -34,14 +34,18 @@ class GetHandler(BaseHTTPRequestHandler):
         any overview
         """
         logger.info(f"{twms.config.service_url}{self.path}")
-        if self.path.startswith("/tiles"):
-            # TMS handler
-            root, ext = os.path.splitext(self.path)
-            r_parts = root.split("/")
-            layer_id, z, x, y = r_parts[2], r_parts[3], r_parts[4], r_parts[5]
-            status, content_type, content = self.TWMS.tiles_handler(
-                layer_id, z, x, y, mimetypes.types_map[ext]
-            )
+        if self.path.startswith("/wmts"):
+            if self.path.startswith("/wmts/1.0.0/WMTSCapabilities.xml"):
+                status = HTTPStatus.OK
+                content_type = "text/xml"
+                content = twms.api.maps_wmts_rest()
+            else:
+                root, ext = os.path.splitext(self.path)
+                r_parts = root.split("/")
+                layer_id, z, x, y = r_parts[2], r_parts[3], r_parts[4], r_parts[5]
+                status, content_type, content = self.TWMS.tiles_handler(
+                    layer_id, z, x, y, mimetypes.types_map[ext]
+                )
 
         elif self.path.startswith("/wms"):
             # WMS and somewhat like WMS-C emulation for getting tiles directly
@@ -78,6 +82,11 @@ class GetHandler(BaseHTTPRequestHandler):
 
         self.send_response(status)
         self.send_header("Content-Type", content_type)
+        if "text/" in content_type or "xml" in content_type:
+            # JOSM tends to save old XML
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")  # HTTP 1.0
+            self.send_header("Expires", "0")  # Proxy
         self.end_headers()
         if "text/" in content_type or "xml" in content_type:
             content = content.encode("utf-8")
@@ -101,9 +110,9 @@ def main():
         TWMS server {twms.__version__}
         {twms.config.service_url} imagery overview web page
         {twms.config.service_wms_url}?SERVICE=WMS&REQUEST=GetCapabilities WMS endpoint
-        {twms.config.service_url}/tiles TMS endpoint (no reprojection support)
+        {twms.config.service_wmts_url}/1.0.0/WMTSCapabilities.xml
         {twms.config.service_url}/josm/maps.xml Add this to JOSM 'imagery.layers.sites' property and check imagery setting"
-        Change `twms/config.py` for new layers and custom settings.
+        Edit `twms/config.py` for new layers and custom settings.
         Press <Ctrl-C> to stop"""
         )
     )

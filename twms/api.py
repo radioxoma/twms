@@ -7,15 +7,21 @@ import twms.config
 import twms.projections
 
 
-def get_tms_url(layer) -> str:
-    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
-    return f"{twms.config.service_url}/tiles/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
-
-
 def get_wms_url(layer) -> str:
     """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
     ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
-    return f"{twms.config.service_url}/wms/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
+    return f"{twms.config.service_wms_url}/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
+
+
+def get_wmts_url(layer) -> str:
+    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
+    # return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
+    return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{TileMatrix}}/{{TileCol}}/{{TileRow}}{ext}"
+
+
+def get_tms_url(layer) -> str:
+    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
+    return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
 def get_fs_url(layer) -> str:
@@ -141,7 +147,7 @@ def maps_xml_josm() -> str:
         ET.SubElement(entry, "id").text = "twms_" + layer_id
         ET.SubElement(entry, "type").text = "tms"
         if proj == "EPSG:3857":
-            ET.SubElement(entry, "url").text = get_tms_url(layer)  # Implement CDATA?
+            ET.SubElement(entry, "url").text = get_wmts_url(layer)  # Implement CDATA?
         else:
             # tms_handler not supports reprojection
             ET.SubElement(entry, "url").text = get_wms_url(layer)  # Implement CDATA?
@@ -348,5 +354,118 @@ def maps_xml_wms130() -> str:
                 "maxy": bbox[3],
             },
         )
+    ET.indent(root)
+    return ET.tostring(root, encoding="unicode", xml_declaration=True)
+
+
+def maps_wmts_rest() -> str:
+    """Open Geospatial Consortium WMTS 1.0.0 WMTSCapabilities.xml.
+
+    "urn:ogc:def:crs:OGC:1.3:CRS84"
+    urn:ogc:def:crs:EPSG::3857
+
+    <TileMatrixSet>
+        <ows:Title>GoogleMapsCompatible</ows:Title>
+        <ows:Abstract>the wellknown 'GoogleMapsCompatible' tile matrix set defined by OGC WMTS specification</ows:Abstract>
+        <ows:Identifier>GoogleMapsCompatible</ows:Identifier>
+        <ows:SupportedCRS>urn:ogc:def:crs:EPSG:6.18.3:3857</ows:SupportedCRS>
+        <WellKnownScaleSet>urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible</WellKnownScaleSet>
+    </TileMatrixSet>
+    """
+    ET.register_namespace("", "http://www.opengis.net/wmts/1.0")
+    ET.register_namespace("ows", "http://www.opengis.net/ows/1.1")
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+
+    # 7.1.1.3 ServiceMetadata document example
+    root = ET.Element(
+        "{http://www.opengis.net/wmts/1.0}Capabilities",
+        attrib={
+            "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation": "http://www.opengis.net/wmts/1.0 http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd",
+            "version": "1.0.0",
+        },
+    )
+    service_identification = ET.SubElement(
+        root, "{http://www.opengis.net/ows/1.1}ServiceIdentification"
+    )
+    ET.SubElement(
+        service_identification, "{http://www.opengis.net/ows/1.1}Title"
+    ).text = twms.config.wms_name
+    ET.SubElement(
+        service_identification, "{http://www.opengis.net/ows/1.1}ServiceType"
+    ).text = "OGC WMTS"
+    ET.SubElement(
+        service_identification, "{http://www.opengis.net/ows/1.1}ServiceTypeVersion"
+    ).text = "1.0.0"
+
+    contents = ET.SubElement(root, "Contents")
+
+    for layer_id, layer_item in twms.config.layers.items():
+        layer = ET.SubElement(contents, "Layer")
+        ET.SubElement(layer, "{http://www.opengis.net/ows/1.1}Title").text = layer_item[
+            "name"
+        ]
+        wgs84_bbox = ET.SubElement(
+            layer, "{http://www.opengis.net/ows/1.1}WGS84BoundingBox"
+        )
+        ET.SubElement(
+            wgs84_bbox, "{http://www.opengis.net/ows/1.1}LowerCorner"
+        ).text = "{} {}".format(*layer_item.get("bounds", twms.config.default_bbox))
+        ET.SubElement(
+            wgs84_bbox, "{http://www.opengis.net/ows/1.1}UpperCorner"
+        ).text = "{2} {3}".format(*layer_item.get("bounds", twms.config.default_bbox))
+        ET.SubElement(
+            layer, "{http://www.opengis.net/ows/1.1}Identifier"
+        ).text = layer_id
+        style = ET.SubElement(layer, "Style")
+        ET.SubElement(
+            style, "{http://www.opengis.net/ows/1.1}Identifier"
+        ).text = "default"
+        ET.SubElement(layer, "Format").text = layer_item.get(
+            "mimetype", twms.config.default_mimetype
+        )
+
+        tilematrixset_link = ET.SubElement(layer, "TileMatrixSetLink")
+        ET.SubElement(tilematrixset_link, "TileMatrixSet").text = "GLOBAL_WEBMERCATOR"
+        # layer_item.get(
+        #     "proj", twms.config.default_src
+        # )
+
+        ET.SubElement(
+            layer,
+            "ResourceURL",
+            attrib={
+                "format": layer_item.get("mimetype", twms.config.default_mimetype),
+                "resourceType": "tile",
+                "template": get_wmts_url(layer_item),
+            },
+        )
+
+    # Annex E provides several well-known scale sets for TileMatrixSetDef
+    tilematrixset = ET.SubElement(contents, "TileMatrixSet")
+    ET.SubElement(
+        tilematrixset, "{http://www.opengis.net/ows/1.1}Title"
+    ).text = "GoogleMapsCompatible"
+    ET.SubElement(
+        tilematrixset, "{http://www.opengis.net/ows/1.1}Abstract"
+    ).text = "the wellknown 'GoogleMapsCompatible' tile matrix set defined by OGC WMTS specification"
+    ET.SubElement(
+        tilematrixset, "{http://www.opengis.net/ows/1.1}Identifier"
+    ).text = "GoogleMapsCompatible"  # GLOBAL_WEBMERCATOR
+    ET.SubElement(
+        tilematrixset, "{http://www.opengis.net/ows/1.1}SupportedCRS"
+    ).text = "urn:ogc:def:crs:EPSG:6.18:3:3857"  # EPSG::3857 Dot typo in some services
+    ET.SubElement(
+        tilematrixset, "WellKnownScaleSet"
+    ).text = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
+    # tilematrix = ET.SubElement(tilematrixset, "TileMatrix")
+
+    ET.SubElement(
+        root,
+        "ServiceMetadataURL",
+        attrib={
+            "{http://www.w3.org/1999/xlink}href": f"{twms.config.service_wmts_url}/1.0.0/WMTSCapabilities.xml"
+        },
+    )
+
     ET.indent(root)
     return ET.tostring(root, encoding="unicode", xml_declaration=True)

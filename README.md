@@ -37,7 +37,7 @@ http://localhost:8080 - imagery overview web page. `wms`, `tms:` and JOSM remote
 
 http://localhost:8080/wms - WMS service, which supports also `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` links
 
-http://localhost:8080/tiles/{layer_id}/{z}/{x}/{y}{ext} - EPSG:3857 only tile proxy
+http://localhost:8080/wmts/{layer_id}/{z}/{x}/{y}{ext} - EPSG:3857 only tile proxy
 
 http://localhost:8080/josm/maps.xml - imagery list for JOSM's `imagery.layers.sites` property
 

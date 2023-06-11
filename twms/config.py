@@ -32,6 +32,7 @@ host = "localhost"
 port = 8080
 service_url = f"http://{host}:{port}"
 service_wms_url = service_url + "/wms"
+service_wmts_url = service_url + "/wmts"
 
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")

@@ -15,6 +15,9 @@ import twms.api
 import twms.config
 import twms.twms
 
+# debug - tile file operations
+# info - tile fetching or constructing
+# warning - HTTP errors
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -70,7 +73,6 @@ class GetHandler(BaseHTTPRequestHandler):
             status = HTTPStatus.OK
             content_type = "text/xml"
             content = twms.api.maps_xml_josm()
-            # Cache-Control: no-cache?
         elif self.path == "/":
             status = HTTPStatus.OK
             content_type = "text/html"
@@ -109,7 +111,7 @@ def main():
             f"""\
         TWMS server {twms.__version__}
         {twms.config.service_url} imagery overview web page
-        {twms.config.service_wms_url}?SERVICE=WMS&REQUEST=GetCapabilities WMS endpoint
+        {twms.config.service_wms_url}?SERVICE=WMS&REQUEST=GetCapabilities
         {twms.config.service_wmts_url}/1.0.0/WMTSCapabilities.xml
         {twms.config.service_url}/josm/maps.xml Add this to JOSM 'imagery.layers.sites' property and check imagery setting"
         Edit `twms/config.py` for new layers and custom settings.

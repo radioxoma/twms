@@ -10,8 +10,9 @@ Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStree
 
 * [`http.server`](https://docs.python.org/3/library/http.server.html) from standard python library is used instead of [webpy](https://webpy.org/)
 * [Slippy map](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) cache and proxy URL, compatible with [JOSM](https://josm.openstreetmap.de/), [SAS.Planet](http://www.sasgis.org/sasplaneta/), [MOBAC](https://mobac.sourceforge.io/) etc
-* [JOSM remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from web
+* [JOSM remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from browser
 * [JOSM imagery XML](https://josm.openstreetmap.de/wiki/Maps) for `imagery.layers.sites`
+* WMS 1.1.1, WMTS 1.0.0
 * Conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
 * Time To Live (TTL), tile not exist `*.tne` file support
 * Huge refactoring: unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).

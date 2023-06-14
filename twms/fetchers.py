@@ -198,11 +198,6 @@ class TileFetcher:
         Cache is structured according to tile coordinates.
         Actual tile image projection specified in config file.
 
-        MBTiles
-            https://wiki.openstreetmap.org/wiki/MBTiles
-            https://github.com/mapbox/mbtiles-spec
-            https://docs.mapbox.com/help/glossary/mbtiles/
-
         :rtype: :py:class:`~PIL.Image.Image`. Otherwise None, if
             no image can be served from cache or from remote.
         """
@@ -270,9 +265,8 @@ class TileFetcher:
             remote = remote.replace(
                 "{-y}", str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2])
             )
-            remote = remote.replace(
-                "{q}", tile_to_quadkey(trans_z, trans_x, trans_y)
-            )  # Bing
+            # Bing
+            remote = remote.replace("{q}", tile_to_quadkey(trans_z, trans_x, trans_y))
 
             # WMS, no real difference with TMS except missing *.tne feature
             width = 256
@@ -430,6 +424,12 @@ def tile_to_quadkey(z: int, x: int, y: int) -> str:
     https://docs.microsoft.com/en-us/bingmaps/articles/bing-maps-tile-system
     https://github.com/buckhx/QuadKey/blob/master/quadkey/tile_system.py
 
+    Args:
+        z: zoom, starts from zero
+
+    Returns:
+        Quadkey string
+
     Examples
     --------
     >>> tile_to_quadkey(1,0,0)
@@ -438,12 +438,6 @@ def tile_to_quadkey(z: int, x: int, y: int) -> str:
     '1203'
     >>> tile_to_quadkey(16, 38354, 20861)
     '1203010313232212'
-
-    Args:
-        z: zoom, starts from zero
-
-    Returns:
-        Quadkey string
     """
     quadkey = list()
     for i in range(z):

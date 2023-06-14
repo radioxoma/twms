@@ -16,7 +16,6 @@ def get_wms_url(layer) -> str:
 
 def get_wmts_url(layer) -> str:
     ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
-    # return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
     return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{TileMatrix}}/{{TileCol}}/{{TileRow}}{ext}"
 
 
@@ -214,7 +213,7 @@ def maps_xml_wms111() -> str:
     )
     service = ET.SubElement(root, "Service")
     # It shall include a Name, Title, and Online Resource URL
-    ET.SubElement(service, "Name").text = "OGC:WMS"  # Shall  be "OGC:WMS" for v1.1.1
+    ET.SubElement(service, "Name").text = "OGC:WMS"  # Shall be "OGC:WMS" for v1.1.1
     ET.SubElement(service, "Title").text = twms.config.wms_name
     # This is superseeded by DCPType/HTTP/Get anuway
     ET.SubElement(
@@ -278,6 +277,8 @@ def maps_xml_wms111() -> str:
 
 def maps_xml_wms130() -> str:
     """Minimal WMS GetCapabilities v1.3.0 XML implementation.
+
+    Not implemented.
 
     WMS_Capabilities
         Service
@@ -360,7 +361,7 @@ def maps_xml_wms130() -> str:
 
 
 class TileMatrixSet:
-    """Generate OSC TileMatrixSet for EPSG:3395, EPSG:3857.
+    """Generate OSC TileMatrixSet for EPSG:3395, EPSG:3857 for WMTS.
 
     https://github.com/mapproxy/mapproxy/blob/master/mapproxy/service/wmts.py#LL356C4-L356C4
     https://github.com/mapproxy/mapproxy/blob/d6834781bb81bcfb2ba36ed7f8430633c54b4cf6/mapproxy/grid.py#L1070
@@ -438,18 +439,20 @@ class TileMatrixSet:
 
 
 def maps_wmts_rest() -> str:
-    """Open Geospatial Consortium WMTS 1.0.0 WMTSCapabilities.xml.
+    """Open Geospatial Consortium WMTS 1.0.0 implementation.
 
     urn:ogc:def:crs:OGC:1.3:CRS84
     urn:ogc:def:crs:EPSG::3857
 
     <TileMatrixSet>
         <ows:Title>GoogleMapsCompatible</ows:Title>
-        <ows:Abstract>the wellknown 'GoogleMapsCompatible' tile matrix set defined by OGC WMTS specification</ows:Abstract>
         <ows:Identifier>GoogleMapsCompatible</ows:Identifier>
         <ows:SupportedCRS>urn:ogc:def:crs:EPSG:6.18.3:3857</ows:SupportedCRS>
         <WellKnownScaleSet>urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible</WellKnownScaleSet>
     </TileMatrixSet>
+
+    Returns:
+        XML
     """
     ET.register_namespace("", "http://www.opengis.net/wmts/1.0")
     ET.register_namespace("ows", "http://www.opengis.net/ows/1.1")

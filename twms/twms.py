@@ -34,13 +34,10 @@ class TWMSMain:
 
     def __init__(self):
         super().__init__()
-        # dict[layer_id]: twms.fetchers.TileFetcher(layer)]
         self.fetchers_pool = dict()
 
     def wms_handler(self, data: dict) -> tuple[HTTPStatus, str, bytes | str]:
         """Do main TWMS work.
-
-        Implied support for WMS 1.1.1 and 1.3.0 as most widespread.
 
         http://127.0.0.1:8080/wms?request=GetCapabilities&
 
@@ -50,7 +47,6 @@ class TWMSMain:
         Returns:
             (http.HTTPStatus, content_type, resp)
         """
-        # logger.info(data)
         # WMS request keys must be case-insensitive, values must not
         data = {k.casefold(): v for k, v in data.items()}
 
@@ -226,18 +222,16 @@ class TWMSMain:
     def tiles_handler(
         self, layer_id: str, z: int, x: int, y: int, mimetype: str
     ) -> tuple[HTTPStatus, str, bytes | str]:
-        """Serve slippy map tiles as is.
+        """Serve tiles as is, without reprojection.
+
+        Args:
+            z, x, y: tile coordinates in cache.
+            mimetype: required image mimetype.
 
         Returns:
             Return 404 instead of blank tile.
         """
-        logger.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
-        # Not needed in case of WMTS
-        # proj = twms.config.layers[layer_id].get("proj", twms.config.default_src)
-        # if proj != "EPSG:3857":
-        #     raise NotImplementedError(
-        #         "Reprojection is not implemented, use WMS for this tile set"
-        #     )
+        logger.debug(f"{layer_id} z{z}/x{x}/y{y}")
         z, x, y = int(z), int(x), int(y)
         im = self.tile_image(layer_id, z, x, y, real=True)
         if im:

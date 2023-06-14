@@ -1,9 +1,4 @@
-"""TWMS config file.
-
-debug - tile file operations
-info - tile fetching or constructing
-warning - HTTP errors
-"""
+"""TWMS config file."""
 
 import os
 import typing
@@ -155,6 +150,16 @@ layers: dict[str, dict[str, typing.Any]] = {
         "prefix": "sat",
         "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "fetch": "tms_google_sat",
+    },
+    "Both": {
+        "name": "Google Hybrid RU",
+        "provider_url": "https://www.google.com/maps/",
+        "prefix": "Both",
+        "mimetype": "image/png",
+        "scalable": False,
+        "fetch": "tms",
+        "remote_url": "https://mt0.google.com/vt/lyrs=h@0&z={z}&x={x}&y={y}&hl=ru",
+        "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
     # First available top left tile https://ecn.t0.tiles.virtualearth.net/tiles/a0.jpeg?g=0
     # Dead tile https://ecn.t0.tiles.virtualearth.net/tiles/a120210103100213.jpeg?g=0

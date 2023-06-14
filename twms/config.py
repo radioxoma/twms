@@ -28,7 +28,7 @@ See:
   [3] https://josm.openstreetmap.de/wiki/SharedTileCache
 """
 
-host = "localhost"
+host = "127.0.0.1"
 port = 8080
 service_url = f"http://{host}:{port}"
 service_wms_url = service_url + "/wms"

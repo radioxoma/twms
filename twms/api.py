@@ -359,29 +359,22 @@ def maps_xml_wms130() -> str:
     return ET.tostring(root, encoding="unicode", xml_declaration=True)
 
 
-def grids_generetor(parent: ET.Element, levels: int = 20) -> None:
-    """Generate TileMatrixSet.
-
-    ScaleDenominator same for
-        "urn:ogc:def:wkss:OGC:1.0:GoogleCRS84Quad": ["4326", "urn:ogc:def:crs:OGC:1.3:CRS84"]  # Pixel size 1.40625000000000
-        "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible": ["3857", "urn:ogc:def:crs:EPSG:6.18:3:3857"]  # Pixel size 156543.0339280410
+def grids_xml_generetor(parent: ET.Element, levels: int = 20) -> None:
+    """Generate OSC "GoogleMapsCompatible" TileMatrixSet.
 
     https://github.com/mapproxy/mapproxy/blob/master/mapproxy/service/wmts.py#LL356C4-L356C4
     https://github.com/mapproxy/mapproxy/blob/d6834781bb81bcfb2ba36ed7f8430633c54b4cf6/mapproxy/grid.py#L1070
-
-    <ows:BoundingBox crs="urn:ogc:def:crs:EPSG:6.18.3:3857">
-        <ows:LowerCorner>1799448.394855 6124949.747770</ows:LowerCorner>
-        <ows:UpperCorner>1848250.442089 6162571.828177</ows:UpperCorner>
-    </ows:BoundingBox>
-    <ows:SupportedCRS>urn:ogc:def:crs:EPSG:6.18.3:3857</ows:SupportedCRS>
-    <WellKnownScaleSet>urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible</WellKnownScaleSet>
     """
     tile_size = 256
 
     def scale_denominator() -> float:
-        """Calculate tile grid scale denominator for z0 level.
+        """Calculate "GoogleMapsCompatible" tile grid scale denominator for z0 level.
 
         Earth sphere circumference (2*pi*r) taken to determine top tile resolution.
+
+        ScaleDenominator same for
+            "urn:ogc:def:wkss:OGC:1.0:GoogleCRS84Quad": ["4326", "urn:ogc:def:crs:OGC:1.3:CRS84"]  # Pixel size 1.40625000000000
+            "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible": ["3857", "urn:ogc:def:crs:EPSG:6.18:3:3857"]  # Pixel size 156543.0339280410
 
         >>> import math
         >>> 2 * math.pi * 6378137 / 256 / (0.28 / 1000)
@@ -390,6 +383,7 @@ def grids_generetor(parent: ET.Element, levels: int = 20) -> None:
         559082264.0287176  # z0 ScaleDenominator
         """
         sradiusa = 6378137  # WGS84 spheroid radius
+        # Non-square pixels aren't supporteed by the spec
         # sradiusb = 6356752.314  # WGS84 ellipsoid radius
         ogc_pixel_size = 0.28 / 1000  # m/px
 
@@ -402,30 +396,32 @@ def grids_generetor(parent: ET.Element, levels: int = 20) -> None:
         return scale_denom
 
     # Annex E provides several well-known scale sets for TileMatrixSetDef
+    # Mandatory: Identifier (ows:CodeType), SupportedCRS (URI), tileMatrix
+    # Optional wellKnownScaleSet
     tilematrixset = ET.SubElement(parent, "TileMatrixSet")
-    # ET.SubElement(
-    #     tilematrixset, "{http://www.opengis.net/ows/1.1}Title"
-    # ).text = "GoogleMapsCompatible"
     ET.SubElement(
         tilematrixset, "{http://www.opengis.net/ows/1.1}Identifier"
     ).text = "GoogleMapsCompatible"  # GLOBAL_WEBMERCATOR
+    # Dot typo ("urn:ogc:def:crs:EPSG:6.18.3:3857") in some services, here as given in spec and OpenLayers
     ET.SubElement(
         tilematrixset, "{http://www.opengis.net/ows/1.1}SupportedCRS"
-    ).text = "EPSG:3857"
-    # ET.SubElement(
-    #     tilematrixset, "WellKnownScaleSet"
-    # ).text = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
+    ).text = "urn:ogc:def:crs:EPSG:6.18:3:3857"
+    ET.SubElement(
+        tilematrixset, "WellKnownScaleSet"
+    ).text = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
 
     zero_sd = scale_denominator()
     scale_factor = 2
+    # Mandatory: Identifier, ScaleDenominator, TopLeftCorner, TileWidth, TileHeight, MatrixWidth, MatrixHeight
     for level in range(levels):
         tilematrix = ET.SubElement(tilematrixset, "TileMatrix")
         matrix_width = scale_factor**level
-        # Leading zeros?
+        # Leading zeros is not mandatory but common
         ET.SubElement(
             tilematrix, "{http://www.opengis.net/ows/1.1}Identifier"
         ).text = str(level).zfill(2)
         ET.SubElement(tilematrix, "ScaleDenominator").text = str(zero_sd / matrix_width)
+        # Half of the Earth circumference (math.pi * sradiusa)
         ET.SubElement(
             tilematrix, "TopLeftCorner"
         ).text = "-20037508.342789244 20037508.342789244"
@@ -438,7 +434,7 @@ def grids_generetor(parent: ET.Element, levels: int = 20) -> None:
 def maps_wmts_rest() -> str:
     """Open Geospatial Consortium WMTS 1.0.0 WMTSCapabilities.xml.
 
-    "urn:ogc:def:crs:OGC:1.3:CRS84"
+    urn:ogc:def:crs:OGC:1.3:CRS84
     urn:ogc:def:crs:EPSG::3857
 
     <TileMatrixSet>
@@ -517,7 +513,7 @@ def maps_wmts_rest() -> str:
             },
         )
 
-    grids_generetor(contents)
+    grids_xml_generetor(contents)
     ET.SubElement(
         root,
         "ServiceMetadataURL",

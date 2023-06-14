@@ -228,18 +228,16 @@ class TWMSMain:
     ) -> tuple[HTTPStatus, str, bytes | str]:
         """Serve slippy map tiles as is.
 
-        http://localhost:8080/tiles/vesat/1/0/0.jpg OK
-        http://localhost:8080/tiles/yasat/1/0/0.jpg not OK
-
         Returns:
             Return 404 instead of blank tile.
         """
         logger.debug(f"{layer_id} z{z}/x{x}/y{y} tiles_handler")
-        proj = twms.config.layers[layer_id].get("proj", twms.config.default_src)
-        if proj != "EPSG:3857":
-            raise NotImplementedError(
-                "Reprojection is not implemented, use WMS for this tile set"
-            )
+        # Not needed in case of WMTS
+        # proj = twms.config.layers[layer_id].get("proj", twms.config.default_src)
+        # if proj != "EPSG:3857":
+        #     raise NotImplementedError(
+        #         "Reprojection is not implemented, use WMS for this tile set"
+        #     )
         z, x, y = int(z), int(x), int(y)
         im = self.tile_image(layer_id, z, x, y, real=True)
         if im:

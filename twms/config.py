@@ -6,6 +6,25 @@ import typing
 import twms
 import twms.bbox
 
+
+class DefaultDict(dict):
+    """Dict with default key values."""
+
+    def __init__(self, defaults: dict, *args, **kwargs):
+        """Init with default dict and incomplete dict.
+
+        Missing 'in' returns False, but '__getitem__' returns default value.
+
+        Args:
+            defaults: Dict with default parameters.
+        """
+        super().__init__(*args, **kwargs)
+        self.defaults = defaults
+
+    def __missing__(self, key):
+        return self.defaults[key]
+
+
 """
 Cache layout
 ------------
@@ -23,6 +42,7 @@ See:
   [3] https://josm.openstreetmap.de/wiki/SharedTileCache
 """
 
+wms_name = f"twms {twms.__version__}"
 host = "127.0.0.1"
 port = 8080
 service_url = f"http://{host}:{port}"
@@ -40,41 +60,54 @@ cache_tne_ttl = 60 * 60 * 24 * 30  # Month
 ram_cache_tiles = 2048  # Number of tiles in RAM cache
 dl_threads_per_layer = 5
 
-# Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
-default_min_zoom = 0
-
-# Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer
-# [19] 30 cm resolution - best Maxar satellite resolution at 2021
-default_max_zoom = 19  # <=
-
-
-default_mimetype = "image/jpeg"
 output_quality = 75  # JPEG output image quality
 output_progressive = True  # JPEG progressive codec
 output_optimize = False  # Optimize PNG images
-default_background = "#ffffff"  # Default background for empty space
 
 # WMS GetCapabilities
 default_layers = ""  # layer(s) to show when no layers given explicitly
 max_height = 4095  # WMS maximal allowed requested height
 max_width = 4095  # WMS maximal allowed requested width
-wms_name = f"twms {twms.__version__}"
 
-# Spherical mercator maximum
-default_src = "EPSG:3857"
-default_bbox: twms.bbox.Bbox = (-180.0, -85.0511287798, 180.0, 85.0511287798)
+
+layer_defaults = {
+    # "name" Mandatory
+    # "prefix" Mandatory
+    "mimetype": "image/jpeg",
+    "proj": "EPSG:3857",
+    "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
+    # "cache_ttl": None
+    # "cached"
+    # "dead_tile"
+    "empty_color": "#ffffff",  # Default background for empty space
+    # "fetch"
+    # "headers"
+    "min_zoom": 0,  # Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
+    "max_zoom": 19,  # <= # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer. [19] 30 cm resolution - best Maxar satellite resolution at 2021
+    # "md5"
+    # "overlay"
+    # "provider_url"
+    # "remote_url"
+    "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
+    # "sha256"
+    # "size"
+    # "transform_tile_number"
+    # "wms_proj"
+}
 
 
 """
 Layers
 
+Mandatory paramaters
 name           str - visible layer name
 prefix         str - unique cache tile subdirectory name
+
+Optional paramaters
 mimetype       str - tiles will be stored and served in this mimetype, converted if necessary
 overlay        bool - default False - transparent hybrid map
 scalable       bool - default False - construct tile of better ones if they are available (better for home use and satellite images, or scanned maps). If False, tWMS will use nearest zoom level (better for rasterized vector maps and production servers)
 proj           str - default 'EPSG:3857' - EPSG code of layer tiles projection.
-
 min_zoom       int - the worst zoom level number service provides
 max_zoom       int - the best zoom level number service provides (<=)
 empty_color    str PIL color string - if this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
@@ -95,14 +128,12 @@ fetch          function (z, x, y, layer_dict) - function that fetches given tile
 Other WMTS configs https://github.com/bertt/wmts
 """
 
-
 layers: dict[str, dict[str, typing.Any]] = {
     "yasat": {
         "name": "Yandex Satellite",
         "provider_url": "https://yandex.ru/maps/",
         "prefix": "yasat",
         "proj": "EPSG:3395",  # WGS84 World mercator, ellipsoid
-        "scalable": False,
         "fetch": "tms",
         "remote_url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
     },
@@ -112,7 +143,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "prefix": "yamapng",
         "proj": "EPSG:3395",
         "mimetype": "image/png",
-        "scalable": False,
         "fetch": "tms",
         "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
         "cache_ttl": 60 * 60 * 24 * 30,  # Month
@@ -124,7 +154,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "proj": "EPSG:3395",
         "mimetype": "image/png",
         "overlay": True,
-        "scalable": False,
         "min_zoom": 1,
         "fetch": "tms",
         "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
@@ -137,7 +166,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "prefix": "yandextracks",
         "proj": "EPSG:3395",
         "mimetype": "image/png",
-        "scalable": False,
         "fetch": "tms",
         "remote_url": "https://core-gpstiles.maps.yandex.net/tiles?style=point&x={x}&y={y}&z={z}",
         "min_zoom": 10,
@@ -148,15 +176,14 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "Google Satellite",
         "provider_url": "https://www.google.com/maps/",
         "prefix": "sat",
-        "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "fetch": "tms_google_sat",
+        # "remote_url": "https://mt0.google.com/vt/lyrs=s@0&z={z}&x={x}&y={y}&hl=ru",
     },
     "Both": {
         "name": "Google Hybrid RU",
         "provider_url": "https://www.google.com/maps/",
         "prefix": "Both",
         "mimetype": "image/png",
-        "scalable": False,
         "fetch": "tms",
         "remote_url": "https://mt0.google.com/vt/lyrs=h@0&z={z}&x={x}&y={y}&hl=ru",
         "cache_ttl": 60 * 60 * 24 * 30,  # Month
@@ -167,7 +194,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "Bing Satellite",
         "provider_url": "https://www.bing.com/maps?style=h",
         "prefix": "vesat",
-        "scalable": False,
         "min_zoom": 1,  # doesn't serve z0/x0/y0 (400 Bad Request for "https://ecn.t0.tiles.virtualearth.net/tiles/a.jpeg?g=0")
         "fetch": "tms",
         "remote_url": "https://ecn.t0.tiles.virtualearth.net/tiles/a{q}.jpeg?g=0",
@@ -184,7 +210,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "provider_url": "https://www.openstreetmap.org/",
         "prefix": "osmmapMapnik",  # tile directory prefix
         "mimetype": "image/png",
-        "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "max_zoom": 19,  # Allowed if <=
         "fetch": "tms",  # 'tms' or 'wms' imagery source
         "remote_url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",  # URL template with placeholders
@@ -199,7 +224,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "prefix": "osm_gps_tile",
         "mimetype": "image/png",
         "overlay": True,
-        "scalable": False,
         "fetch": "tms",
         "remote_url": "https://gps-tile.openstreetmap.org/lines/{z}/{x}/{y}.png",
         "headers": {"Referer": "https://www.openstreetmap.org/"},
@@ -213,7 +237,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "provider_url": "http://vl.nca.by/",
         "prefix": "ncaby_radr",
         "mimetype": "image/png",
-        "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",
         "min_zoom": 15,
@@ -225,7 +248,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "provider_url": "https://geo.by/navigation/map",
         "prefix": "geoby_mapserver",
         "mimetype": "image/png",
-        "scalable": False,
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",
         "remote_url": "https://mapserver.geo.by/mapcache/?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=mapserver_tileset&STYLES=&FORMAT=image/png&TRANSPARENT=true&HEIGHT={height}&WIDTH={width}&SRS={proj}&BBOX={bbox}",
@@ -236,7 +258,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     #    "name": "Kothic - Belarus",
     #    "prefix": "kothic",
     #    "cached": False,
-    #    "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
     #    "fetch": fetchers.kothic_fetcher,    # function that fetches given tile. should return None if tile wasn't fetched
     #    "empty_color": "#f2efe9",
     #    "bounds": (23.16722,51.25930,32.82244,56.18162),
@@ -244,7 +265,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     # "landsat":  {
     #      "name": "Landsat from onearth.jpl.nasa.gov",
     #      "prefix": "landsat",
-    #      "scalable": False,
     #      "fetch": 'wms',
     #      string without srs, height, width and bbox
     #      "remote_url": "https://onearth.jpl.nasa.gov/wms.cgi?request=GetMap&layers=global_mosaic&styles=&format=image/jpeg&",
@@ -256,7 +276,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     #     "name": "Navitel Navigator Maps",
     #     "prefix": "Navitel",
     #     "mimetype": "image/png",
-    #     "scalable": False,
     #     "fetch": 'tms',
     #     "remote_url": "https://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i";,
     #     "transform_tile_number": lambda z,x,y: (x, 2**(z-1)-y-1, z-1),
@@ -266,7 +285,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     # "latlonsat":  {
     #      "name": "Imagery from latlon.org",
     #      "prefix": "latlonsat",
-    #      "scalable": False,
     #      "fetch": 'tms',
     #      string without srs, height, width and bbox
     #      "remote_url": "https://dev.latlon.org/cgi-bin/ms?FORMAT=image/jpeg&VERSION=1.1.1&SERVICE=WMS&REQUEST=GetMap&Layers=sat,plane&",
@@ -277,7 +295,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     # "DGsat": {
     #      "name": "Digital Globe Satellite",
     #      "prefix": "DGsat",
-    #      "scalable": False,
     #      # Could add "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/20867/38349"
     # },
     "maxar_prem": {
@@ -285,7 +302,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "provider_url": "https://www.maxar.com/",
         "prefix": "maxar_prem",
         "max_zoom": 18,  # Looks like artificial restriction
-        "scalable": False,
         "fetch": "tms",
         # API key from JOSM
         "remote_url": "https://services.digitalglobe.com/earthservice/tmsaccess/tms/1.0.0/DigitalGlobe:ImageryTileService@EPSG:3857@jpg/{z}/{x}/{-y}.jpg?connectId=fa014fbc-6cbe-4b6f-b0ca-fbfb8d1e5b7d&foo=premium",
@@ -293,7 +309,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     # "irs":  {
     #     "name": "Kosmosnimki.ru IRS Satellite",
     #     "prefix": "irs",
-    #     "scalable": False,
     #     "fetch": 'tms',
     #     "remote_url": "https://maps.kosmosnimki.ru/TileSender.ashx?ModeKey=tile&MapName=F7B8CF651682420FA1749D894C8AD0F6&LayerName=950FA578D6DB40ADBDFC6EEBBA469F4A&z=%s&x=%s&y=%s";,
     #     "transform_tile_number": lambda z,x,y: (z-1,int(-((int(2**(z-1)))/ 2)+x),int(-((int(2**(z-1)))/ 2)+ int(2**(z-1)-(y+1)))),
@@ -307,7 +322,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     # "yhsat": {
     #      "name": "Yahoo Satellite",
     #      "prefix": "yhsat",
-    #      "scalable": False,
     #      "fetch": 'tms',
     #      "remote_url": "https://aerial.maps.yimg.com/ximg?v=1.8&t=a&s=256&r=1&x=%s&y=%s&z=%s",
     #      "transform_tile_number": lambda z,x,y: (x,((2**(z-1)/2)-1)-y,z),
@@ -324,7 +338,6 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "dzz.by Aerophotography (Belarus)",
         "provider_url": "https://www.dzz.by/izuchdzz/",
         "prefix": "dzzby_orthophoto",
-        "scalable": False,
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",
         # nca.by has sane proxy (valid 404, SSL certificate)
@@ -338,3 +351,8 @@ layers: dict[str, dict[str, typing.Any]] = {
         "max_zoom": 19,  # max_zoom is 20, but in most places it just blurred 19
     },
 }
+
+# Populate with default values
+for k, v in layers.items():
+    # layers[k] = layer_defaults | v
+    layers[k] = DefaultDict(layer_defaults, v)

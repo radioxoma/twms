@@ -146,9 +146,7 @@ class TileFetcher:
                 z,
                 x,
                 y,
-                mimetypes.guess_extension(
-                    self.layer.get("mimetype", twms.config.default_mimetype)
-                ),
+                mimetypes.guess_extension(self.layer["mimetype"]),
             )
         )
         partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
@@ -176,7 +174,7 @@ class TileFetcher:
         ic = Image.new(
             "RGBA",
             (256, 256),
-            self.layer.get("empty_color", twms.config.default_background),
+            self.layer["empty_color"],
         )
         if im.histogram() == ic.histogram():
             logger.debug(f"{tile_id}: TNE - empty histogram '{tne_path}'")
@@ -205,7 +203,7 @@ class TileFetcher:
         tile_parsed = False
         tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
-        target_mimetype = self.layer.get("mimetype", twms.config.default_mimetype)
+        target_mimetype = self.layer["mimetype"]
         remote = ""
 
         if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
@@ -220,9 +218,7 @@ class TileFetcher:
                 z,
                 x,
                 y,
-                mimetypes.guess_extension(
-                    self.layer.get("mimetype", twms.config.default_mimetype)
-                ),
+                mimetypes.guess_extension(self.layer["mimetype"]),
             )
         )
         partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
@@ -271,7 +267,7 @@ class TileFetcher:
             # WMS, no real difference with TMS except missing *.tne feature
             width = 256
             height = 256
-            proj = self.layer.get("proj", twms.config.default_src)
+            proj = self.layer["proj"]
             tile_bbox = "{},{},{},{}".format(
                 *twms.projections.from4326(
                     twms.projections.bbox_by_tile(z, x, y, proj),

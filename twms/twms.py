@@ -75,19 +75,15 @@ class TWMSMain:
         force = tuple(force)
 
         # Serving imagery
-        content_type = twms.config.default_mimetype
-        try:
-            # Get requested content type from standard WMS 'format' parameter,
-            # https://docs.geoserver.org/stable/en/user/services/wms/outputformats.html
-            content_type = data["format"]  # Shell be no default format
-            if content_type not in mimetypes.types_map.values():
-                return (
-                    HTTPStatus.INTERNAL_SERVER_ERROR,
-                    "text/plain",
-                    f"Invalid image format '{content_type}' requested",
-                )
-        except KeyError:
-            pass
+        # Get requested content type from standard WMS 'format' parameter,
+        # https://docs.geoserver.org/stable/en/user/services/wms/outputformats.html
+        content_type = data["format"]
+        if content_type not in mimetypes.types_map.values():
+            return (
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                "text/plain",
+                f"Invalid image format '{content_type}' requested",
+            )
 
         z = int(data.get("z", 0))
         x = int(data.get("x", 0))
@@ -96,7 +92,7 @@ class TWMSMain:
             # Both TMS and WMS
             height = int(data.get("height", 256))
             width = int(data.get("width", 256))
-            srs = data.get("srs", twms.config.default_src)
+            srs = data["srs"]
             # Try to return tile as is, if possible
             if all(
                 (
@@ -106,14 +102,12 @@ class TWMSMain:
                     not in twms.config.layers[
                         layers_list[0]
                     ],  # Need to check time in fetcher
-                    srs
-                    == twms.config.layers[layers_list[0]].get(
-                        "proj", twms.config.default_src
-                    ),
+                    srs == twms.config.layers[layers_list[0]]["proj"],
                     width == height == 256,
                     not force,
                 )
             ):
+                content_type = twms.config.layers[layers_list[0]]["mimetype"]
                 tile_path = (
                     twms.config.tiles_cache
                     + twms.config.layers[layers_list[0]]["prefix"]
@@ -121,11 +115,7 @@ class TWMSMain:
                         z,
                         x,
                         y,
-                        mimetypes.guess_extension(
-                            twms.config.layers[layers_list[0]].get(
-                                "mimetype", twms.config.default_mimetype
-                            )
-                        ),
+                        mimetypes.guess_extension(content_type),
                     )
                 )
                 logger.debug(f"{layers_list[0]} z{z}/x{x}/y{y} query cache {tile_path}")
@@ -162,7 +152,7 @@ class TWMSMain:
             ll = ll[:-2]
             if wkt:
                 wkt = "," + wkt
-            srs = twms.config.layers[ll].get("proj", twms.config.default_src)
+            srs = twms.config.layers[ll]["proj"]
 
         try:
             result_img = self.bbox_image(box, srs, (height, width), ll, force)
@@ -174,7 +164,7 @@ class TWMSMain:
                 ll = ll[:-2]
                 if wkt:
                     wkt = "," + wkt
-                srs = twms.config.layers[ll].get("proj", twms.config.default_src)
+                srs = twms.config.layers[ll]["proj"]
 
             im2 = self.bbox_image(box, srs, (height, width), ll, force)
             if "empty_color" in twms.config.layers[ll]:
@@ -267,12 +257,8 @@ class TWMSMain:
         bbox = twms.bbox.expand_to_point(bbox, bbox_4)
         H, W = size
 
-        max_zoom = twms.config.layers[layer_id].get(
-            "max_zoom", twms.config.default_max_zoom
-        )
-        min_zoom = twms.config.layers[layer_id].get(
-            "min_zoom", twms.config.default_min_zoom
-        )
+        max_zoom = twms.config.layers[layer_id]["max_zoom"]
+        min_zoom = twms.config.layers[layer_id]["min_zoom"]
 
         zoom = twms.projections.zoom_for_bbox(
             bbox,
@@ -285,7 +271,7 @@ class TWMSMain:
         from_tile_x, from_tile_y, to_tile_x, to_tile_y = twms.projections.tile_by_bbox(
             bbox,
             zoom,
-            twms.config.layers[layer_id].get("proj", twms.config.default_src),
+            twms.config.layers[layer_id]["proj"],
         )
         cut_from_x = int(256 * (from_tile_x - int(from_tile_x)))
         cut_from_y = int(256 * (from_tile_y - int(from_tile_y)))
@@ -309,9 +295,7 @@ class TWMSMain:
                 im1 = self.tile_image(layer_id, zoom, x, y, real=True)
                 if not im1:
                     ec = ImageColor.getcolor(
-                        twms.config.layers[layer_id].get(
-                            "empty_color", twms.config.default_background
-                        ),
+                        twms.config.layers[layer_id]["empty_color"],
                         "RGBA",
                     )
                     im1 = Image.new("RGBA", (256, 256), ec)
@@ -375,9 +359,9 @@ class TWMSMain:
                 z,
                 x,
                 y,
-                twms.config.layers[layer_id].get("proj", twms.config.default_src),
+                twms.config.layers[layer_id]["proj"],
             ),
-            twms.config.layers[layer_id].get("bounds", twms.config.default_bbox),
+            twms.config.layers[layer_id]["bounds"],
             fully=False,
         ):
             logger.info(
@@ -389,12 +373,7 @@ class TWMSMain:
         # Reconstructiong from cache
         if (
             twms.config.layers[layer_id]["scalable"]
-            and (
-                z
-                < twms.config.layers[layer_id].get(
-                    "max_zoom", twms.config.default_max_zoom
-                )
-            )
+            and (z < twms.config.layers[layer_id]["max_zoom"])
             and trybetter
         ):
             # Second, try to glue image of better ones
@@ -407,9 +386,7 @@ class TWMSMain:
             #     except OSError:
             #         pass
             ec = ImageColor.getcolor(
-                twms.config.layers[layer_id].get(
-                    "empty_color", twms.config.default_background
-                ),
+                twms.config.layers[layer_id]["empty_color"],
                 "RGBA",
             )
             empty_color = (ec[0], ec[1], ec[2], 0)

@@ -10,22 +10,22 @@ import twms.projections
 
 def get_wms_url(layer) -> str:
     """TWMS has somewhat like WMS-C emulation for getting tiles directly."""
-    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
+    ext = mimetypes.guess_extension(layer["mimetype"])
     return f"{twms.config.service_wms_url}/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
 def get_wmts_url(layer) -> str:
-    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
+    ext = mimetypes.guess_extension(layer["mimetype"])
     return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{TileMatrix}}/{{TileCol}}/{{TileRow}}{ext}"
 
 
 def get_tms_url(layer) -> str:
-    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
+    ext = mimetypes.guess_extension(layer["mimetype"])
     return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
 def get_fs_url(layer) -> str:
-    ext = mimetypes.guess_extension(layer.get("mimetype", twms.config.default_mimetype))
+    ext = mimetypes.guess_extension(layer["mimetype"])
     return f"file://{twms.config.tiles_cache}{layer['prefix']}/{{z}}/{{x}}/{{y}}{ext}"
 
 
@@ -48,7 +48,8 @@ def maps_html() -> str:
     ]
 
     for layer_id, layer in twms.config.layers.items():
-        proj = layer.get("proj", twms.config.default_src)
+        proj = layer["proj"]
+        # Allowed bounds for a given projection
         bbox = layer.get("bounds", twms.projections.projs[proj]["bounds"])
         resp.append('<div class="entry">')
 
@@ -134,7 +135,7 @@ def maps_xml_josm() -> str:
     # 4. url, but with tms prefox, min-max zoom
     imagery = ET.Element("imagery")
     for layer_id, layer in twms.config.layers.items():
-        proj = layer.get("proj", twms.config.default_src)
+        proj = layer["proj"]
         entry = ET.SubElement(imagery, "entry")
         if "overlay" in layer and layer["overlay"] is True:
             entry.attrib["overlay"] = "true"
@@ -173,12 +174,6 @@ def maps_xml_josm() -> str:
 
         if "max_zoom" in layer:
             ET.SubElement(entry, "max-zoom").text = str(layer["max_zoom"])
-        else:
-            max_zoom = ET.SubElement(entry, "max-zoom")
-            max_zoom.text = str(twms.config.default_max_zoom)
-            entry.append(
-                ET.Comment("Overrided with default 'max_zoom' from current TWMS config")
-            )
 
         if "min_zoom" in layer:
             ET.SubElement(entry, "min-zoom").text = str(layer["min_zoom"])
@@ -257,10 +252,8 @@ def maps_xml_wms111() -> str:
         ET.SubElement(layer, "Title").text = layer_item["name"]
         ET.SubElement(layer, "Name").text = layer_id
         # Only "named layers" shall be requested by a client
-        # ET.SubElement(layer, "SRS").text = layer_item.get(
-        #     "proj", twms.config.default_src
-        # )
-        bbox = tuple(map(str, layer_item.get("bounds", twms.config.default_bbox)))
+        # ET.SubElement(layer, "SRS").text = layer_item["proj"]
+        bbox = tuple(map(str, layer_item["bounds"]))
         ET.SubElement(
             layer,
             "LatLonBoundingBox",  # EPSG: 4326
@@ -335,7 +328,7 @@ def maps_xml_wms130() -> str:
         # CRS="CRS:84 May be inherited from parent
 
         # Not sure about coordinates reprojection
-        bbox = tuple(map(str, layer_item.get("bounds", twms.config.default_bbox)))
+        bbox = tuple(map(str, layer_item["bounds"]))
         geo_bbox = ET.SubElement(layer, "EX_GeographicBoundingBox")
         ET.SubElement(geo_bbox, "westBoundLongitude").text = bbox[0]
         ET.SubElement(geo_bbox, "eastBoundLongitude").text = bbox[2]
@@ -343,7 +336,7 @@ def maps_xml_wms130() -> str:
         ET.SubElement(geo_bbox, "northBoundLatitude").text = bbox[3]
         # May be inherited from parent. May be multiple.
         ET.SubElement(layer, "CRS").text = "EPSG:4326"
-        # ET.SubElement(layer, "CRS").text = layer_item.get("proj", twms.config.default_src)
+        # ET.SubElement(layer, "CRS").text = layer_item["proj"]
         # Lower left and upper right corners in a specified CRS
         ET.SubElement(
             layer,
@@ -492,10 +485,10 @@ def maps_wmts_rest() -> str:
         )
         ET.SubElement(
             wgs84_bbox, "{http://www.opengis.net/ows/1.1}LowerCorner"
-        ).text = "{} {}".format(*layer_item.get("bounds", twms.config.default_bbox))
+        ).text = "{} {}".format(*layer_item["bounds"])
         ET.SubElement(
             wgs84_bbox, "{http://www.opengis.net/ows/1.1}UpperCorner"
-        ).text = "{2} {3}".format(*layer_item.get("bounds", twms.config.default_bbox))
+        ).text = "{2} {3}".format(*layer_item["bounds"])
         ET.SubElement(
             layer, "{http://www.opengis.net/ows/1.1}Identifier"
         ).text = layer_id
@@ -503,26 +496,22 @@ def maps_wmts_rest() -> str:
         ET.SubElement(
             style, "{http://www.opengis.net/ows/1.1}Identifier"
         ).text = "default"
-        ET.SubElement(layer, "Format").text = layer_item.get(
-            "mimetype", twms.config.default_mimetype
-        )
+        ET.SubElement(layer, "Format").text = layer_item["mimetype"]
 
         tilematrixset_link = ET.SubElement(layer, "TileMatrixSetLink")
-        ET.SubElement(tilematrixset_link, "TileMatrixSet").text = layer_item.get(
-            "proj", twms.config.default_src
-        )
+        ET.SubElement(tilematrixset_link, "TileMatrixSet").text = layer_item["proj"]
 
         ET.SubElement(
             layer,
             "ResourceURL",
             attrib={
-                "format": layer_item.get("mimetype", twms.config.default_mimetype),
+                "format": layer_item["mimetype"],
                 "resourceType": "tile",
                 "template": get_wmts_url(layer_item),
             },
         )
         # This works only for EPSG:3395, EPSG:3857
-        proj_set.add(layer_item.get("proj", twms.config.default_src))
+        proj_set.add(layer_item["proj"])
 
     tm_set = TileMatrixSet()
     for proj in proj_set:

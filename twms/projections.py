@@ -203,9 +203,7 @@ def zoom_for_bbox(
     """Calculate a best-fit zoom level."""
     h, w = size
     for i in range(min_zoom, max_zoom):
-        cx1, cy1, cx2, cy2 = tile_by_bbox(
-            bbox, i, twms.config.layers[layer_id].get("proj", twms.config.default_src)
-        )
+        cx1, cy1, cx2, cy2 = tile_by_bbox(bbox, i, twms.config.layers[layer_id]["proj"])
         if w != 0:
             if (cx2 - cx1) * 256 >= w * 0.9:
                 return i

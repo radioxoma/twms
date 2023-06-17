@@ -81,7 +81,6 @@ layer_defaults = {
     "proj": "EPSG:3857",
     "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
     # "cache_ttl": None
-    # "cached"
     # "dead_tile"
     "empty_color": "#ffffff",  # Default background for empty space
     # "fetch"
@@ -120,7 +119,7 @@ bounds         tuple - WGS84 (EPSG:4326) (min-lon, min-lat, max-lon, max-lat; lo
 fetch          function (z, x, y, layer_dict) - function that fetches given tile. should return None if tile wasn't fetched.
 
 * **fetchers.tms** - TMS fetcher
-    * **remote_url** _string_ - Base tiles URL. May contain "%s" placeholders
+    * **remote_url** _str_ - Base tiles URL. May contain "%s" placeholders
     * **transform_tile_number** _function (x, y, z)_ - function that returns tuple that will be substituted into **remote_url**. If omitted, (z, x, y) tuple is used.
     * **dead_tile** dict, if given, loaded tiles matching pattern won't be saved.
         size - tile size in bytes
@@ -262,7 +261,6 @@ layers: dict[str, dict[str, typing.Any]] = {
     # "kothic": {
     #    "name": "Kothic - Belarus",
     #    "prefix": "kothic",
-    #    "cached": False,
     #    "fetch": fetchers.kothic_fetcher,    # function that fetches given tile. should return None if tile wasn't fetched
     #    "empty_color": "#f2efe9",
     #    "bounds": (23.16722,51.25930,32.82244,56.18162),

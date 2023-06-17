@@ -405,11 +405,6 @@ class TWMSMain:
                             im.paste(im3, (0, 256))
                             im.paste(im4, (256, 256))
                             tile = im.resize((256, 256), Image.ANTIALIAS)
-                            # if layer.get("cached", True):
-                            #     try:
-                            #         im.save(local + "ups" + ext)
-                            #     except OSError:
-                            #         pass
 
         if tile is None and "fetch" in twms.config.layers[layer_id]:
             # Dedicated fetcher for each imagery layer

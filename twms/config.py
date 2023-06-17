@@ -180,8 +180,9 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "Google Satellite",
         "provider_url": "https://www.google.com/maps/",
         "prefix": "sat",
-        "fetch": "tms_google_sat",
-        # "remote_url": "https://mt0.google.com/vt/lyrs=s@0&z={z}&x={x}&y={y}&hl=ru",
+        # "fetch": "tms_google_sat",
+        "fetch": "tms",
+        "remote_url": "https://mt0.google.com/vt/lyrs=s@0&z={z}&x={x}&y={y}",
     },
     "Both": {
         "name": "Google Hybrid RU",
@@ -209,7 +210,7 @@ layers: dict[str, dict[str, typing.Any]] = {
             "sha256": "45d35034a62d30443e492851752f67f439b95a908fce54de601f7373fcb7ab05",
         },
     },
-    "osmmapMapnik": {  # Prefix for TMS links
+    "osmmapMapnik": {
         "name": "OSM Mapnik",
         "provider_url": "https://www.openstreetmap.org/",
         "prefix": "osmmapMapnik",  # tile directory prefix

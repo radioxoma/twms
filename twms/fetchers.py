@@ -24,11 +24,6 @@ import twms.projections
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0",
-    "Connection": "Keep-Alive",
-}
-
 
 def prepare_opener(
     tries: int = 4, delay: int = 3, backoff: int = 2, headers: dict = dict()
@@ -66,7 +61,7 @@ def prepare_opener(
     #         proxy_support)
 
     opener = request.build_opener(request.HTTPCookieProcessor(cj))
-    hdrs = {**DEFAULT_HEADERS, **headers}
+    hdrs = twms.config.default_headers | headers
     opener.addheaders = list(hdrs.items())
 
     @wraps(opener.open)

@@ -49,6 +49,10 @@ service_url = f"http://{host}:{port}"
 service_wms_url = service_url + "/wms"
 service_wmts_url = service_url + "/wmts"
 
+default_headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
+    "Connection": "Keep-Alive",
+}
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
@@ -341,10 +345,19 @@ layers: dict[str, dict[str, typing.Any]] = {
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",
         # nca.by has sane proxy (valid 404, SSL certificate)
-        "remote_url": "https://api.nca.by/gis/dzz/tile/{z}/{y}/{x}",
+        # https://api.nca.by/gis/dzz/tile/11/41342/76532
+        # "remote_url": "https://api.nca.by/gis/dzz/tile/{z}/{y}/{x}",  # GeoIP 403 or temporary?
+        # dzz.by + Cloudflare
+        # https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/11/41342/76532
+        "headers": {
+            # "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
+            "Referer": "https://www.dzz.by/izuchdzz/",
+            "Cookie": "cf_clearance=595IzSOTn2kXfA4Piy8DEC4BVSvMJBO_FowxFCYliEw-1686952723-0-160",  # Associated with User-Agent
+        },
+        "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/{z}/{y}/{x}",
         # https://gismap.by invalid certificate, weird 404 handling
         # "headers": {"Referer": "https://gismap.by/next/"},  # 403 without SSL
-        # "remote_url": "https://gismap.by/next/proxy/proxy.ashx?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/%s/%s/%s",
+        # "remote_url": "https://gismap.by/next/proxy/proxy.ashx?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/{z}/{y}/{x}",
         # ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1123)
         "transform_tile_number": lambda z, x, y: (z - 6, x, y),
         "min_zoom": 6,

@@ -8,23 +8,23 @@ Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStree
 
 ## About this fork
 
-* [`http.server`](https://docs.python.org/3/library/http.server.html) from standard python library is used instead of [webpy](https://webpy.org/)
-* [Slippy map](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) cache and proxy URL, compatible with [JOSM](https://josm.openstreetmap.de/), [SAS.Planet](http://www.sasgis.org/sasplaneta/), [MOBAC](https://mobac.sourceforge.io/) etc
-* [JOSM remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from browser
-* [JOSM imagery XML](https://josm.openstreetmap.de/wiki/Maps) for `imagery.layers.sites`
-* WMS 1.1.1, WMTS 1.0.0
-* Conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
-* Time To Live (TTL), tile not exist `*.tne` file support
-* Huge refactoring: unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
+* Tested for interoperability with [JOSM](https://josm.openstreetmap.de/), MapProxy, [SAS.Planet](http://www.sasgis.org/sasplaneta/)
 * Consider it as hacky replacement for [MapProxy](https://wiki.openstreetmap.org/wiki/MapProxy)
-* Few dependencies (only python-pillow is mandatory)
+* Few dependencies (only python-pillow is mandatory), [`http.server`](https://docs.python.org/3/library/http.server.html) is used instead of [webpy](https://webpy.org/)
+* Huge refactoring: unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
+
+
+* WMS 1.1.1, WMTS 1.0.0, reprojection support, conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
+* JOSM [remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from browser
+* JOSM [imagery XML](https://josm.openstreetmap.de/wiki/Maps) for `imagery.layers.sites`
+* SAS.Planet Time To Live (TTL), tile not exist `*.tne` file supported
 
 
 ## Setting up TWMS
 
 Install dependencies and clone repo:
 
-    $ sudo pacman -S python-pillow python-pyproj  # Packages for Archlinux
+    $ sudo pacman -S python-pillow  # Packages for Archlinux
     $ git clone https://github.com/radioxoma/twms.git
     $ cd twms
 
@@ -36,18 +36,45 @@ Services provided:
 
 http://localhost:8080 - imagery overview web page. `wms`, `tms:` and JOSM remote control links provided. Open "JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries*" and paste link from here. E.g.: `tms:http://localhost:8080/wms/vesat/{z}/{x}/{y}.jpg`
 
-http://localhost:8080/wms - WMS service, which supports also `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` links
+http://localhost:8080/wms - WMS service, which supports also tile `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` links with reprojection.
 
-http://localhost:8080/wmts/{layer_id}/{z}/{x}/{y}{ext} - EPSG:3857 only tile proxy
+http://localhost:8080/wmts/{layer_id}/{z}/{x}/{y}{ext} - tile proxy without reprojection
 
 http://localhost:8080/josm/maps.xml - imagery list for JOSM's `imagery.layers.sites` property
 
 
 ## Shared "Slippy Map" cache
 
-SAS.Planet works fine with [wine](https://www.winehq.org/). Open "Settings > Options > Cache tab > Set *Default cache type* to *Mobile atlas creator (MOBAC)*". So tile path will conform "Slippy Map" standard e.g. `SAS.Planet/cache_ma/vesat/{z}/{x}/{y}.jpg`.
+TWMS uses [Slippy map tilenames](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) cache in [MOBAC](https://mobac.sourceforge.io/) format i.e. filesystem with `{z}/{x}/{y}{ext}`.
 
-From now you can browse tiles and `*.tne` "tile not exists" files in SAS.Planet and share the same cache.
+
+### SAS.Planet
+
+SAS.Planet works fine with [wine](https://www.winehq.org/). Open "Settings > Options > Cache tab > Set *Default cache type* to *Mobile atlas creator (MOBAC)*". So tile path will conform "Slippy Map" standard e.g. `SAS.Planet/cache_ma/vesat/{z}/{x}/{y}.jpg`. From now you can browse tiles and `*.tne` "tile not exists" files in SAS.Planet and share the same cache.
+
+### MapProxy
+
+MapProxy's quirks:
+
+* Imposible to specify just one global relative 'directory' and use caches prefixes
+* 'format' `image/jpg` for '*.jpg' and `image/jpeg` for '*.jpeg' file names
+
+    caches:
+      osmmapMapnik:
+        grids: [GLOBAL_WEBMERCATOR]
+        sources: [osm_tiles]
+        cache:
+          type: file
+          directory_layout: tms
+          directory: /home/rx/dev/gis/sasplanet/SAS.Planet/cache_ma/osmmapMapnik/
+      vesat:
+        grids: [GLOBAL_WEBMERCATOR]
+        sources: [ve_tiles]
+        format: image/jpg
+        cache:
+          type: file
+          directory_layout: tms
+          directory: /home/rx/dev/gis/sasplanet/SAS.Planet/cache_ma/vesat/
 
 
 ## Setting up JOSM

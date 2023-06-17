@@ -85,6 +85,24 @@ def prepare_opener(
 
 
 class TileFetcher:
+    """Caching tile fetcher.
+
+    Cache layout
+    ------------
+
+    There are multiple descriptions for the same thing:
+
+      * TWMS stores tiles of 256x256 pixels
+      * TWMS stores whole cache in single user-defined mimetype. If server returns tile with needed mimetype, original image is preserved, otherwise it will be recompressed
+      * TWMS internally uses 'GLOBAL_WEBMERCATOR' grid, 'EPSG:3857' (formely known as 'EPSG:900913') projection, origin north-west (compatible with OpenStreetMap, mapproxy.org)
+      * Same as SAS.Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left (nw)
+
+    See:
+      [1] https://en.wikipedia.org/wiki/Tiled_web_map
+      [2] https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+      [3] https://josm.openstreetmap.de/wiki/SharedTileCache
+    """
+
     def __init__(self, layer_id: str):
         self.layer = twms.config.layers[layer_id]
         fetcher_names = ("tms", "wms", "tms_google_sat")
@@ -113,6 +131,9 @@ class TileFetcher:
 
         Leave possibility to request arbitrary (other than cache 'proj')
         projection from WMS by 'wms_proj' parameter, as server may be broken.
+
+        * remote_url str - Base WMS URL. A GetMap request with omitted srs, height, width and bbox. Should probably end in "?" or "&".
+        * wms_proj str - projection for WMS request. Note that images probably won't be properly reprojected if it differs from **proj**. Helps to cope with WMS services unable to serve properly reprojected imagery.
         """
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
         if "max_zoom" in self.layer and z > self.layer["max_zoom"]:

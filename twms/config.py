@@ -25,23 +25,6 @@ class DefaultDict(dict):
         return self.defaults[key]
 
 
-"""
-Cache layout
-------------
-
-There are multiple descriptions for the same thing:
-
-  * TWMS stores tiles of 256x256 pixels
-  * TWMS stores whole cache in single user-defined mimetype. If server returns tile with needed mimetype, original image is preserved, otherwise it will be recompressed
-  * TWMS internally uses 'GLOBAL_WEBMERCATOR' grid, 'EPSG:3857' (formely known as 'EPSG:900913') projection, origin north-west (compatible with OpenStreetMap, mapproxy.org)
-  * Same as SAS.Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left (nw)
-
-See:
-  [1] https://en.wikipedia.org/wiki/Tiled_web_map
-  [2] https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
-  [3] https://josm.openstreetmap.de/wiki/SharedTileCache
-"""
-
 wms_name = f"twms {twms.__version__}"
 host = "127.0.0.1"
 port = 8080
@@ -75,62 +58,34 @@ max_width = 4095  # WMS maximal allowed requested width
 
 
 layer_defaults = {
-    # "name" Mandatory
-    # "prefix" Mandatory
-    "mimetype": "image/jpeg",
-    "proj": "EPSG:3857",
+    # Mandatory paramaters
+    # name           str - visible layer name
+    # prefix         str - unique cache tile subdirectory name
+    # Optional paramaters
+    "mimetype": "image/jpeg",  # str Tiles will be stored and served in this mimetype, converted if necessary
+    "overlay": False,  # bool Transparent hybrid map
+    "scalable": False,  # bool Could zN tile be constructed of four z(N+1) tiles. Construct tile from available better ones. If False, tWMS will use nearest zoom level
+    "proj": "EPSG:3857",  # str EPSG code of layer tiles projection.
+    "empty_color": "#ffffff",  # PIL color string. If this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
+    # "cache_ttl": None  # int cache expiration time
+    # WGS84 (EPSG:4326) (min-lon, min-lat, max-lon, max-lat; lower left and upper right corners; W, S, E, N) no wms fetching will be performed outside this bbox.
     "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
-    # "cache_ttl": None
-    # "dead_tile"
-    "empty_color": "#ffffff",  # Default background for empty space
-    # "fetch"
+    # "dead_tile": { dict, if given, loaded tiles matching pattern won't be saved.
+    #     "md5"  md5sum hash of that tile
+    #     "size" tile size in bytes
+    #     "sha256"
+    # }
+    # "fetch" str name of the function that fetches given tile. func(z, x, y, layer_id) -> Imaga.Image | None
     # "headers"
     "min_zoom": 0,  # Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
     "max_zoom": 19,  # <= # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer. [19] 30 cm resolution - best Maxar satellite resolution at 2021
-    # "md5"
-    # "overlay"
-    # "provider_url"
-    # "remote_url"
-    "scalable": False,  # could zN tile be constructed of four z(N+1) tiles
-    # "sha256"
-    # "size"
-    # "transform_tile_number"
-    # "wms_proj"
+    # "provider_url"  # Imagery provider webside URL for imagery overview page.
+    # "remote_url"  # str Base tiles URL. May contain placeholder ({z}, {x}, {y} etc)
+    # "transform_tile_number" func(x, y, z) function that returns tuple that will be substituted into **remote_url**. If omitted, (z, x, y) tuple is used.
 }
 
 
-"""
-Layers
-
-Mandatory paramaters
-name           str - visible layer name
-prefix         str - unique cache tile subdirectory name
-
-Optional paramaters
-mimetype       str - tiles will be stored and served in this mimetype, converted if necessary
-overlay        bool - default False - transparent hybrid map
-scalable       bool - default False - construct tile of better ones if they are available (better for home use and satellite images, or scanned maps). If False, tWMS will use nearest zoom level (better for rasterized vector maps and production servers)
-proj           str - default 'EPSG:3857' - EPSG code of layer tiles projection.
-min_zoom       int - the worst zoom level number service provides
-max_zoom       int - the best zoom level number service provides (<=)
-empty_color    str PIL color string - if this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
-cache_ttl      int - time that cache will be considered valid
-bounds         tuple - WGS84 (EPSG:4326) (min-lon, min-lat, max-lon, max-lat; lower left and upper right corners; W, S, E, N) no wms fetching will be performed outside this bbox.
-fetch          function (z, x, y, layer_dict) - function that fetches given tile. should return None if tile wasn't fetched.
-
-* **fetchers.tms** - TMS fetcher
-    * **remote_url** _str_ - Base tiles URL. May contain "%s" placeholders
-    * **transform_tile_number** _function (x, y, z)_ - function that returns tuple that will be substituted into **remote_url**. If omitted, (z, x, y) tuple is used.
-    * **dead_tile** dict, if given, loaded tiles matching pattern won't be saved.
-        size - tile size in bytes
-        md5 - md5sum hash of that tile
-* **fetchers.wms**
-    * **remote_url** _str_ - Base WMS URL. A GetMap request with omitted srs, height, width and bbox. Should probably end in "?" or "&".
-    * **wms_proj** _str_ - projection for WMS request. Note that images probably won't be properly reprojected if it differs from **proj**. Helps to cope with WMS services unable to serve properly reprojected imagery.
-
-Other WMTS configs https://github.com/bertt/wmts
-"""
-
+# Other WMTS configs https://github.com/bertt/wmts
 layers: dict[str, dict[str, typing.Any]] = {
     "yasat": {
         "name": "Yandex Satellite",

@@ -53,8 +53,7 @@ def maps_html() -> str:
         bbox = layer.get("bounds", twms.projections.projs[proj]["bounds"])
         resp.append('<div class="entry">')
 
-        if "min_zoom" in layer and layer["min_zoom"] > 8:
-            # Too recursive
+        if "min_zoom" in layer and layer["min_zoom"] > 8:  # Too recursive
             resp.append("<p>Preview unavailable</p>")
         else:
             resp.append(

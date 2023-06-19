@@ -359,14 +359,34 @@ class TileMatrixSet:
     https://github.com/mapproxy/mapproxy/blob/d6834781bb81bcfb2ba36ed7f8430633c54b4cf6/mapproxy/grid.py#L1070
     """
 
+    # Spec https://docs.ogc.org/is/13-082r2/13-082r2.html
+    tile_matrix_sets = {
+        # WGS 84 GLOBAL_GEODETIC
+        # This is the TileMatrixSet that is implicitly used by all URL templates of resource type "simpleProfileCSR84Tile".
+        "EPSG:4326": {
+            "scaleset_name": "WorldCRS84Quad",  # Shell be "WorldCRS84Quad" or "InspireCRS84Quad"
+            "crs": "urn:ogc:def:crs:OGC:1.3:CRS84",  # Pixel size 1.40625000000000
+            "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleCRS84Quad",
+            "topLeftCorner": "-180.0 90.0",  # Exactly this
+        },
+        # GLOBAL_WEBMERCATOR WGS 84/Pseudo-Mercator (Spherical Mercator) на сфере.
+        # Эта проекция используется такими сервисами как Google, Virtualearth, Maps-For-Free, Wikimapia, OpenStreetMap, Роскосмос, Навител, Nokia и др.
+        # This is the TileMatrixSet that is implicitly used by all URL templates of resource type "simpleProfileTile"
+        "EPSG:3857": {
+            "scaleset_name": "WorldWebMercatorQuad",
+            "crs": "urn:ogc:def:crs:EPSG::3857",  # From Simple spec
+            # "crs": "urn:ogc:def:crs:EPSG:6.18:3:3857",  # Note valid ':'. Pixel size 156543.0339280410
+            "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible",
+            "topLeftCorner": "-20037508.3427892 20037508.3427892",  # Exactly this
+        },
+        # Ellipsoid Mercator (WGS 84 compliant) WGS 84/World Mercator на сфероиде. Космоснимки, Яндекс.Карты
+        "EPSG:3395": None,
+    }
+
     def __init__(self):
         """Calculate "GoogleMapsCompatible" tile grid scale denominator for z0 level.
 
         Earth sphere circumference (2*pi*r) taken to determine top tile resolution.
-
-        ScaleDenominator same for
-            "urn:ogc:def:wkss:OGC:1.0:GoogleCRS84Quad": ["4326", "urn:ogc:def:crs:OGC:1.3:CRS84"]  # Pixel size 1.40625000000000
-            "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible": ["3857", "urn:ogc:def:crs:EPSG:6.18:3:3857"]  # Pixel size 156543.0339280410
 
         >>> import math
         >>> 2 * math.pi * 6378137 / 256 / (0.28 / 1000)
@@ -432,9 +452,6 @@ class TileMatrixSet:
 
 def maps_wmts_rest() -> str:
     """Open Geospatial Consortium WMTS 1.0.0 implementation.
-
-    urn:ogc:def:crs:OGC:1.3:CRS84
-    urn:ogc:def:crs:EPSG::3857
 
     <TileMatrixSet>
         <ows:Title>GoogleMapsCompatible</ows:Title>

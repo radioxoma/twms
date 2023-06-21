@@ -187,6 +187,12 @@ def maps_xml_josm() -> str:
 def maps_xml_wms111() -> str:
     """Minimal WMS GetCapabilities v1.1.1 XML implementation.
 
+    See https://github.com/JOSM/josm/blob/master/src/org/openstreetmap/josm/io/imagery/WMSImagery.java
+
+    1.1.1 vs 1.3.0
+        https://docs.qgis.org/3.28/en/docs/server_manual/services/wms.html
+        https://docs.geoserver.org/latest/en/user/services/wms/basics.html
+
     Returns:
         XML "application/vnd.ogc.wms_xml"
     """
@@ -285,11 +291,6 @@ def maps_xml_wms130() -> str:
             Request
             Exception
             Layer
-    See https://github.com/JOSM/josm/blob/master/src/org/openstreetmap/josm/io/imagery/WMSImagery.java
-
-    1.1.1 vs 1.3.0
-        https://docs.qgis.org/3.28/en/docs/server_manual/services/wms.html
-        https://docs.geoserver.org/latest/en/user/services/wms/basics.html
 
     Returns:
         XML
@@ -358,35 +359,39 @@ def maps_xml_wms130() -> str:
 
 
 class TileMatrixSet:
-    """Generate OSC TileMatrixSet for EPSG:3395, EPSG:3857 for WMTS.
+    """Generate OSC TileMatrixSet for WMTS.
 
     https://github.com/mapproxy/mapproxy/blob/master/mapproxy/service/wmts.py#LL356C4-L356C4
     https://github.com/mapproxy/mapproxy/blob/d6834781bb81bcfb2ba36ed7f8430633c54b4cf6/mapproxy/grid.py#L1070
-
-    OGC WMTS Simple Profile https://docs.ogc.org/is/13-082r2/13-082r2.html
     """
 
-    tile_matrix_sets = {
-        # WGS 84 GLOBAL_GEODETIC
-        # This is the TileMatrixSet that is implicitly used by all URL templates of resource type "simpleProfileCSR84Tile".
-        "EPSG:4326": {
-            "scaleset_name": "WorldCRS84Quad",  # Shell be "WorldCRS84Quad" or "InspireCRS84Quad"
+    tile_matrix_sets_simple_profile = {
+        # Mapproxy GLOBAL_GEODETIC
+        "WorldCRS84Quad": {  # Shall be "WorldCRS84Quad" or "InspireCRS84Quad" by Simple spec
             "crs": "urn:ogc:def:crs:OGC:1.3:CRS84",  # Pixel size 1.40625000000000
             "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleCRS84Quad",
             "topLeftCorner": "-180.0 90.0",  # Exactly this
+            "resourceType": "simpleProfileCSR84Tile",
         },
-        # GLOBAL_WEBMERCATOR WGS 84/Pseudo-Mercator (Spherical Mercator) на сфере.
-        # Эта проекция используется такими сервисами как Google, Virtualearth, Maps-For-Free, Wikimapia, OpenStreetMap, Роскосмос, Навител, Nokia и др.
-        # This is the TileMatrixSet that is implicitly used by all URL templates of resource type "simpleProfileTile"
-        "EPSG:3857": {
-            "scaleset_name": "WorldWebMercatorQuad",
+        # Spherical Mercator (WGS 84/Pseudo-Mercator): Google, OpenStreetMap, VirtualEarth
+        # This is the TileMatrixSet that is implicitly used by all URL templates of resource type ""
+        # Mapproxy GLOBAL_WEBMERCATOR
+        "WorldWebMercatorQuad": {
             "crs": "urn:ogc:def:crs:EPSG::3857",  # From Simple spec
             # "crs": "urn:ogc:def:crs:EPSG:6.18:3:3857",  # Note valid ':'. Pixel size 156543.0339280410
             "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible",
             "topLeftCorner": "-20037508.3427892 20037508.3427892",  # Exactly this
+            "resourceType": "simpleProfileTile",
         },
+    }
+    tile_matrix_sets = {
         # Ellipsoid Mercator (WGS 84 compliant) WGS 84/World Mercator на сфероиде. Космоснимки, Яндекс.Карты
-        "EPSG:3395": None,
+        "WorldMercatorWGS84Quad": {
+            "crs": "http://www.opengis.net/def/crs/EPSG/0/3395",
+            "WellKnownScaleSet": "http://www.opengis.net/def/wkss/OGC/1.0/WorldMercatorWGS84",
+            "TopLeftCorner": "-20037508.3427892 20037508.3427892",
+            "resourceType": "tile",
+        },
     }
 
     def __init__(self):
@@ -405,10 +410,10 @@ class TileMatrixSet:
         # sradiusb = 6356752.314  # WGS84 ellipsoid radius
         self.tile_size = 256
         self.ogc_pixel_size = 0.28 / 1000  # m/px
+        # km 40075.017, 40075016.6856
         self.earth_circumference = 2 * math.pi * self.sradiusa
         self.pixel_resolution = self.earth_circumference / self.tile_size
         self.scale_denom = self.pixel_resolution / self.ogc_pixel_size
-        # km 40075.017, 40075016.6856
         assert self.earth_circumference == 40075016.68557849
         assert self.pixel_resolution == 156543.03392804097
         assert self.scale_denom == 559082264.0287176
@@ -437,10 +442,10 @@ class TileMatrixSet:
 
         scale_factor = 2
         # Mandatory: Identifier, ScaleDenominator, TopLeftCorner, TileWidth, TileHeight, MatrixWidth, MatrixHeight
+        # Recommended (but not mandatory) "Identifier" specified in Simple profile
         for level in range(levels):
             tilematrix = ET.SubElement(tilematrixset, "TileMatrix")
             matrix_width = scale_factor**level
-            # Leading zeros is not mandatory but common
             ET.SubElement(
                 tilematrix, "{http://www.opengis.net/ows/1.1}Identifier"
             ).text = str(level)
@@ -459,6 +464,8 @@ class TileMatrixSet:
 
 def maps_wmts_rest() -> str:
     """Open Geospatial Consortium WMTS 1.0.0 implementation.
+
+    Implementation close to OGC WMTS Simple Profile https://docs.ogc.org/is/13-082r2/13-082r2.html
 
     Returns:
         XML
@@ -492,6 +499,9 @@ def maps_wmts_rest() -> str:
 
     proj_set = set()
     for layer_id, layer_item in twms.config.layers.items():
+        # if layer_item["proj"] not in self.tile_matrix_sets:
+        #     logging.warning(f"Unsupported projection for '{layer_id}'")
+        #     continue
         layer = ET.SubElement(contents, "Layer")
         ET.SubElement(layer, "{http://www.opengis.net/ows/1.1}Title").text = layer_item[
             "name"
@@ -508,7 +518,8 @@ def maps_wmts_rest() -> str:
         ET.SubElement(
             layer, "{http://www.opengis.net/ows/1.1}Identifier"
         ).text = layer_id
-        style = ET.SubElement(layer, "Style")
+        # Style mandatory: Identifier,
+        style = ET.SubElement(layer, "Style", attrib={"isDefault": "true"})
         ET.SubElement(
             style, "{http://www.opengis.net/ows/1.1}Identifier"
         ).text = "default"
@@ -516,7 +527,6 @@ def maps_wmts_rest() -> str:
 
         tilematrixset_link = ET.SubElement(layer, "TileMatrixSetLink")
         ET.SubElement(tilematrixset_link, "TileMatrixSet").text = layer_item["proj"]
-
         # resourceType: ("tile", "simpleProfileTile", "simpleProfileCRSTile").
         # JOSM supports "tile" only
         ET.SubElement(

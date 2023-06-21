@@ -77,7 +77,7 @@ layer_defaults = {
     # }
     # "fetch" str name of the function that fetches given tile. func(z, x, y, layer_id) -> Imaga.Image | None
     # "headers"
-    "min_zoom": 0,  # Load tiles with equal or greater zoom. Can be set with 'min_zoom' per layer
+    "min_zoom": 0,  # >= zoom to load
     "max_zoom": 19,  # <= # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer. [19] 30 cm resolution - best Maxar satellite resolution at 2021
     # "provider_url"  # Imagery provider webside URL for imagery overview page.
     # "remote_url"  # str Base tiles URL. May contain placeholder ({z}, {x}, {y} etc)
@@ -126,7 +126,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "mimetype": "image/png",
         "fetch": "tms",
         "remote_url": "https://core-gpstiles.maps.yandex.net/tiles?style=point&x={x}&y={y}&z={z}",
-        "min_zoom": 10,
+        "min_zoom": 11,
         "max_zoom": 17,
         "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
@@ -145,6 +145,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "mimetype": "image/png",
         "fetch": "tms",
         "remote_url": "https://mt0.google.com/vt/lyrs=h@0&z={z}&x={x}&y={y}&hl=ru",
+        "min_zoom": 2,
         "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
     # First available top left tile https://ecn.t0.tiles.virtualearth.net/tiles/a0.jpeg?g=0
@@ -204,7 +205,7 @@ layers: dict[str, dict[str, typing.Any]] = {
     },
     "geoby_mapserver": {
         "name": "geo.by Belgeodesy Map",
-        "provider_url": "https://geo.by/navigation/map",
+        "provider_url": "https://geo.by/navigation/map",  # ? https://geo.maps.by/
         "prefix": "geoby_mapserver",
         "mimetype": "image/png",
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus

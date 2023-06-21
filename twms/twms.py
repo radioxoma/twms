@@ -223,15 +223,19 @@ class TWMSMain:
         """
         logger.debug(f"{layer_id} z{z}/x{x}/y{y}")
         z, x, y = int(z), int(x), int(y)
-        im = self.tile_image(layer_id, z, x, y, real=True)
-        if im:
-            return (
-                HTTPStatus.OK,
-                mimetype,
-                twms.fetchers.im_convert(im, mimetype),
-            )
-        else:
-            return HTTPStatus.NOT_FOUND, "text/plain", "404 Not Found"
+        if (
+            twms.config.layers[layer_id]["min_zoom"]
+            <= z
+            <= twms.config.layers[layer_id]["max_zoom"]
+        ):
+            im = self.tile_image(layer_id, z, x, y, real=True)
+            if im:
+                return (
+                    HTTPStatus.OK,
+                    mimetype,
+                    twms.fetchers.im_convert(im, mimetype),
+                )
+        return HTTPStatus.NOT_FOUND, "text/plain", "404 Not Found"
 
     def bbox_image(
         self,

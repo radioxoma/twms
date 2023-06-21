@@ -15,6 +15,11 @@ def get_wms_url(layer) -> str:
 
 
 def get_wmts_url(layer) -> str:
+    """Generate simpleProfileTile URL.
+
+    <ResourceURL format="image/png" resourceType="simpleProfileTile"
+    template="http://tile.openstreetmap.org/{TileMatrix}/{TileCol}/{TileRow}.png"/>
+    """
     ext = mimetypes.guess_extension(layer["mimetype"])
     return f"{twms.config.service_wmts_url}/{layer['prefix']}/{{TileMatrix}}/{{TileCol}}/{{TileRow}}{ext}"
 
@@ -357,9 +362,10 @@ class TileMatrixSet:
 
     https://github.com/mapproxy/mapproxy/blob/master/mapproxy/service/wmts.py#LL356C4-L356C4
     https://github.com/mapproxy/mapproxy/blob/d6834781bb81bcfb2ba36ed7f8430633c54b4cf6/mapproxy/grid.py#L1070
+
+    OGC WMTS Simple Profile https://docs.ogc.org/is/13-082r2/13-082r2.html
     """
 
-    # Spec https://docs.ogc.org/is/13-082r2/13-082r2.html
     tile_matrix_sets = {
         # WGS 84 GLOBAL_GEODETIC
         # This is the TileMatrixSet that is implicitly used by all URL templates of resource type "simpleProfileCSR84Tile".
@@ -400,11 +406,11 @@ class TileMatrixSet:
         self.tile_size = 256
         self.ogc_pixel_size = 0.28 / 1000  # m/px
         self.earth_circumference = 2 * math.pi * self.sradiusa
-        self.pixel_resolution = 156543.03392804097
+        self.pixel_resolution = self.earth_circumference / self.tile_size
         self.scale_denom = self.pixel_resolution / self.ogc_pixel_size
         # km 40075.017, 40075016.6856
         assert self.earth_circumference == 40075016.68557849
-        assert self.pixel_resolution == self.earth_circumference / self.tile_size
+        assert self.pixel_resolution == 156543.03392804097
         assert self.scale_denom == 559082264.0287176
 
     def add_xml_element(
@@ -421,9 +427,10 @@ class TileMatrixSet:
         # JOSM looks for "urn:ogc:def:crs:" with "urn:ogc:def:crs:([^:]*)(?::.*)?:(.*)$",
         # so concatenating with "EPSG:3857" should be fine
         # https://josm.openstreetmap.de/browser/josm/trunk/src/org/openstreetmap/josm/data/imagery/GetCapabilitiesParseHelper.java
+        # Double semicolon like "urn:ogc:def:crs:EPSG::3857"
         ET.SubElement(
             tilematrixset, "{http://www.opengis.net/ows/1.1}SupportedCRS"
-        ).text = ("urn:ogc:def:crs:" + proj)
+        ).text = ("urn:ogc:def:crs:EPSG::" + proj.rsplit(":")[-1])
         # ET.SubElement(
         #     tilematrixset, "WellKnownScaleSet"
         # ).text = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
@@ -436,7 +443,7 @@ class TileMatrixSet:
             # Leading zeros is not mandatory but common
             ET.SubElement(
                 tilematrix, "{http://www.opengis.net/ows/1.1}Identifier"
-            ).text = str(level).zfill(2)
+            ).text = str(level)
             ET.SubElement(tilematrix, "ScaleDenominator").text = str(
                 self.scale_denom / matrix_width
             )
@@ -452,13 +459,6 @@ class TileMatrixSet:
 
 def maps_wmts_rest() -> str:
     """Open Geospatial Consortium WMTS 1.0.0 implementation.
-
-    <TileMatrixSet>
-        <ows:Title>GoogleMapsCompatible</ows:Title>
-        <ows:Identifier>GoogleMapsCompatible</ows:Identifier>
-        <ows:SupportedCRS>urn:ogc:def:crs:EPSG:6.18.3:3857</ows:SupportedCRS>
-        <WellKnownScaleSet>urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible</WellKnownScaleSet>
-    </TileMatrixSet>
 
     Returns:
         XML
@@ -517,6 +517,8 @@ def maps_wmts_rest() -> str:
         tilematrixset_link = ET.SubElement(layer, "TileMatrixSetLink")
         ET.SubElement(tilematrixset_link, "TileMatrixSet").text = layer_item["proj"]
 
+        # resourceType: ("tile", "simpleProfileTile", "simpleProfileCRSTile").
+        # JOSM supports "tile" only
         ET.SubElement(
             layer,
             "ResourceURL",

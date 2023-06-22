@@ -365,29 +365,30 @@ class TileMatrixSet:
     https://github.com/mapproxy/mapproxy/blob/d6834781bb81bcfb2ba36ed7f8430633c54b4cf6/mapproxy/grid.py#L1070
     """
 
-    tile_matrix_sets_simple_profile = {
+    tmsets = {
         # Mapproxy GLOBAL_GEODETIC
-        "WorldCRS84Quad": {  # Shall be "WorldCRS84Quad" or "InspireCRS84Quad" by Simple spec
-            "crs": "urn:ogc:def:crs:OGC:1.3:CRS84",  # Pixel size 1.40625000000000
-            "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleCRS84Quad",
-            "topLeftCorner": "-180.0 90.0",  # Exactly this
+        # https://paituli.csc.fi/geoserver/ogc/tiles/tileMatrixSets/WorldCRS84Quad
+        "urn:ogc:def:crs:OGC:1.3:CRS84": {  # Shall be "WorldCRS84Quad" or "InspireCRS84Quad" by Simple spec
+            "Identifier": "WorldCRS84Quad",  # From Simple spec
+            "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleCRS84Quad",  # Pixel size 1.40625000000000
+            "topLeftCorner": "-180.0 90.0",  # Exactly this. Extent fits on a 512x256 image
             "resourceType": "simpleProfileCSR84Tile",
         },
         # Spherical Mercator (WGS 84/Pseudo-Mercator): Google, OpenStreetMap, VirtualEarth
-        # This is the TileMatrixSet that is implicitly used by all URL templates of resource type ""
         # Mapproxy GLOBAL_WEBMERCATOR
-        "WorldWebMercatorQuad": {
-            "crs": "urn:ogc:def:crs:EPSG::3857",  # From Simple spec
-            # "crs": "urn:ogc:def:crs:EPSG:6.18:3:3857",  # Note valid ':'. Pixel size 156543.0339280410
-            "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible",
-            "topLeftCorner": "-20037508.3427892 20037508.3427892",  # Exactly this
+        # https://paituli.csc.fi/geoserver/ogc/tiles/tileMatrixSets/EPSG%3A3857
+        "urn:ogc:def:crs:EPSG::3857": {
+            "Identifier": "WorldWebMercatorQuad",  # From Simple spec
+            # Dot typo ("urn:ogc:def:crs:EPSG:6.18.3:3857") in some services, here as given in spec and OpenLayers
+            # "crs": "urn:ogc:def:crs:EPSG:6.18:3:3857",  # Note valid ':'
+            "WellKnownScaleSet": "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible",  # Pixel size 156543.0339280410
+            "topLeftCorner": "-20037508.3427892 20037508.3427892",  # Exactly this. Extent fits on a 256x256 image
             "resourceType": "simpleProfileTile",
         },
-    }
-    tile_matrix_sets = {
         # Ellipsoid Mercator (WGS 84 compliant) WGS 84/World Mercator на сфероиде. Космоснимки, Яндекс.Карты
-        "WorldMercatorWGS84Quad": {
-            "crs": "http://www.opengis.net/def/crs/EPSG/0/3395",
+        # https://paituli.csc.fi/geoserver/ogc/tiles/tileMatrixSets/WorldMercatorWGS84Quad
+        "http://www.opengis.net/def/crs/EPSG/0/3395": {
+            "Identifier": "WorldMercatorWGS84Quad",
             "WellKnownScaleSet": "http://www.opengis.net/def/wkss/OGC/1.0/WorldMercatorWGS84",
             "TopLeftCorner": "-20037508.3427892 20037508.3427892",
             "resourceType": "tile",
@@ -410,17 +411,37 @@ class TileMatrixSet:
         # sradiusb = 6356752.314  # WGS84 ellipsoid radius
         self.tile_size = 256
         self.ogc_pixel_size = 0.28 / 1000  # m/px
-        # km 40075.017, 40075016.6856
-        self.earth_circumference = 2 * math.pi * self.sradiusa
-        self.pixel_resolution = self.earth_circumference / self.tile_size
-        self.scale_denom = self.pixel_resolution / self.ogc_pixel_size
+        self.earth_circumference = 2 * math.pi * self.sradiusa  # meters
         assert self.earth_circumference == 40075016.68557849
-        assert self.pixel_resolution == 156543.03392804097
-        assert self.scale_denom == 559082264.0287176
+
+        # Compatible with "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible" MatrixSet
+        self.mercator_crs = (
+            twms.projections.EPSG("EPSG:3395"),
+            twms.projections.EPSG("EPSG:3857"),
+        )
 
     def add_xml_element(
         self, parent: ET.Element, proj: twms.projections.EPSG, levels: int = 20
     ) -> None:
+        """Append TileMatrixSet to Capabilities XML.
+
+        Cannot declare multiple TileMatrixSets with same Identifier
+        (i.e. Simple WMTS "WorldCRS84Quad", "WorldWebMercatorQuad")
+        but different CRS.
+        """
+        wkss = None
+        if proj in self.mercator_crs:
+            # km 40075.017, 40075016.6856
+            top_left = "-20037508.3427892 20037508.3427892"  # From WMTS Simple spec
+            # top_left = "-20037508.342789244 20037508.342789244"
+            # assert self.pixel_resolution == 156543.03392804097 # meter per equatorial px
+            # assert self.scale_denom == 559082264.0287176
+            wkss = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
+        else:
+            top_left = "-180.0 90.0"
+        pixel_resolution = self.earth_circumference / self.tile_size
+        scale_denominator = pixel_resolution / self.ogc_pixel_size  # Always meters
+
         # Annex E provides several well-known scale sets for TileMatrixSetDef
         # Mandatory: Identifier (ows:CodeType), SupportedCRS (URI), tileMatrix
         # Optional wellKnownScaleSet
@@ -428,17 +449,17 @@ class TileMatrixSet:
         ET.SubElement(
             tilematrixset, "{http://www.opengis.net/ows/1.1}Identifier"
         ).text = proj
-        # Dot typo ("urn:ogc:def:crs:EPSG:6.18.3:3857") in some services, here as given in spec and OpenLayers
+
         # JOSM looks for "urn:ogc:def:crs:" with "urn:ogc:def:crs:([^:]*)(?::.*)?:(.*)$",
-        # so concatenating with "EPSG:3857" should be fine
+        # so double semicolon like "urn:ogc:def:crs:EPSG::3857" should be fine
         # https://josm.openstreetmap.de/browser/josm/trunk/src/org/openstreetmap/josm/data/imagery/GetCapabilitiesParseHelper.java
-        # Double semicolon like "urn:ogc:def:crs:EPSG::3857"
         ET.SubElement(
             tilematrixset, "{http://www.opengis.net/ows/1.1}SupportedCRS"
         ).text = ("urn:ogc:def:crs:EPSG::" + proj.rsplit(":")[-1])
-        # ET.SubElement(
-        #     tilematrixset, "WellKnownScaleSet"
-        # ).text = "urn:ogc:def:wkss:OGC:1.0:GoogleMapsCompatible"
+        # Standard declares WellKnownScaleSet as relateed to ScaleDenominator only,
+        # but looks like it assumes exact CRS, TopLeftCorner, TileWidth
+        if wkss:
+            ET.SubElement(tilematrixset, "WellKnownScaleSet").text = wkss
 
         scale_factor = 2
         # Mandatory: Identifier, ScaleDenominator, TopLeftCorner, TileWidth, TileHeight, MatrixWidth, MatrixHeight
@@ -450,12 +471,10 @@ class TileMatrixSet:
                 tilematrix, "{http://www.opengis.net/ows/1.1}Identifier"
             ).text = str(level)
             ET.SubElement(tilematrix, "ScaleDenominator").text = str(
-                self.scale_denom / matrix_width
+                scale_denominator / matrix_width
             )
             # Half of the Earth circumference (math.pi * sradiusa)
-            ET.SubElement(
-                tilematrix, "TopLeftCorner"
-            ).text = "-20037508.342789244 20037508.342789244"
+            ET.SubElement(tilematrix, "TopLeftCorner").text = top_left
             ET.SubElement(tilematrix, "TileWidth").text = str(self.tile_size)
             ET.SubElement(tilematrix, "TileHeight").text = str(self.tile_size)
             ET.SubElement(tilematrix, "MatrixWidth").text = str(matrix_width)
@@ -538,12 +557,12 @@ def maps_wmts_rest() -> str:
                 "template": get_wmts_url(layer_item),
             },
         )
-        # This works only for EPSG:3395, EPSG:3857
         proj_set.add(layer_item["proj"])
 
     tm_set = TileMatrixSet()
     for proj in proj_set:
         tm_set.add_xml_element(contents, proj=proj)
+    # tm_set.add_xml_element(contents, proj="CRS84")
 
     ET.SubElement(
         root,

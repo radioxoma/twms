@@ -295,7 +295,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         # [22] 7.5~5 cm Unmanned airway vehicle "Геоскан-201" for садоводческие товарищества and towns
         #     22 top for UAV
         "name": "dzz.by Aerophotography (Belarus)",
-        "provider_url": "https://www.dzz.by/izuchdzz/",
+        "provider_url": "https://www.dzz.by/izuchdzz/",  # https://beldzz.by/
         "prefix": "dzzby_orthophoto",
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",

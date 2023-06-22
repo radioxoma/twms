@@ -8,16 +8,20 @@ Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStree
 
 ## About this fork
 
-* Tested for interoperability with [JOSM](https://josm.openstreetmap.de/), MapProxy, [SAS.Planet](http://www.sasgis.org/sasplaneta/)
 * Consider it as hacky replacement for [MapProxy](https://wiki.openstreetmap.org/wiki/MapProxy)
+* Tested for interoperability with [JOSM](https://josm.openstreetmap.de/), MapProxy, [SAS.Planet](http://www.sasgis.org/sasplaneta/)
 * Few dependencies (only python-pillow is mandatory), [`http.server`](https://docs.python.org/3/library/http.server.html) is used instead of [webpy](https://webpy.org/)
 * Huge refactoring: unsupported code has been [dropped](https://github.com/radioxoma/twms/commit/8a3a6bc6e562f5aeea480399c2bd00c345d34a12) (e.g. filters).
-
-
-* WMS 1.1.1, WMTS 1.0.0, reprojection support, conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
-* JOSM [remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) to add imagery layer from browser
-* JOSM [imagery XML](https://josm.openstreetmap.de/wiki/Maps) for `imagery.layers.sites`
 * SAS.Planet Time To Live (TTL), tile not exist `*.tne` file supported
+
+
+## Services provided
+
+* WMS 1.1.1 http://localhost:8080/wms which supports also tile links `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` with reprojection. Conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
+* WMTS 1.0.0 http://127.0.0.1:8080/wmts/1.0.0/WMTSCapabilities.xml Also provides tile proxy without reprojection `http://localhost:8080/wmts/{layer_id}/{z}/{x}/{y}{ext}`
+* Imagery overview web page http://localhost:8080 with JOSM [remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) (`wms`, `tms:`) links
+    * Open "JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries*" and paste link from here. E.g.: `tms:http://localhost:8080/wms/vesat/{z}/{x}/{y}.jpg`
+* JOSM [imagery XML](https://josm.openstreetmap.de/wiki/Maps): http://localhost:8080/josm/maps.xml - imagery list for `imagery.layers.sites` property
 
 
 ## Setting up TWMS
@@ -31,16 +35,6 @@ Install dependencies and clone repo:
 Edit `twms/config.py` and set `tiles_cache` path to your `SAS.Planet/cache_ma/`. Run TWMS in terminal:
 
     $ python -m twms
-
-Services provided:
-
-http://localhost:8080 - imagery overview web page. `wms`, `tms:` and JOSM remote control links provided. Open "JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries*" and paste link from here. E.g.: `tms:http://localhost:8080/wms/vesat/{z}/{x}/{y}.jpg`
-
-http://localhost:8080/wms - WMS service, which supports also tile `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` links with reprojection.
-
-http://localhost:8080/wmts/{layer_id}/{z}/{x}/{y}{ext} - tile proxy without reprojection
-
-http://localhost:8080/josm/maps.xml - imagery list for JOSM's `imagery.layers.sites` property
 
 
 ## Shared "Slippy Map" cache

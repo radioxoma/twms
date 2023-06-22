@@ -456,9 +456,9 @@ class TileMatrixSet:
         ET.SubElement(
             tilematrixset, "{http://www.opengis.net/ows/1.1}SupportedCRS"
         ).text = ("urn:ogc:def:crs:EPSG::" + proj.rsplit(":")[-1])
-        # Standard declares WellKnownScaleSet as relateed to ScaleDenominator only,
-        # but looks like it assumes exact CRS, TopLeftCorner, TileWidth
-        if wkss:
+        # A WKSS is a commonly used combination of a CRS and a set of scales
+        # https://docs.ogc.org/is/17-083r2/17-083r2.html
+        if proj == "EPSG:3857":
             ET.SubElement(tilematrixset, "WellKnownScaleSet").text = wkss
 
         scale_factor = 2

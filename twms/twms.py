@@ -223,18 +223,13 @@ class TWMSMain:
         """
         logger.debug(f"{layer_id} z{z}/x{x}/y{y}")
         z, x, y = int(z), int(x), int(y)
-        if (
-            twms.config.layers[layer_id]["min_zoom"]
-            <= z
-            <= twms.config.layers[layer_id]["max_zoom"]
-        ):
-            im = self.tile_image(layer_id, z, x, y, real=True)
-            if im:
-                return (
-                    HTTPStatus.OK,
-                    mimetype,
-                    twms.fetchers.im_convert(im, mimetype),
-                )
+        im = self.tile_image(layer_id, z, x, y, real=True)
+        if im:
+            return (
+                HTTPStatus.OK,
+                mimetype,
+                twms.fetchers.im_convert(im, mimetype),
+            )
         return HTTPStatus.NOT_FOUND, "text/plain", "404 Not Found"
 
     def bbox_image(
@@ -261,15 +256,12 @@ class TWMSMain:
         bbox = twms.bbox.expand_to_point(bbox, bbox_4)
         H, W = size
 
-        max_zoom = twms.config.layers[layer_id]["max_zoom"]
-        min_zoom = twms.config.layers[layer_id]["min_zoom"]
-
         zoom = twms.projections.zoom_for_bbox(
             bbox,
             size,
             layer_id,
-            min_zoom,
-            max_zoom,
+            twms.config.layers[layer_id]["min_zoom"],
+            twms.config.layers[layer_id]["max_zoom"],
             (twms.config.max_height, twms.config.max_width),
         )
         from_tile_x, from_tile_y, to_tile_x, to_tile_y = twms.projections.tile_by_bbox(
@@ -356,6 +348,13 @@ class TWMSMain:
         x = x % (2**z)
         if y < 0 or y >= (2**z) or z < 0:
             logger.warning(f"{layer_id}/z{z}/x{x}/y{y} impossible tile coordinates")
+            return None
+        if (
+            twms.config.layers[layer_id]["min_zoom"]
+            > z
+            > twms.config.layers[layer_id]["max_zoom"]
+        ):
+            logger.debug(f"{layer_id}/z{z}/x{x}/y{y} zoom restricted by config")
             return None
 
         if not twms.bbox.bbox_is_in(

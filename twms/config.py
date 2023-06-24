@@ -36,6 +36,14 @@ default_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
     "Connection": "Keep-Alive",
 }
+
+# Cloudflare cookie associated with User-Agent
+dzzby_headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
+    "Referer": "https://www.dzz.by/izuchdzz/",
+    "Cookie": "cf_clearance=Vvq2rYZKerdSMHfYRkx5bsq.xBHg6.Pad.sBWiujgo0-1687606331-0-160",
+}
+
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
@@ -304,12 +312,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         # "remote_url": "https://api.nca.by/gis/dzz/tile/{z}/{y}/{x}",  # GeoIP 403
         # dzz.by + Cloudflare
         # https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/11/41342/76532
-        # Cloudflare cookie associated with User-Agent
-        "headers": {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
-            "Referer": "https://www.dzz.by/izuchdzz/",
-            "Cookie": "cf_clearance=Vvq2rYZKerdSMHfYRkx5bsq.xBHg6.Pad.sBWiujgo0-1687606331-0-160",
-        },
+        "headers": dzzby_headers,
         "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/georesursDDZ/Belarus_Web_Mercator_new/ImageServer/tile/{z}/{y}/{x}",
         # https://gismap.by invalid certificate, weird 404 handling
         # "headers": {"Referer": "https://gismap.by/next/"},  # 403 without SSL
@@ -319,6 +322,20 @@ layers: dict[str, dict[str, typing.Any]] = {
         "min_zoom": 6,
         "max_zoom": 19,  # max_zoom is 20, but in most places it just blurred 19
     },
+    # Not working at 2023-06-25
+    "dzzby_BPLA_2021": {
+        "name": "dzz.by (Belarus) dzzby_BPLA_2021",
+        "provider_url": "https://www.dzz.by/izuchdzz/",  # https://beldzz.by/
+        "prefix": "dzzby_BPLA_2021",
+        "mimetype": "image/png",  # Most tiles are transparent
+        "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
+        "fetch": "tms",
+        "headers": dzzby_headers,
+        "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/Orthomosaics/BPLA_WGS1984/ImageServer/tile/8/42281/75418",
+        "transform_tile_number": lambda z, x, y: (z - 8, x, y),
+        "min_zoom": 8,
+        "max_zoom": 20,
+    },
     "dzzby_BPLA_2022": {
         "name": "dzz.by (Belarus) dzzby_BPLA_2022",
         "provider_url": "https://www.dzz.by/izuchdzz/",  # https://beldzz.by/
@@ -326,16 +343,11 @@ layers: dict[str, dict[str, typing.Any]] = {
         "mimetype": "image/png",  # Most tiles are transparent
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
         "fetch": "tms",
-        # Cloudflare cookie associated with User-Agent
-        "headers": {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
-            "Referer": "https://www.dzz.by/izuchdzz/",
-            "Cookie": "cf_clearance=Vvq2rYZKerdSMHfYRkx5bsq.xBHg6.Pad.sBWiujgo0-1687606331-0-160",
-        },
+        "headers": dzzby_headers,
         "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/georesursDDZ/BPLA_Web_Mercator_2022/ImageServer/tile/{z}/{y}/{x}",
         "transform_tile_number": lambda z, x, y: (z - 8, x, y),
-        "min_zoom": 6,
-        "max_zoom": 19,
+        "min_zoom": 8,
+        "max_zoom": 20,
     },
 }
 

@@ -222,7 +222,7 @@ class TileFetcher:
         target_mimetype = self.layer["mimetype"]
         remote = ""
 
-        if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
+        if self.layer["min_zoom"] > z > self.layer["max_zoom"]:
             logger.debug(f"{tile_id}: zoom limit")
             return None
 
@@ -274,9 +274,11 @@ class TileFetcher:
             remote = self.layer["remote_url"].replace("{z}", str(trans_z))
             remote = remote.replace("{x}", str(trans_x))
             remote = remote.replace("{y}", str(trans_y))
-            remote = remote.replace(
-                "{-y}", str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2])
-            )
+            # Avoid negative zoom errors i.e. when`"transform_tile_number": lambda z, x, y: (z - 8, x, y)`
+            if "{-y}" in remote:
+                remote = remote.replace(
+                    "{-y}", str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2])
+                )
             # Bing
             remote = remote.replace("{q}", tile_to_quadkey(trans_z, trans_x, trans_y))
 

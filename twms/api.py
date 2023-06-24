@@ -421,7 +421,7 @@ class TileMatrixSet:
         )
 
     def add_xml_element(
-        self, parent: ET.Element, proj: twms.projections.EPSG, levels: int = 20
+        self, parent: ET.Element, proj: twms.projections.EPSG, levels: int = 24
     ) -> None:
         """Append TileMatrixSet to Capabilities XML.
 

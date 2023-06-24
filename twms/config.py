@@ -82,6 +82,7 @@ layer_defaults = {
     #     "md5"  md5sum hash of that tile
     #     "size" tile size in bytes
     #     "sha256"
+    #     "http_status": 503
     # }
     # "fetch" str name of the function that fetches given tile. func(z, x, y, layer_id) -> Imaga.Image | None
     # "headers"
@@ -348,6 +349,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "transform_tile_number": lambda z, x, y: (z - 8, x, y),
         "min_zoom": 8,
         "max_zoom": 20,
+        "dead_tile": {"http_status": 502},
     },
 }
 

@@ -5,6 +5,7 @@ import logging
 import mimetypes
 import os
 import re
+import textwrap
 import time
 import urllib.error
 import urllib.request as request
@@ -327,14 +328,30 @@ class TileFetcher:
             except urllib.error.HTTPError as err:
                 # Heuristic: TNE or server is defending tiles
                 # HTTP 403 must be inspected manually
-                logger.error(
-                    "\n".join(
-                        [str(k) for k in (err, err.headers, err.read().decode("utf-8"))]
-                    )
-                )
+                resp = err.read()
                 if err.status == HTTPStatus.NOT_FOUND:
                     logger.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
                     Path(tne_path, exist_ok=True).touch()
+                    return None
+
+                if "dead_tile" in self.layer:
+                    if "http_status" in self.layer["dead_tile"]:
+                        if err.status == self.layer["dead_tile"]["http_status"]:
+                            logger.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
+                            Path(tne_path, exist_ok=True).touch()
+                            return None
+
+                logger.error(
+                    textwrap.dedent(
+                        f"""
+                    {resp.decode("utf-8")}
+                    {err}
+                    {err.headers}
+                    """
+                    )
+                    + f"md5sum: '{hashlib.md5(resp).hexdigest()}'"
+                )
+
             except urllib.error.URLError as err:
                 # Nothing we can do: no connection, cannot guess TNE or not
                 logger.error(f"{tile_id} URLError '{err}'")
@@ -343,16 +360,19 @@ class TileFetcher:
             # Sometimes server returns file instead of empty HTTP response
             if "dead_tile" in self.layer:
                 # Compare bytestring with dead tile hash
-                if len(remote_bytes) == self.layer["dead_tile"]["size"]:
-                    hasher = hashlib.md5()
-                    hasher.update(remote_bytes)
-                    if hasher.hexdigest() == self.layer["dead_tile"]["md5"]:
-                        # Tile is recognized as empty
-                        # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
-                        # SASPlanet writes empty files with '.tne' ext
-                        logger.warning(f"{tile_id}: TNE - dead tile '{tne_path}'")
-                        tile_dead = True
-                        Path(tne_path, exist_ok=True).touch()
+                if (
+                    "size" in self.layer["dead_tile"]
+                    and "md5" in self.layer["dead_tile"]
+                ):
+                    if len(remote_bytes) == self.layer["dead_tile"]["size"]:
+                        hasher = hashlib.md5(remote_bytes)
+                        if hasher.hexdigest() == self.layer["dead_tile"]["md5"]:
+                            # Tile is recognized as empty
+                            # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
+                            # SASPlanet writes empty files with '.tne' ext
+                            logger.warning(f"{tile_id}: TNE - dead tile '{tne_path}'")
+                            tile_dead = True
+                            Path(tne_path, exist_ok=True).touch()
 
             logger.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
             if tile_parsed and not tile_dead:

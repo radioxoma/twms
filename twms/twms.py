@@ -345,16 +345,10 @@ class TWMSMain:
             Tile (from cache, fetcher, or recursively rescaled) or
             None if image is invalid or unavailable.
         """
+        # Limit zoom and coordinates in fetchers, not here, as it can reconstruct tiles
         x = x % (2**z)
         if y < 0 or y >= (2**z) or z < 0:
             logger.warning(f"{layer_id}/z{z}/x{x}/y{y} impossible tile coordinates")
-            return None
-        if (
-            twms.config.layers[layer_id]["min_zoom"]
-            > z
-            > twms.config.layers[layer_id]["max_zoom"]
-        ):
-            logger.debug(f"{layer_id}/z{z}/x{x}/y{y} zoom restricted by config")
             return None
 
         if not twms.bbox.bbox_is_in(

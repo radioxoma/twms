@@ -36,7 +36,7 @@ class GetHandler(BaseHTTPRequestHandler):
         josm/maps.xml
         any overview
         """
-        logger.info(f"{twms.config.service_url}{self.path}")
+        logger.info(f"GET {twms.config.service_url}{self.path}")
         if self.path.startswith("/wmts"):
             if self.path.startswith("/wmts/1.0.0/WMTSCapabilities.xml"):
                 status = HTTPStatus.OK

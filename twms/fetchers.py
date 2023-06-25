@@ -3,7 +3,7 @@ import http.client
 import http.cookiejar
 import logging
 import mimetypes
-import os
+import pathlib
 import re
 import textwrap
 import time
@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from http import HTTPStatus
 from io import BytesIO
-from pathlib import Path
 
 from PIL import Image
 
@@ -24,6 +23,99 @@ import twms.projections
 # ssl._create_default_https_context = ssl._create_unverified_context  # Disable context for gismap.by
 
 logger = logging.getLogger(__name__)
+
+
+class TileFile:
+    def __init__(
+        self,
+        cache_dir: str,
+        layer_id: str,
+        mimetype: str,
+        z: int,
+        x: int,
+        y: int,
+        ttl: int | None = None,
+    ):
+        """Filesystem tile storage "cache_dir/layer_id/z/x/y.ext".
+
+        Conforms SAS.Planet (with TNE), MOBAC, MapProxy 'tms' directory layout.
+
+        Args:
+            cache_dir: relative path to tile cache
+            layer_id: subdir for a single cache
+            mimetype: One mimetype for whole layer
+            z: tile coordinate (starts with zero)
+            x: tile coordinate
+            y: tile coordinate (positive)
+            ttl: time-to-live, seconds or None
+        """
+        self.mimetype = mimetype
+        self.ttl = ttl
+
+        z, x, y = int(z), int(x), int(y)  # Prevent floats from messing up path
+        prefix = pathlib.Path(cache_dir) / layer_id
+        ext = mimetypes.guess_extension(self.mimetype)
+        self.path = prefix / f"{z}/{x}/{y}{ext}"
+        self.path_tne = prefix / f"{z}/{x}/{y}.tne"  # Tile not exists
+
+    def __str__(self):
+        return f"'{self.mimetype}' TTL: {self.ttl}, '{self.path}'"
+
+    def get(self) -> pathlib.Path:
+        """Get tile.
+
+        Must check `needs_fetch()` or `exists()` before.
+        """
+        logger.info(f"File cache hit {self.path}")
+        return self.path
+
+    def set(self, blob: bytes | None = None) -> None:
+        """Set image to cache and remove TNE.
+
+        Args:
+            blob: Image data or Mone. None means create TNE file (tile not exists).
+        """
+        logger.debug(f"Saving {self.path}")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if blob:
+            self.path.write_bytes(blob)  # Overwrite if exists, newer delete
+            self.path_tne.unlink(missing_ok=True)  # Remove TNE-files only there
+        else:
+            # Empty file, no timestamp inside to save disk space
+            logger.info(f"TNE {self.path}")
+            self.path_tne.touch()
+
+    def delete(self) -> None:
+        self.path.unlink(missing_ok=True)
+        self.path_tne.unlink(missing_ok=True)
+
+    def exists(self) -> bool:
+        """For filling map."""
+        # Return (1, timestamp) in SQL
+        return self.path.exists()
+
+    def needs_fetch(self) -> bool:
+        """Not exists in cache or TTL has been reached.
+
+        Returns:
+            True if not exists or st_mtime > TTL.
+        """
+        if self.path_tne.exists():
+            if self.ttl and self.ttl < (time.time() - self.path_tne.stat().st_mtime):
+                logger.info(f"TTL TNE reached: '{self.path}'")
+                return True
+            else:
+                return False
+        # No else for TNE, try to check tile image
+
+        if self.path.exists():
+            if self.ttl and self.ttl < (time.time() - self.path.stat().st_mtime):
+                logger.info(f"TTL tile reached: '{self.path}'")
+                return True
+            else:
+                return False
+        else:
+            return True
 
 
 def prepare_opener(
@@ -114,6 +206,7 @@ class TileFetcher:
         self.thread_pool = ThreadPoolExecutor(
             max_workers=twms.config.dl_threads_per_layer
         )
+        self._ic = Image.new("RGBA", (256, 256), self.layer["empty_color"])
 
     def fetch(self, z: int, x: int, y: int) -> Image.Image | None:
         """Fetch tile asynchronously.
@@ -124,7 +217,7 @@ class TileFetcher:
         return self.thread_pool.submit(self.__worker, z, x, y).result()
 
     def wms(self, z: int, x: int, y: int) -> Image.Image | None:
-        """Use tms instead.
+        """Deprecated WMS tile fetcher, use tms instead.
 
         Possible features to implement:
             * TNE based on histogram
@@ -137,9 +230,10 @@ class TileFetcher:
         * wms_proj str - projection for WMS request. Note that images probably won't be properly reprojected if it differs from **proj**. Helps to cope with WMS services unable to serve properly reprojected imagery.
         """
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
-        if "max_zoom" in self.layer and z > self.layer["max_zoom"]:
-            logger.debug(f"{tile_id}: zoom limit")
+        if z < self.layer["min_zoom"] or z > self.layer["max_zoom"]:
+            logger.info(f"Zoom limit {tile_id}")
             return None
+
         req_proj = self.layer.get("wms_proj", self.layer["proj"])
 
         width = 256  # Using larger source size to rescale better in python
@@ -155,49 +249,34 @@ class TileFetcher:
         remote = remote.replace("{height}", str(height))
         remote = remote.replace("{proj}", req_proj)
 
-        # MOBAC cache path style
-        tile_path = (
-            twms.config.tiles_cache
-            + self.layer["prefix"]
-            + "/{:.0f}/{:.0f}/{:.0f}{}".format(
-                z,
-                x,
-                y,
-                mimetypes.guess_extension(self.layer["mimetype"]),
-            )
-        )
-        partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
-        tne_path = partial_path + ".tne"
-
-        os.makedirs(os.path.dirname(tile_path), exist_ok=True)
-
-        if "cache_ttl" in self.layer:
-            for ex in (ext, ".dsc" + ext, ".ups" + ext, ".tne"):
-                fp = partial_path + ex
-                if os.path.exists(fp):
-                    if os.stat(fp).st_mtime < (time.time() - self.layer["cache_ttl"]):
-                        os.remove(fp)
-
         logger.info(f"wms: fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
         im_bytes = self.opener(remote).read()
+        byte_buffer = BytesIO(im_bytes)
         if im_bytes:
-            im = Image.open(BytesIO(im_bytes))
+            im = Image.open(byte_buffer)
         else:
             return None
         if width != 256 and height != 256:
             im = im.resize((256, 256), Image.ANTIALIAS)
         im = im.convert("RGBA")
 
-        ic = Image.new(
-            "RGBA",
-            (256, 256),
-            self.layer["empty_color"],
+        tile = TileFile(
+            cache_dir=twms.config.tiles_cache,
+            layer_id=self.layer["prefix"],
+            z=z,
+            x=x,
+            y=y,
+            mimetype=self.layer["mimetype"],
+            ttl=self.layer["cache_ttl"],
         )
-        if im.histogram() == ic.histogram():
-            logger.debug(f"{tile_id}: TNE - empty histogram '{tne_path}'")
-            Path(tne_path, exist_ok=True).touch()
+
+        if im.histogram() == self._ic.histogram():
+            logger.debug(f"{tile_id}: TNE - empty histogram")
+            tile.set()
             return None
-        im.save(tile_path)
+
+        im.save(byte_buffer)
+        tile.set(byte_buffer.getvalue())
         return im
 
     def tms(self, z: int, x: int, y: int) -> Image.Image | None:
@@ -216,55 +295,27 @@ class TileFetcher:
         :rtype: :py:class:`~PIL.Image.Image`. Otherwise None, if
             no image can be served from cache or from remote.
         """
-        need_fetch = False
         tile_parsed = False
         tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
         target_mimetype = self.layer["mimetype"]
-        remote = ""
 
-        if self.layer["min_zoom"] > z > self.layer["max_zoom"]:
-            logger.debug(f"{tile_id}: zoom limit")
+        if z < self.layer["min_zoom"] or z > self.layer["max_zoom"]:
+            logger.info(f"Zoom limit {tile_id}")
             return None
 
-        # MOBAC cache path style
-        tile_path = (
-            twms.config.tiles_cache
-            + self.layer["prefix"]
-            + "/{:.0f}/{:.0f}/{:.0f}{}".format(
-                z,
-                x,
-                y,
-                mimetypes.guess_extension(self.layer["mimetype"]),
-            )
+        tile = TileFile(
+            cache_dir=twms.config.tiles_cache,
+            layer_id=self.layer["prefix"],
+            z=z,
+            x=x,
+            y=y,
+            mimetype=self.layer["mimetype"],
+            ttl=self.layer["cache_ttl"],
         )
-        partial_path, ext = os.path.splitext(tile_path)  # '.ext' with leading dot
-        tne_path = partial_path + ".tne"
-        os.makedirs(os.path.dirname(tile_path), exist_ok=True)
-
-        # Do not delete, only replace if tile exists!
-        if os.path.exists(tne_path):
-            tne_lifespan = time.time() - os.stat(tne_path).st_mtime
-            if tne_lifespan > twms.config.cache_tne_ttl:
-                logger.info(f"{tile_id}: TTL tne reached {tne_path}")
-                need_fetch = True
-            else:
-                logger.info(f"{tile_id}: tile cached as TNE {tne_path}")
-        if "cache_ttl" in self.layer:
-            # for ex in (ext, '.dsc.' + ext, '.ups.' + ext, '.tne'):
-            if os.path.exists(tile_path):
-                tile_lifespan = time.time() - os.stat(tile_path).st_mtime
-                # tile_lifespan_h = tile_lifespan / 60 / 60
-                # logger.debug(f"{tile_id}: lifespan {tile_lifespan_h:.0f} h {fp}")
-                if tile_lifespan > self.layer["cache_ttl"]:
-                    logger.debug(f"{tile_id}: TTL tile reached for {tile_path}")
-                    need_fetch = True
-
-        if not os.path.exists(tile_path) and not os.path.exists(tne_path):
-            need_fetch = True
 
         # Fetching image
-        if need_fetch and "remote_url" in self.layer:
+        if "remote_url" in self.layer and tile.needs_fetch():
             if "transform_tile_number" in self.layer:
                 trans_z, trans_x, trans_y = self.layer["transform_tile_number"](z, x, y)
             else:
@@ -310,9 +361,7 @@ class TileFetcher:
                         tile_parsed = True
                     except (OSError, AttributeError):
                         # Catching invalid pictures
-                        logger.error(
-                            f"{tile_id}: failed to parse response as image {tne_path}"
-                        )
+                        logger.error(f"{tile_id}: failed to parse response as image")
                         logger.debug(
                             f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
                         )
@@ -330,15 +379,15 @@ class TileFetcher:
                 # HTTP 403 must be inspected manually
                 resp = err.read()
                 if err.status == HTTPStatus.NOT_FOUND:
-                    logger.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
-                    Path(tne_path, exist_ok=True).touch()
+                    logger.warning(f"{tile_id}: TNE - {err}")
+                    tile.set()
                     return None
 
                 if "dead_tile" in self.layer:
                     if "http_status" in self.layer["dead_tile"]:
                         if err.status == self.layer["dead_tile"]["http_status"]:
-                            logger.warning(f"{tile_id}: TNE - {err} '{tne_path}'")
-                            Path(tne_path, exist_ok=True).touch()
+                            logger.warning(f"{tile_id}: TNE - {err}")
+                            tile.set()
                             return None
 
                 logger.error(
@@ -370,15 +419,13 @@ class TileFetcher:
                             # Tile is recognized as empty
                             # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
                             # SASPlanet writes empty files with '.tne' ext
-                            logger.warning(f"{tile_id}: TNE - dead tile '{tne_path}'")
+                            logger.warning(f"{tile_id}: TNE - dead tile")
                             tile_dead = True
-                            Path(tne_path, exist_ok=True).touch()
+                            tile.set()
 
             logger.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
             if tile_parsed and not tile_dead:
                 # All well, save tile to cache
-                logger.debug(f"{tile_id}: saving {tile_path}")
-
                 # Preserving original image if possible, as encoding is lossy
                 # Storing all images into one format, just like SAS.Planet does
                 if im.get_format_mimetype() != target_mimetype:
@@ -389,26 +436,21 @@ class TileFetcher:
                 else:
                     image_bytes = remote_bytes
 
-                with open(tile_path, "wb") as f:
-                    f.write(image_bytes)
-                if os.path.exists(tne_path):
-                    os.remove(tne_path)
+                tile.set(image_bytes)
                 return im
+            logger.warning(f"{tile_id}: unreachable tile {remote}")
 
         # If TTL is ok or fetching failed
-        if os.path.exists(tile_path):
+        if tile.exists():
             try:
-                im = Image.open(tile_path)
+                im = Image.open(tile.get())
                 im.load()
-                logger.info(f"{tile_id}: cache tms {tile_path}")
                 return im
             except OSError:
-                logger.warning(
-                    f"{tile_id}: failed to parse image from cache '{tile_path}'"
-                )
-                # os.remove(tile_path)  # Cached tile is broken - remove it
+                logger.warning(f"{tile_id}: failed to parse image from cache")
+                # tile.delete()  # Cached tile is broken - remove it
 
-        logger.warning(f"{tile_id}: unreachable tile {remote}")
+        logger.warning(f"{tile_id}: tile load failed")
         return None
 
     def tms_google_sat(self, z: int, x: int, y: int) -> Image.Image:

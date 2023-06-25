@@ -41,7 +41,7 @@ default_headers = {
 dzzby_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
     "Referer": "https://www.dzz.by/izuchdzz/",
-    "Cookie": "cf_clearance=Vvq2rYZKerdSMHfYRkx5bsq.xBHg6.Pad.sBWiujgo0-1687606331-0-160",
+    "Cookie": "cf_clearance=1x1bweGLzgEyJPIqYdh2onpRTNB0OiAWQ_37GwygX1A-1687643671-0-160",
 }
 
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
@@ -51,7 +51,6 @@ tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # If server returns no tile (HTTP 404) or dead tile,
 # TWMS saves in cache empty "*.tne" file.
 # This is a timeout for a next attempt to fetch missing tile
-cache_tne_ttl = 60 * 60 * 24 * 30  # Month
 ram_cache_tiles = 2048  # Number of tiles in RAM cache
 dl_threads_per_layer = 5
 
@@ -75,7 +74,7 @@ layer_defaults = {
     "scalable": False,  # bool Could zN tile be constructed of four z(N+1) tiles. Construct tile from available better ones. If False, tWMS will use nearest zoom level
     "proj": "EPSG:3857",  # str EPSG code of layer tiles projection.
     "empty_color": "#ffffff",  # PIL color string. If this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
-    # "cache_ttl": None  # int cache expiration time
+    # "cache_ttl": None,  # int cache expiration time
     # WGS84 (EPSG:4326) (min-lon, min-lat, max-lon, max-lat; lower left and upper right corners; W, S, E, N) no wms fetching will be performed outside this bbox.
     "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
     # "dead_tile": { dict, if given, loaded tiles matching pattern won't be saved.

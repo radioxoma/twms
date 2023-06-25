@@ -66,7 +66,7 @@ class TileFile:
 
         Must check `needs_fetch()` or `exists()` before.
         """
-        logger.info(f"File cache hit {self.path}")
+        logger.debug(f"File cache hit {self.path}")
         return self.path
 
     def set(self, blob: bytes | None = None) -> None:

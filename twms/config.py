@@ -74,14 +74,14 @@ layer_defaults = {
     "scalable": False,  # bool Could zN tile be constructed of four z(N+1) tiles. Construct tile from available better ones. If False, tWMS will use nearest zoom level
     "proj": "EPSG:3857",  # str EPSG code of layer tiles projection.
     "empty_color": "#ffffff",  # PIL color string. If this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
-    # "cache_ttl": None,  # int cache expiration time
+    "cache_ttl": None,  # int cache expiration time
     # WGS84 (EPSG:4326) (min-lon, min-lat, max-lon, max-lat; lower left and upper right corners; W, S, E, N) no wms fetching will be performed outside this bbox.
     "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
     # "dead_tile": { dict, if given, loaded tiles matching pattern won't be saved.
     #     "md5"  md5sum hash of that tile
     #     "size" tile size in bytes
     #     "sha256"
-    #     "http_status": 503
+    #     "http_status": 503  # By HTTP status code
     # }
     # "fetch" str name of the function that fetches given tile. func(z, x, y, layer_id) -> Imaga.Image | None
     # "headers"
@@ -322,19 +322,18 @@ layers: dict[str, dict[str, typing.Any]] = {
         "min_zoom": 6,
         "max_zoom": 19,  # max_zoom is 20, but in most places it just blurred 19
     },
-    # Not working at 2023-06-25
     "dzzby_BPLA_2021": {
         "name": "dzz.by (Belarus) dzzby_BPLA_2021",
         "provider_url": "https://www.dzz.by/izuchdzz/",  # https://beldzz.by/
         "prefix": "dzzby_BPLA_2021",
-        "mimetype": "image/png",  # Most tiles are transparent
+        # "mimetype": "image/png",  # Most tiles are transparent
         "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
-        "fetch": "tms",
-        "headers": dzzby_headers,
-        "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/Orthomosaics/BPLA_WGS1984/ImageServer/tile/8/42281/75418",
-        "transform_tile_number": lambda z, x, y: (z - 8, x, y),
+        # "fetch": "tms",  # Not working at 2023-06-25
+        # "headers": dzzby_headers,
+        # "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/Orthomosaics/BPLA_WGS1984/ImageServer/tile/{z}/{y}/{x}",
+        "transform_tile_number": lambda z, x, y: (z - 8, x, y),  # 0-8 zooms are missing
         "min_zoom": 8,
-        "max_zoom": 20,
+        "max_zoom": 22,  # Has tiles on 22 level
     },
     "dzzby_BPLA_2022": {
         "name": "dzz.by (Belarus) dzzby_BPLA_2022",
@@ -347,7 +346,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/georesursDDZ/BPLA_Web_Mercator_2022/ImageServer/tile/{z}/{y}/{x}",
         "transform_tile_number": lambda z, x, y: (z - 8, x, y),
         "min_zoom": 8,
-        "max_zoom": 20,
+        "max_zoom": 22,
         "dead_tile": {"http_status": 502},
     },
 }

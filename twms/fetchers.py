@@ -224,7 +224,6 @@ class TileFetcher:
         tile_parsed = False
         tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
-        target_mimetype = self.layer["mimetype"]
 
         if z < self.layer["min_zoom"] or z > self.layer["max_zoom"]:
             logger.info(f"Zoom limit {tile_id}")
@@ -281,26 +280,6 @@ class TileFetcher:
                 logger.info(f"{tile_id}: FETCHING {remote}")
                 remote_resp = self.opener(remote)
                 remote_bytes = remote_resp.read()
-                if remote_bytes:
-                    try:
-                        im = Image.open(BytesIO(remote_bytes))
-                        im.load()  # Validate image
-                        tile_parsed = True
-                    except (OSError, AttributeError):
-                        # Catching invalid pictures
-                        logger.error(f"{tile_id}: failed to parse response as image")
-                        logger.debug(
-                            f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
-                        )
-                        # try:
-                        #     logger.debug(remote_bytes.decode('utf-8'))
-                        # except UnicodeDecodeError:
-                        #     logger.debug(remote_bytes)
-                        # if logger.getLogger().getEffectiveLevel() == logger.DEBUG:
-                        #     with open('err.htm', mode='wb') as f:
-                        #         f.write(remote_bytes)
-                else:
-                    logger.warning(f"{tile_id}: empty response")
             except urllib.error.HTTPError as err:
                 # Heuristic: TNE or server is defending tiles
                 # HTTP 403 must be inspected manually
@@ -309,13 +288,14 @@ class TileFetcher:
                     logger.warning(f"{tile_id}: TNE - {err}")
                     tile.set()
                     return None
-
-                if "dead_tile" in self.layer:
-                    if "http_status" in self.layer["dead_tile"]:
-                        if err.status == self.layer["dead_tile"]["http_status"]:
-                            logger.warning(f"{tile_id}: TNE - {err}")
-                            tile.set()
-                            return None
+                if (
+                    "dead_tile" in self.layer
+                    and "http_status" in self.layer["dead_tile"]
+                    and err.status == self.layer["dead_tile"]["http_status"]
+                ):
+                    logger.warning(f"{tile_id}: TNE - {err}")
+                    tile.set()
+                    return None
 
                 logger.error(
                     textwrap.dedent(
@@ -331,6 +311,27 @@ class TileFetcher:
             except urllib.error.URLError as err:
                 # Nothing we can do: no connection, cannot guess TNE or not
                 logger.error(f"{tile_id} URLError '{err}'")
+
+            # Catching invalid pictures
+            if remote_bytes:
+                try:
+                    im = Image.open(BytesIO(remote_bytes))
+                    im.load()  # Validate image
+                    tile_parsed = True
+                except (OSError, AttributeError):
+                    logger.error(f"{tile_id}: failed to parse response as image")
+                    logger.debug(
+                        f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
+                    )
+                    # try:
+                    #     logger.debug(remote_bytes.decode('utf-8'))
+                    # except UnicodeDecodeError:
+                    #     logger.debug(remote_bytes)
+                    # if logger.getLogger().getEffectiveLevel() == logger.DEBUG:
+                    #     with open('err.htm', mode='wb') as f:
+                    #         f.write(remote_bytes)
+            else:
+                logger.warning(f"{tile_id}: empty response")
 
             # Save something in cache
             # Sometimes server returns file instead of empty HTTP response
@@ -360,11 +361,11 @@ class TileFetcher:
                 # All well, save tile to cache
                 # Preserving original image if possible, as encoding is lossy
                 # Storing all images into one format, just like SAS.Planet does
-                if im.get_format_mimetype() != target_mimetype:
+                if im.get_format_mimetype() != self.layer["mimetype"]:
                     logger.warning(
-                        f"{tile_id} unexpected image Content-Type {im.get_format_mimetype()}, converting to '{target_mimetype}'"
+                        f"{tile_id} unexpected image Content-Type {im.get_format_mimetype()}, converting to '{self.layer['mimetype']}'"
                     )
-                    image_bytes = im_convert(im, target_mimetype)
+                    image_bytes = im_convert(im, self.layer["mimetype"])
                 else:
                     image_bytes = remote_bytes
 

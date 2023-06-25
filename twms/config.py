@@ -83,12 +83,12 @@ layer_defaults = {
     #     "sha256"
     #     "http_status": 503  # By HTTP status code
     # }
-    # "fetch" str name of the function that fetches given tile. func(z, x, y, layer_id) -> Imaga.Image | None
+    # "fetch": "tms", str name of the function that fetches tiles. func(z, x, y, layer_id) -> Imaga.Image | None
     # "headers"
     "min_zoom": 0,  # >= zoom to load
     "max_zoom": 19,  # <= # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer. [19] 30 cm resolution - best Maxar satellite resolution at 2021
     # "provider_url"  # Imagery provider webside URL for imagery overview page.
-    # "remote_url"  # str Base tiles URL. May contain placeholder ({z}, {x}, {y} etc)
+    # "remote_url"  # str Template URL. Should contain placeholders, e.g. {z}, {x}, {y}, {bbox},  {width}, {height}, {proj} for TMS/WMS, see fetchers.TileFetcher.tms.
     # "transform_tile_number" func(x, y, z) function that returns tuple that will be substituted into **remote_url**. If omitted, (z, x, y) tuple is used.
 }
 

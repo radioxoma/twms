@@ -26,6 +26,19 @@ logger = logging.getLogger(__name__)
 
 
 class TileFile:
+    """Filesystem cache.
+
+      * TWMS stores tiles of 256x256 pixels
+      * TWMS stores whole cache in single user-defined mimetype. If server returns tile with needed mimetype, original image is preserved, otherwise it will be recompressed
+      * TWMS internally uses 'GLOBAL_WEBMERCATOR' grid, 'EPSG:3857' (formely known as 'EPSG:900913') projection, origin north-west (compatible with OpenStreetMap, mapproxy.org)
+      * Same as SAS.Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left (nw)
+
+    See:
+      [1] https://en.wikipedia.org/wiki/Tiled_web_map
+      [2] https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+      [3] https://josm.openstreetmap.de/wiki/SharedTileCache
+    """
+
     def __init__(
         self,
         cache_dir: str,
@@ -39,6 +52,8 @@ class TileFile:
         """Filesystem tile storage "cache_dir/layer_id/z/x/y.ext".
 
         Conforms SAS.Planet (with TNE), MOBAC, MapProxy 'tms' directory layout.
+
+        TNE - tile not exist (got HTTP 404 or default tile for empty zones aka "dead tile")
 
         Args:
             cache_dir: relative path to tile cache
@@ -178,27 +193,9 @@ def prepare_opener(
 
 
 class TileFetcher:
-    """Caching tile fetcher.
-
-    Cache layout
-    ------------
-
-    There are multiple descriptions for the same thing:
-
-      * TWMS stores tiles of 256x256 pixels
-      * TWMS stores whole cache in single user-defined mimetype. If server returns tile with needed mimetype, original image is preserved, otherwise it will be recompressed
-      * TWMS internally uses 'GLOBAL_WEBMERCATOR' grid, 'EPSG:3857' (formely known as 'EPSG:900913') projection, origin north-west (compatible with OpenStreetMap, mapproxy.org)
-      * Same as SAS.Planet "Mobile Atlas Creator (MOBAC)" cache `cache_ma/{z}/{x}/{y}{ext}` 0,0 from the top left (nw)
-
-    See:
-      [1] https://en.wikipedia.org/wiki/Tiled_web_map
-      [2] https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
-      [3] https://josm.openstreetmap.de/wiki/SharedTileCache
-    """
-
     def __init__(self, layer_id: str):
         self.layer = twms.config.layers[layer_id]
-        fetcher_names = ("tms", "wms", "tms_google_sat")
+        fetcher_names = ("tms", "tms_google_sat")
         if self.layer["fetch"] not in fetcher_names:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
         self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
@@ -206,7 +203,7 @@ class TileFetcher:
         self.thread_pool = ThreadPoolExecutor(
             max_workers=twms.config.dl_threads_per_layer
         )
-        self._ic = Image.new("RGBA", (256, 256), self.layer["empty_color"])
+        # self._ic = Image.new("RGBA", (256, 256), self.layer["empty_color"])
 
     def fetch(self, z: int, x: int, y: int) -> Image.Image | None:
         """Fetch tile asynchronously.
@@ -216,69 +213,6 @@ class TileFetcher:
         """
         return self.thread_pool.submit(self.__worker, z, x, y).result()
 
-    def wms(self, z: int, x: int, y: int) -> Image.Image | None:
-        """Deprecated WMS tile fetcher, use tms instead.
-
-        Possible features to implement:
-            * TNE based on histogram
-            * Big tile request (e.g. 512x512)
-
-        Leave possibility to request arbitrary (other than cache 'proj')
-        projection from WMS by 'wms_proj' parameter, as server may be broken.
-
-        * remote_url str - Base WMS URL. A GetMap request with omitted srs, height, width and bbox. Should probably end in "?" or "&".
-        * wms_proj str - projection for WMS request. Note that images probably won't be properly reprojected if it differs from **proj**. Helps to cope with WMS services unable to serve properly reprojected imagery.
-        """
-        tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
-        if z < self.layer["min_zoom"] or z > self.layer["max_zoom"]:
-            logger.info(f"Zoom limit {tile_id}")
-            return None
-
-        req_proj = self.layer.get("wms_proj", self.layer["proj"])
-
-        width = 256  # Using larger source size to rescale better in python
-        height = 256
-        tile_bbox = "{},{},{},{}".format(
-            *twms.projections.from4326(
-                twms.projections.bbox_by_tile(z, x, y, req_proj), req_proj
-            )
-        )
-
-        remote = self.layer["remote_url"].replace("{bbox}", tile_bbox)
-        remote = remote.replace("{width}", str(width))
-        remote = remote.replace("{height}", str(height))
-        remote = remote.replace("{proj}", req_proj)
-
-        logger.info(f"wms: fetching z{z}/x{x}/y{y} {self.layer['name']} {remote}")
-        im_bytes = self.opener(remote).read()
-        byte_buffer = BytesIO(im_bytes)
-        if im_bytes:
-            im = Image.open(byte_buffer)
-        else:
-            return None
-        if width != 256 and height != 256:
-            im = im.resize((256, 256), Image.ANTIALIAS)
-        im = im.convert("RGBA")
-
-        tile = TileFile(
-            cache_dir=twms.config.tiles_cache,
-            layer_id=self.layer["prefix"],
-            z=z,
-            x=x,
-            y=y,
-            mimetype=self.layer["mimetype"],
-            ttl=self.layer["cache_ttl"],
-        )
-
-        if im.histogram() == self._ic.histogram():
-            logger.debug(f"{tile_id}: TNE - empty histogram")
-            tile.set()
-            return None
-
-        im.save(byte_buffer)
-        tile.set(byte_buffer.getvalue())
-        return im
-
     def tms(self, z: int, x: int, y: int) -> Image.Image | None:
         """Fetch tile by coordinates, r/w cache.
 
@@ -286,14 +220,6 @@ class TileFetcher:
         image format (ignores server Content-Type). All tiles with
         Content-Type not matching default for this layer will be
         converted before saving to cache.
-
-        TNE - tile not exist (got HTTP 404 or default tile for empty zones aka "dead tile")
-
-        Cache is structured according to tile coordinates.
-        Actual tile image projection specified in config file.
-
-        :rtype: :py:class:`~PIL.Image.Image`. Otherwise None, if
-            no image can be served from cache or from remote.
         """
         tile_parsed = False
         tile_dead = False
@@ -331,24 +257,25 @@ class TileFetcher:
                 remote = remote.replace(
                     "{-y}", str(tile_slippy_to_tms(trans_z, trans_x, trans_y)[2])
                 )
-            # Bing
+            # Bing quadkey
             remote = remote.replace("{q}", tile_to_quadkey(trans_z, trans_x, trans_y))
 
-            # WMS, no real difference with TMS except missing *.tne feature
-            width = 256
-            height = 256
-            proj = self.layer["proj"]
-            tile_bbox = "{},{},{},{}".format(
-                *twms.projections.from4326(
-                    twms.projections.bbox_by_tile(z, x, y, proj),
-                    proj,
+            # WMS support, no difference with TMS except missing TNE feature
+            # Some considerations:
+            #   * Biger tile request (e.g. 512x512)?
+            #   * Using different 'wms_proj' parameter, as server may be broken
+            if "{bbox}" in remote:
+                proj = self.layer["proj"]
+                tile_bbox = "{},{},{},{}".format(
+                    *twms.projections.from4326(
+                        twms.projections.bbox_by_tile(z, x, y, proj),
+                        proj,
+                    )
                 )
-            )
-            remote = remote.replace("{bbox}", tile_bbox)
-            remote = remote.replace("{width}", str(width))
-            remote = remote.replace("{height}", str(height))
-            remote = remote.replace("{proj}", proj)
-
+                remote = remote.replace("{bbox}", tile_bbox)
+                remote = remote.replace("{width}", "256")
+                remote = remote.replace("{height}", "256")
+                remote = remote.replace("{proj}", proj)
             try:
                 # Got response, need to verify content
                 logger.info(f"{tile_id}: FETCHING {remote}")
@@ -422,6 +349,11 @@ class TileFetcher:
                             logger.warning(f"{tile_id}: TNE - dead tile")
                             tile_dead = True
                             tile.set()
+                # TNE based on histogram (from WMS)
+                # if im.histogram() == self._ic.histogram():
+                #     logger.debug(f"{tile_id}: TNE - empty histogram")
+                #     tile.set()
+                #     return None
 
             logger.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
             if tile_parsed and not tile_dead:
@@ -440,7 +372,7 @@ class TileFetcher:
                 return im
             logger.warning(f"{tile_id}: unreachable tile {remote}")
 
-        # If TTL is ok or fetching failed
+        # If fetching failed
         if tile.exists():
             try:
                 im = Image.open(tile.get())

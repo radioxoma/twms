@@ -355,6 +355,7 @@ def maps_xml_wms130() -> str:
             },
         )
     ET.indent(root)
+    raise NotImplementedError
     return ET.tostring(root, encoding="unicode", xml_declaration=True)
 
 

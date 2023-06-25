@@ -33,7 +33,6 @@ class TWMSMain:
     """
 
     def __init__(self):
-        super().__init__()
         self.fetchers_pool = dict()
 
     def wms_handler(self, data: dict) -> tuple[HTTPStatus, str, bytes | str]:

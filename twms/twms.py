@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class TWMSMain:
-    """Inside tWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
+    """Inside TWMS, only EPSG:4326 latlon should be used for transmitting coordinates.
 
     WMS http://cite.opengeospatial.org/OGCTestData/wms/1.1.1/spec/wms1.1.1.html
     TMS
@@ -334,10 +334,10 @@ class TWMSMain:
         trybetter=True,
         real=False,
     ) -> Image.Image | None:
-        """Get tile by Slippy map coordinates.
+        """Get tile by Slippy map coordinates: download or construct from cached.
 
         Args:
-            trybetter: combine this tile from better ones
+            trybetter: combine this tile from better one if layer "scalable"
             real: return the tile even in not good quality
 
         Returns:
@@ -374,13 +374,6 @@ class TWMSMain:
         ):
             # Second, try to glue image of better ones
             logger.info(f"{layer_id}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
-            # Load upscaled images
-            # if os.path.exists(local + "ups" + ext):
-            #     try:
-            #         im = Image.open(local + "ups" + ext)
-            #         return im
-            #     except OSError:
-            #         pass
             ec = ImageColor.getcolor(
                 twms.config.layers[layer_id]["empty_color"],
                 "RGBA",
@@ -402,7 +395,7 @@ class TWMSMain:
                             im.paste(im4, (256, 256))
                             tile = im.resize((256, 256), Image.ANTIALIAS)
 
-        if tile is None and "fetch" in twms.config.layers[layer_id]:
+        if tile is None and "remote_url" in twms.config.layers[layer_id]:
             # Dedicated fetcher for each imagery layer
             if layer_id not in self.fetchers_pool:
                 self.fetchers_pool[layer_id] = twms.fetchers.TileFetcher(layer_id)

@@ -280,6 +280,27 @@ class TileFetcher:
                 logger.info(f"{tile_id}: FETCHING {remote}")
                 remote_resp = self.opener(remote)
                 remote_bytes = remote_resp.read()
+                # Catching invalid pictures
+                if remote_bytes:
+                    try:
+                        im = Image.open(BytesIO(remote_bytes))
+                        im.load()  # Validate image
+                        tile_parsed = True
+                    except (OSError, AttributeError):
+                        logger.error(f"{tile_id}: failed to parse response as image")
+                        logger.debug(
+                            f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
+                        )
+                        # try:
+                        #     logger.debug(remote_bytes.decode('utf-8'))
+                        # except UnicodeDecodeError:
+                        #     logger.debug(remote_bytes)
+                        # if logger.getLogger().getEffectiveLevel() == logger.DEBUG:
+                        #     with open('err.htm', mode='wb') as f:
+                        #         f.write(remote_bytes)
+                else:
+                    logger.warning(f"{tile_id}: empty response")
+
             except urllib.error.HTTPError as err:
                 # Heuristic: TNE or server is defending tiles
                 # HTTP 403 must be inspected manually
@@ -311,27 +332,6 @@ class TileFetcher:
             except urllib.error.URLError as err:
                 # Nothing we can do: no connection, cannot guess TNE or not
                 logger.error(f"{tile_id} URLError '{err}'")
-
-            # Catching invalid pictures
-            if remote_bytes:
-                try:
-                    im = Image.open(BytesIO(remote_bytes))
-                    im.load()  # Validate image
-                    tile_parsed = True
-                except (OSError, AttributeError):
-                    logger.error(f"{tile_id}: failed to parse response as image")
-                    logger.debug(
-                        f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
-                    )
-                    # try:
-                    #     logger.debug(remote_bytes.decode('utf-8'))
-                    # except UnicodeDecodeError:
-                    #     logger.debug(remote_bytes)
-                    # if logger.getLogger().getEffectiveLevel() == logger.DEBUG:
-                    #     with open('err.htm', mode='wb') as f:
-                    #         f.write(remote_bytes)
-            else:
-                logger.warning(f"{tile_id}: empty response")
 
             # Save something in cache
             # Sometimes server returns file instead of empty HTTP response

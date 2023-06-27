@@ -199,7 +199,7 @@ class TileFetcher:
         if self.layer["fetch"] not in fetcher_names:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
         self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
-        self.opener = prepare_opener(headers=self.layer.get("headers", dict()))
+        self.opener = prepare_opener(headers=self.layer["headers"])
         self.thread_pool = ThreadPoolExecutor(
             max_workers=twms.config.dl_threads_per_layer
         )

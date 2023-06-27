@@ -32,9 +32,9 @@ service_url = f"http://{host}:{port}"
 service_wms_url = service_url + "/wms"
 service_wmts_url = service_url + "/wmts"
 
+# NB! "Connection: Keep-Alive" not supported by urllib
 default_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
-    "Connection": "Keep-Alive",
 }
 
 # Cloudflare cookie associated with User-Agent
@@ -84,7 +84,7 @@ layer_defaults = {
     #     "http_status": 503  # TNE by HTTP status code
     # }
     "fetch": "tms",  # str name of the function that fetches tiles. func(z, x, y, layer_id) -> Imaga.Image | None
-    # "headers"
+    "headers": dict(),  # Headers and authentication cookies
     "min_zoom": 0,  # >= zoom to load
     "max_zoom": 19,  # <= # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer. [19] 30 cm resolution - best Maxar satellite resolution at 2021
     # "provider_url"  # Imagery provider webside URL for imagery overview page.

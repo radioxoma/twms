@@ -308,7 +308,7 @@ def transform(
         func = pure_python_transformers[(srs1, srs2)]
     else:
         # func = pyproj.transform
-        raise NotImplementedError()
+        raise NotImplementedError
     line = list(line)
     serial = False
     if not isinstance(line[0], collections.abc.Sequence):

@@ -1,5 +1,6 @@
 import functools
 import hashlib
+import http
 import http.client
 import http.cookiejar
 import io
@@ -12,7 +13,6 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from http import HTTPStatus
 from io import BytesIO
 
 import PIL.Image
@@ -217,15 +217,17 @@ class HttpSessionDirector:
 
 
 class TileFetcher:
+    """Load tiles by network or from local storage."""
+
     def __init__(self, layer_id: str):
         self.layer = twms.config.layers[layer_id]
         fetcher_names = ("tms", "tms_google_sat")
         if self.layer["fetch"] not in fetcher_names:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
-        self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
         self.http_session = HttpSessionDirector(
             headers=(twms.config.default_headers | self.layer["headers"])
         )
+        self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
         self.thread_pool = ThreadPoolExecutor(
             max_workers=twms.config.dl_threads_per_layer
         )
@@ -240,17 +242,20 @@ class TileFetcher:
         return self.thread_pool.submit(self.__worker, z, x, y).result()
 
     def tms(self, z: int, x: int, y: int) -> PIL.Image.Image | None:
-        """Fetch tile by coordinates, r/w cache.
+        """Fetch tile by coordinates: network/cache.
 
         Function fetches image, checks it validity and detects actual
         image format (ignores server Content-Type). All tiles with
         Content-Type not matching default for this layer will be
         converted before saving to cache.
+
+        Returns:
+            Image in layer mimetype (converted if necessary).
         """
-        tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
+        tile_id = f"{self.layer['prefix']}/{z}/{x}/{y}"
 
         if z < self.layer["min_zoom"] or z > self.layer["max_zoom"]:
-            logger.info(f"Zoom limit {tile_id}")
+            logger.debug(f"Zoom limit {tile_id}")
             return None
 
         tile = TileFile(
@@ -309,7 +314,7 @@ class TileFetcher:
                     resp_md5 = hashlib.md5(resp_bytes).hexdigest()
                     resp_buf = io.BytesIO(resp_bytes)
                     # Just 404, as decent server would respond
-                    if remote_resp.status == HTTPStatus.NOT_FOUND:
+                    if remote_resp.status == http.HTTPStatus.NOT_FOUND:
                         logger.warning(f"{tile_id}: TNE - {remote_resp}")
                         tile.set()
                         return None
@@ -358,7 +363,7 @@ class TileFetcher:
                                 tile.set(resp_bytes)
                             else:
                                 logger.warning(
-                                    f"{tile_id} unexpected image 'Content-Type: {im.get_format_mimetype()}', converting to '{self.layer['mimetype']}'"
+                                    f"{tile_id} mimetype mismatch 'Content-Type: {im.get_format_mimetype()}', converting to '{self.layer['mimetype']}'"
                                 )
                                 tile.set(im_convert(im, self.layer["mimetype"]))
                             return im
@@ -367,9 +372,9 @@ class TileFetcher:
                         logger.debug(
                             textwrap.dedent(
                                 f"""
-                            {tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}
-                            {remote_resp}
+                            {tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}
                             {remote_resp.headers}
+                            {remote_resp}
                             """
                             )
                             + f"md5sum: '{resp_md5}'"

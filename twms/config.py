@@ -41,7 +41,7 @@ default_headers = {
 dzzby_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
     "Referer": "https://www.dzz.by/izuchdzz/",
-    "Cookie": "cf_clearance=1x1bweGLzgEyJPIqYdh2onpRTNB0OiAWQ_37GwygX1A-1687643671-0-160",
+    "Cookie": "cf_clearance=alottZPzGqElrxhiyTc6mbwC_TJiIITaOznUG3iDm00-1687965726-0-160",
 }
 
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`
@@ -78,7 +78,7 @@ layer_defaults = {
     # WGS84 (EPSG:4326) (min-lon, min-lat, max-lon, max-lat; lower left and upper right corners; W, S, E, N) no wms fetching will be performed outside this bbox.
     "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
     # "dead_tile": { dict, if given, loaded tiles matching pattern won't be saved.
-    #     "md5"  md5sum hash of that tile
+    #     "md5": {}, # set of md5sum hashes of that tile
     #     "size" tile size in bytes
     #     "sha256"
     #     "http_status": 503  # TNE by HTTP status code
@@ -161,7 +161,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         # Check against known size in bytes and md5 hash
         "dead_tile": {
             "size": 1033,
-            "md5": "c13269481c73de6e18589f9fbc3bdf7e",
+            "md5": {"c13269481c73de6e18589f9fbc3bdf7e"},
             "sha256": "45d35034a62d30443e492851752f67f439b95a908fce54de601f7373fcb7ab05",
         },
     },
@@ -245,7 +245,7 @@ layers: dict[str, dict[str, typing.Any]] = {
     #     "prefix": "irs",
     #     "remote_url": "https://maps.kosmosnimki.ru/TileSender.ashx?ModeKey=tile&MapName=F7B8CF651682420FA1749D894C8AD0F6&LayerName=950FA578D6DB40ADBDFC6EEBBA469F4A&z=%s&x=%s&y=%s";,
     #     "transform_tile_number": lambda z,x,y: (z-1,int(-((int(2**(z-1)))/ 2)+x),int(-((int(2**(z-1)))/ 2)+ int(2**(z-1)-(y+1)))),
-    #     "dead_tile": {"size": 0, "md5": "d41d8cd98f00b204e9800998ecf8427e", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+    #     "dead_tile": {"size": 0, "md5": {"d41d8cd98f00b204e9800998ecf8427e"}, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
     #     "min_zoom": 2,
     #     "max_zoom": 16,
     #     "empty_color": "#000000",
@@ -285,6 +285,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "transform_tile_number": lambda z, x, y: (z - 6, x, y),
         "min_zoom": 6,
         "max_zoom": 19,  # max_zoom is 20, but in most places it just blurred 19
+        "dead_tile": {"md5": {"d95150a258cdd8d2c6282c406c287b81"}},
     },
     # Not working at 2023-06-25
     "dzzby_BPLA_2021": {
@@ -310,7 +311,13 @@ layers: dict[str, dict[str, typing.Any]] = {
         "transform_tile_number": lambda z, x, y: (z - 8, x, y),
         "min_zoom": 8,
         "max_zoom": 22,
-        "dead_tile": {"http_status": 502},
+        "dead_tile": {
+            "http_status": 502,
+            "md5": {
+                "d95150a258cdd8d2c6282c406c287b81",
+                "8c77c9de578e056b39c1531e1c82c60e",
+            },
+        },
     },
 }
 

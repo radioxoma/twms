@@ -1,6 +1,8 @@
+import functools
 import hashlib
 import http.client
 import http.cookiejar
+import io
 import logging
 import mimetypes
 import pathlib
@@ -8,13 +10,12 @@ import re
 import textwrap
 import time
 import urllib.error
-import urllib.request as request
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from functools import wraps
 from http import HTTPStatus
 from io import BytesIO
 
-from PIL import Image
+import PIL.Image
 
 import twms.config
 import twms.projections
@@ -133,63 +134,86 @@ class TileFile:
             return True
 
 
-def prepare_opener(
-    tries: int = 4, delay: int = 3, backoff: int = 2, headers: dict = dict()
-):
-    """Build HTTP opener with custom headers (User-Agent) and cookie support.
-
-    Retry HTTP request using an exponential backoff:
-        * Retry only on network issues
-        * Raise HTTPError immediatly, to handle it with complex code
-
-    https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
-    http://www.katasonov.com/ru/2014/10/python-urllib2-decorators-and-exceptions-fun/
+def retry_opener(tries: int = 3, delay: int = 3, backoff: int = 2):
+    """Retry on network error, pass HTTP errors.
 
     Args:
-        tries: number of times to try (not retry) before giving up
-        delay: initial delay between retries in seconds
-        backoff: backoff multiplier e.g. value of 2 will double the
-        delay each retry
-        headers: Update opener headers (add new and spoof existing)
+        tries: Retry attempts
+        delay: initial delay between attempts, seconds
+        backoff: Retry delay = delay * backoff
     """
-    cj = http.cookiejar.CookieJar()
 
-    # if use_proxy:
-    #     proxy_info = {
-    #         'user': 'login',
-    #         'pass': 'passwd',
-    #         'host': "proxyaddress",
-    #         'port': 8080}
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            mtries, mdelay = tries, delay
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except urllib.error.HTTPError:
+                    # Don't afect HTTP error code handling
+                    raise
+                except (urllib.error.URLError, TimeoutError):
+                    if mtries == 0:
+                        raise
+                    logger.debug(f"Retry '{args[1]}' in {mdelay} seconds...")
+                    time.sleep(mdelay)
+                    mtries -= 1
+                    mdelay *= backoff
+                except OSError:
+                    raise
 
-    #     proxy_support = urllib.request.ProxyHandler({
-    #         "http": "http://%(user)s:%(pass)s@%(host)s:%(port)d" % proxy_info})
-    #     opener = urllib.request.build_opener(
-    #         urllib.request.HTTPCookieProcessor(cj),
-    #         # urllib2.HTTPHandler(debuglevel=1),  # Debug output
-    #         proxy_support)
+        return wrapper
 
-    opener = request.build_opener(request.HTTPCookieProcessor(cj))
-    hdrs = twms.config.default_headers | headers
-    opener.addheaders = list(hdrs.items())
+    return decorator
 
-    @wraps(opener.open)
-    def retry(*args, **kwargs) -> http.client.HTTPResponse:
-        mtries, mdelay = tries, delay
-        while mtries > 1:
-            try:
-                return opener.open(*args, **kwargs)
-            except urllib.error.HTTPError:
-                # Prevent catching HTTPError as subclass of URLError
-                # logger.error(err)
-                raise
-            except urllib.error.URLError as err:
-                logger.debug(f"{err}, retrying '{args[0]}' in {mdelay} seconds...")
-                time.sleep(mdelay)
-                mtries -= 1
-                mdelay *= backoff
-        return opener.open(*args, **kwargs)
 
-    return retry
+class HttpSessionDirector:
+    def __init__(self, headers: dict[str, str] = {}):
+        """Build opener with headers, cookie (i.e. session) and context manager support.
+
+        Args:
+            headers: Replace all urllib headers. Useful to mock
+            "User-Agent", "Referer", "Cookie".
+            NB! "Connection: Keep-Alive" can't be replaced, as it not supported by urllib.
+        """
+        self.cj = http.cookiejar.CookieJar()
+        # self.cj = http.cookiejar.MozillaCookieJar(filename="cookies.txt")
+        # self.cj.load(filename="cookies.txt")
+
+        self.opener_director = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.cj),
+        )
+        self.opener_director.addheaders = list(headers.items())  # Replace all headers
+        # self.opener_director.handlers  # Look for 'HTTPCookieProcessor.cookiejar' here
+
+    @retry_opener()
+    def get(
+        self, *args, **kwargs
+    ) -> http.client.HTTPResponse | urllib.error.HTTPError | None:
+        """Same as 'urllib.request.urlopen' but suppresses HTTP errors.
+
+        Read image and close the connection:
+
+            with http_session.get(url) as resp:
+                im = PIL.Image.open(resp)
+                im.show()
+
+        Returns:
+            HTTPResponse or HTTPError, which are subclasses of io.BufferedIOBase
+                and have `.read()` and HTTP `.code` properties.
+        """
+        try:
+            return self.opener_director.open(*args, **kwargs)
+        except urllib.error.HTTPError as resp:  # URLError subclass
+            # Could pass no-op "urllib.request.HTTPErrorProcessor" subclass into
+            # build_opener() to get rid of error handling, but leaving for logging
+            # https://stackoverflow.com/questions/74680393/stop-urllib-request-from-raising-exceptions-on-http-errors
+            logger.error(f"{resp}: '{args[0]}'")
+            return resp
+        except (urllib.error.URLError, TimeoutError):  # OSError subclass
+            logger.exception(self.__class__.__name__)
+            raise
 
 
 class TileFetcher:
@@ -199,13 +223,15 @@ class TileFetcher:
         if self.layer["fetch"] not in fetcher_names:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
         self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
-        self.opener = prepare_opener(headers=self.layer["headers"])
+        self.http_session = HttpSessionDirector(
+            headers=(twms.config.default_headers | self.layer["headers"])
+        )
         self.thread_pool = ThreadPoolExecutor(
             max_workers=twms.config.dl_threads_per_layer
         )
         # self._ic = Image.new("RGBA", (256, 256), self.layer["empty_color"])
 
-    def fetch(self, z: int, x: int, y: int) -> Image.Image | None:
+    def fetch(self, z: int, x: int, y: int) -> PIL.Image.Image | None:
         """Fetch tile asynchronously.
 
         Returns:
@@ -213,7 +239,7 @@ class TileFetcher:
         """
         return self.thread_pool.submit(self.__worker, z, x, y).result()
 
-    def tms(self, z: int, x: int, y: int) -> Image.Image | None:
+    def tms(self, z: int, x: int, y: int) -> PIL.Image.Image | None:
         """Fetch tile by coordinates, r/w cache.
 
         Function fetches image, checks it validity and detects actual
@@ -221,8 +247,6 @@ class TileFetcher:
         Content-Type not matching default for this layer will be
         converted before saving to cache.
         """
-        tile_parsed = False
-        tile_dead = False
         tile_id = f"{self.layer['prefix']} z{z}/x{x}/y{y}"
 
         if z < self.layer["min_zoom"] or z > self.layer["max_zoom"]:
@@ -275,118 +299,106 @@ class TileFetcher:
                 remote = remote.replace("{width}", "256")
                 remote = remote.replace("{height}", "256")
                 remote = remote.replace("{proj}", proj)
+
+            # Fetching tiles
             try:
                 # Got response, need to verify content
                 logger.info(f"{tile_id}: FETCHING {remote}")
-                remote_resp = self.opener(remote)
-                remote_bytes = remote_resp.read()
-                # Catching invalid pictures
-                if remote_bytes:
+                with self.http_session.get(remote) as remote_resp:
+                    resp_bytes = remote_resp.read()  # Doesn't support seek()
+                    resp_md5 = hashlib.md5(resp_bytes).hexdigest()
+                    resp_buf = io.BytesIO(resp_bytes)
+                    # Just 404, as decent server would respond
+                    if remote_resp.status == HTTPStatus.NOT_FOUND:
+                        logger.warning(f"{tile_id}: TNE - {remote_resp}")
+                        tile.set()
+                        return None
+                    # Sometimes tile missing, but server reports other code instead 404
+                    if "dead_tile" in self.layer:
+                        if (
+                            "http_status" in self.layer["dead_tile"]
+                            and remote_resp.status
+                            == self.layer["dead_tile"]["http_status"]
+                        ):
+                            logger.info(f"{tile_id}: TNE - {remote_resp}")
+                            tile.set()
+                            return None
+
+                        # Sometimes server returns same dummy file instead of empty HTTP response
+                        # Compare bytestring with dead tile hash
+                        if (
+                            "md5" in self.layer["dead_tile"]
+                            and resp_md5 in self.layer["dead_tile"]["md5"]
+                        ):
+                            # Tile is recognized as empty
+                            # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
+                            # SASPlanet writes empty files with '.tne' ext
+                            logger.info(f"{tile_id}: TNE - dead tile checksum")
+                            tile.set()
+                            return None
+
+                    # Catching invalid pictures
+                    if not resp_bytes:
+                        logger.warning(f"{tile_id}: empty response")
+                        # tile.set()
+
                     try:
-                        im = Image.open(BytesIO(remote_bytes))
-                        im.load()  # Validate image
-                        tile_parsed = True
-                    except (OSError, AttributeError):
+                        with PIL.Image.open(resp_buf) as im:
+                            im.load()  # Validate image
+                            # TNE based on histogram (from WMS)
+                            # if im.histogram() == self._ic.histogram():
+                            #     logger.debug(f"{tile_id}: TNE - empty histogram")
+                            #     tile.set()
+                            #     return None
+
+                            # All well, save tile to cache
+                            # Preserving original image if possible, as encoding is lossy
+                            # Storing all images into one format, just like SAS.Planet does
+                            if im.get_format_mimetype() == self.layer["mimetype"]:
+                                tile.set(resp_bytes)
+                            else:
+                                logger.warning(
+                                    f"{tile_id} unexpected image 'Content-Type: {im.get_format_mimetype()}', converting to '{self.layer['mimetype']}'"
+                                )
+                                tile.set(im_convert(im, self.layer["mimetype"]))
+                            return im
+                    except PIL.UnidentifiedImageError:
                         logger.error(f"{tile_id}: failed to parse response as image")
                         logger.debug(
-                            f"{tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}"
+                            textwrap.dedent(
+                                f"""
+                            {tile_id}: invalid image {remote_resp.status}: {remote_resp.msg} - {remote_resp.reason} {remote_resp.url}\n{remote_resp.headers}
+                            {remote_resp}
+                            {remote_resp.headers}
+                            """
+                            )
+                            + f"md5sum: '{resp_md5}'"
                         )
                         # try:
-                        #     logger.debug(remote_bytes.decode('utf-8'))
+                        #     logger.debug(remote_bytes.decode("utf-8"))
                         # except UnicodeDecodeError:
                         #     logger.debug(remote_bytes)
                         # if logger.getLogger().getEffectiveLevel() == logger.DEBUG:
                         #     with open('err.htm', mode='wb') as f:
                         #         f.write(remote_bytes)
-                else:
-                    logger.warning(f"{tile_id}: empty response")
-
-            except urllib.error.HTTPError as err:
-                # Heuristic: TNE or server is defending tiles
-                # HTTP 403 must be inspected manually
-                resp = err.read()
-                if err.status == HTTPStatus.NOT_FOUND:
-                    logger.warning(f"{tile_id}: TNE - {err}")
-                    tile.set()
-                    return None
-                if (
-                    "dead_tile" in self.layer
-                    and "http_status" in self.layer["dead_tile"]
-                    and err.status == self.layer["dead_tile"]["http_status"]
-                ):
-                    logger.warning(f"{tile_id}: TNE - {err}")
-                    tile.set()
-                    return None
-
-                logger.error(
-                    textwrap.dedent(
-                        f"""
-                    {resp.decode("utf-8")}
-                    {err}
-                    {err.headers}
-                    """
-                    )
-                    + f"md5sum: '{hashlib.md5(resp).hexdigest()}'"
-                )
-
             except urllib.error.URLError as err:
-                # Nothing we can do: no connection, cannot guess TNE or not
+                # Nothing we can do: no connection, so cannot guess TNE or not
                 logger.error(f"{tile_id} URLError '{err}'")
-
-            # Save something in cache
-            # Sometimes server returns file instead of empty HTTP response
-            if "dead_tile" in self.layer:
-                # Compare bytestring with dead tile hash
-                if (
-                    "size" in self.layer["dead_tile"]
-                    and "md5" in self.layer["dead_tile"]
-                ):
-                    if len(remote_bytes) == self.layer["dead_tile"]["size"]:
-                        hasher = hashlib.md5(remote_bytes)
-                        if hasher.hexdigest() == self.layer["dead_tile"]["md5"]:
-                            # Tile is recognized as empty
-                            # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
-                            # SASPlanet writes empty files with '.tne' ext
-                            logger.warning(f"{tile_id}: TNE - dead tile")
-                            tile_dead = True
-                            tile.set()
-                # TNE based on histogram (from WMS)
-                # if im.histogram() == self._ic.histogram():
-                #     logger.debug(f"{tile_id}: TNE - empty histogram")
-                #     tile.set()
-                #     return None
-
-            logger.debug(f"tile parsed {tile_parsed}, dead {tile_dead}")
-            if tile_parsed and not tile_dead:
-                # All well, save tile to cache
-                # Preserving original image if possible, as encoding is lossy
-                # Storing all images into one format, just like SAS.Planet does
-                if im.get_format_mimetype() != self.layer["mimetype"]:
-                    logger.warning(
-                        f"{tile_id} unexpected image Content-Type {im.get_format_mimetype()}, converting to '{self.layer['mimetype']}'"
-                    )
-                    image_bytes = im_convert(im, self.layer["mimetype"])
-                else:
-                    image_bytes = remote_bytes
-
-                tile.set(image_bytes)
-                return im
-            logger.warning(f"{tile_id}: unreachable tile {remote}")
 
         # If fetching failed
         if tile.exists():
             try:
-                im = Image.open(tile.get())
-                im.load()
-                return im
+                with PIL.Image.open(tile.get()) as im:
+                    im.load()
+                    return im
             except OSError:
-                logger.warning(f"{tile_id}: failed to parse image from cache")
+                logger.error(f"{tile_id}: failed to parse image from cache")
                 # tile.delete()  # Cached tile is broken - remove it
 
-        logger.warning(f"{tile_id}: tile load failed")
+        logger.error(f"{tile_id}: tile load failed")
         return None
 
-    def tms_google_sat(self, z: int, x: int, y: int) -> Image.Image:
+    def tms_google_sat(self, z: int, x: int, y: int) -> PIL.Image.Image:
         """Construct template URI with version from JS API.
 
         May be use different servers in future:
@@ -398,11 +410,12 @@ class TileFetcher:
         """
         if "remote_url" not in self.layer:
             try:
-                resp = self.opener("https://maps.googleapis.com/maps/api/js").read()
-                if resp:
+                with self.http_session.get(
+                    "https://maps.googleapis.com/maps/api/js"
+                ) as resp:
                     match = re.search(
                         r"https://khms\d+.googleapis\.com/kh\?v=(\d+)",
-                        resp.decode("utf-8"),
+                        resp.read().decode("utf-8"),
                     )
                     if match and match.group(1):
                         self.layer[
@@ -474,10 +487,10 @@ def tile_slippy_to_tms(z: int, x: int, y: int) -> tuple[int, int, int]:
     return z, x, (1 << z) - y - 1
 
 
-def im_convert(im: Image.Image, mimetype: str) -> bytes:
+def im_convert(im: PIL.Image.Image, mimetype: str) -> bytes:
     """Convert Pillow image to requested mimetype."""
     # Exif-related code not documented, Pillow can change behavior
-    exif = Image.Exif()
+    exif = PIL.Image.Exif()
     exif[0x0131] = twms.config.wms_name  # ExifTags.TAGS['Software']
 
     img_buf = BytesIO()

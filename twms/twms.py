@@ -360,7 +360,7 @@ class TWMSMain:
             twms.config.layers[layer_id]["bounds"],
             fully=False,
         ):
-            logger.info(
+            logger.debug(
                 f"{layer_id}/z{z}/x{x}/y{y} ignoring request for a tile outside configured bounds"
             )
             return None

@@ -366,9 +366,16 @@ class TWMSMain:
             return None
 
         tile = None
-        # Reconstructiong from cache
+        if "remote_url" in twms.config.layers[layer_id]:
+            # Dedicated fetcher for each imagery layer
+            if layer_id not in self.fetchers_pool:
+                self.fetchers_pool[layer_id] = twms.fetchers.TileFetcher(layer_id)
+            tile = self.fetchers_pool[layer_id].fetch(z, x, y)
+
+        # Reconstructing from partial cache
         if (
-            twms.config.layers[layer_id]["scalable"]
+            tile is None
+            and twms.config.layers[layer_id]["scalable"]
             and (z < twms.config.layers[layer_id]["max_zoom"])
             and trybetter
         ):
@@ -395,13 +402,7 @@ class TWMSMain:
                             im.paste(im4, (256, 256))
                             tile = im.resize((256, 256), Image.ANTIALIAS)
 
-        if tile is None and "remote_url" in twms.config.layers[layer_id]:
-            # Dedicated fetcher for each imagery layer
-            if layer_id not in self.fetchers_pool:
-                self.fetchers_pool[layer_id] = twms.fetchers.TileFetcher(layer_id)
-            tile = self.fetchers_pool[layer_id].fetch(z, x, y)
-
-        if tile is None and real:
+        if tile is None and twms.config.layers[layer_id]["scalable"] and real:
             logger.info(f"{layer_id}/z{z}/x{x}/y{y} upscaling from top tile")
             im = self.tile_image(
                 layer_id,

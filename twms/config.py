@@ -71,7 +71,6 @@ layer_defaults = {
     # Optional paramaters
     "mimetype": "image/jpeg",  # str Tiles will be stored and served in this mimetype, converted if necessary
     "overlay": False,  # bool Transparent hybrid map
-    "scalable": False,  # bool Could zN tile be constructed of four z(N+1) tiles. Construct tile from available better ones. If False, tWMS will use nearest zoom level
     "proj": "EPSG:3857",  # str EPSG code of layer tiles projection.
     "empty_color": "#ffffff",  # PIL color string. If this layer is overlayed over another, this color will be considered transparent. Also used for dead tile detection in fetchers.WMS
     "cache_ttl": None,  # int cache expiration time
@@ -87,12 +86,13 @@ layer_defaults = {
     "headers": dict(),  # Headers and authentication cookies
     "min_zoom": 0,  # >= zoom to load
     "max_zoom": 19,  # <= # Load tiles with equal or less zoom. Can be set with 'max_zoom' per layer. [19] 30 cm resolution - best Maxar satellite resolution at 2021
+    "scalable": False,  # bool Could zN tile be constructed of four z(N+1) tiles. Construct tile from available better ones. If False, tWMS will use nearest zoom level
     # "provider_url"  # Imagery provider webside URL for imagery overview page.
     # "remote_url"  # str Template URL. Should contain placeholders, e.g. {z}, {x}, {y}, {bbox},  {width}, {height}, {proj} for TMS/WMS, see fetchers.TileFetcher.tms.
     # "transform_tile_number": lambda z, x, y: (z, x, y),  # function that returns tuple that will be substituted into **remote_url**. If omitted, (z, x, y) tuple is used.
 }
-
 # Other WMTS configs https://github.com/bertt/wmts
+
 layers: dict[str, dict[str, typing.Any]] = {
     "yasat": {
         "name": "Yandex Satellite",
@@ -285,7 +285,8 @@ layers: dict[str, dict[str, typing.Any]] = {
         "transform_tile_number": lambda z, x, y: (z - 6, x, y),
         "min_zoom": 6,
         "max_zoom": 19,  # max_zoom is 20, but in most places it just blurred 19
-        "dead_tile": {"md5": {"d95150a258cdd8d2c6282c406c287b81"}},
+        # "scalable": True,
+        "dead_tile": {"http_status": 502, "md5": {"d95150a258cdd8d2c6282c406c287b81"}},
     },
     # Not working at 2023-06-25
     "dzzby_BPLA_2021": {
@@ -298,7 +299,8 @@ layers: dict[str, dict[str, typing.Any]] = {
         # "remote_url": "https://www.dzz.by/Java/proxy.jsp?https://www.dzz.by/arcgis/rest/services/Orthomosaics/BPLA_WGS1984/ImageServer/tile/{z}/{y}/{x}",
         "transform_tile_number": lambda z, x, y: (z - 8, x, y),  # 0-8 zooms are missing
         "min_zoom": 8,
-        "max_zoom": 22,  # Has tiles on 22 level
+        "max_zoom": 22,  # Has tiles on 22 level, but mostly 20
+        # "scalable": True,
     },
     "dzzby_BPLA_2022": {
         "name": "dzz.by (Belarus) dzzby_BPLA_2022",
@@ -318,8 +320,10 @@ layers: dict[str, dict[str, typing.Any]] = {
                 "8c77c9de578e056b39c1531e1c82c60e",
             },
         },
+        # "scalable": True,
     },
 }
+
 
 # Populate with default values
 for k, v in layers.items():

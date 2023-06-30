@@ -337,11 +337,11 @@ class TWMSMain:
         """Get tile by Slippy map coordinates: download or construct from cached.
 
         Args:
-            trybetter: combine this tile from better one if layer "scalable"
-            real: return the tile even in not good quality
+            trybetter: allow downscaling from bottom tiles if layer "scalable"
+            real: allow upscaling if layer "scalable"
 
         Returns:
-            Tile (from cache, fetcher, or recursively rescaled) or
+            Tile image (from cache, fetcher, or recursively rescaled) or
             None if image is invalid or unavailable.
         """
         # Limit zoom and coordinates in fetchers, not here, as it can reconstruct tiles
@@ -372,54 +372,48 @@ class TWMSMain:
                 self.fetchers_pool[layer_id] = twms.fetchers.TileFetcher(layer_id)
             tile = self.fetchers_pool[layer_id].fetch(z, x, y)
 
-        # Reconstructing from partial cache
-        if (
-            tile is None
-            and twms.config.layers[layer_id]["scalable"]
-            and (z < twms.config.layers[layer_id]["max_zoom"])
-            and trybetter
-        ):
-            # Second, try to glue image of better ones
-            logger.info(f"{layer_id}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
-            ec = ImageColor.getcolor(
-                twms.config.layers[layer_id]["empty_color"],
-                "RGBA",
-            )
-            empty_color = (ec[0], ec[1], ec[2], 0)
-            logger.info(f"{layer_id}/z{z}/x{x}/y{y} downscaling from bottom tiles")
-            im = Image.new("RGBA", (512, 512), empty_color)
-            im1 = self.tile_image(layer_id, z + 1, x * 2, y * 2)
-            if im1:
-                im2 = self.tile_image(layer_id, z + 1, x * 2 + 1, y * 2)
-                if im2:
-                    im3 = self.tile_image(layer_id, z + 1, x * 2, y * 2 + 1)
-                    if im3:
-                        im4 = self.tile_image(layer_id, z + 1, x * 2 + 1, y * 2 + 1)
-                        if im4:
-                            im.paste(im1, (0, 0))
-                            im.paste(im2, (256, 0))
-                            im.paste(im3, (0, 256))
-                            im.paste(im4, (256, 256))
-                            tile = im.resize((256, 256), Image.ANTIALIAS)
-
-        if tile is None and twms.config.layers[layer_id]["scalable"] and real:
-            logger.info(f"{layer_id}/z{z}/x{x}/y{y} upscaling from top tile")
-            im = self.tile_image(
-                layer_id,
-                z - 1,
-                int(x // 2),
-                int(y // 2),
-                trybetter=False,
-                real=True,
-            )
-            if im:
-                im = im.crop(
-                    (
-                        128 * (x % 2),
-                        128 * (y % 2),
-                        128 * (x % 2) + 128,
-                        128 * (y % 2) + 128,
-                    )
+        # Reconstructing tiles from partial cache
+        if tile is None and twms.config.layers[layer_id]["scalable"]:
+            if trybetter and (z < twms.config.layers[layer_id]["max_zoom"]):
+                logger.info(f"{layer_id}/z{z}/x{x}/y{y} downscaling from 4 subtiles")
+                ec = ImageColor.getcolor(
+                    twms.config.layers[layer_id]["empty_color"],
+                    "RGBA",
                 )
-                tile = im.resize((256, 256), Image.BILINEAR)
+                empty_color = (ec[0], ec[1], ec[2], 0)
+                im = Image.new("RGBA", (512, 512), empty_color)
+                im1 = self.tile_image(layer_id, z + 1, x * 2, y * 2)
+                if im1:
+                    im2 = self.tile_image(layer_id, z + 1, x * 2 + 1, y * 2)
+                    if im2:
+                        im3 = self.tile_image(layer_id, z + 1, x * 2, y * 2 + 1)
+                        if im3:
+                            im4 = self.tile_image(layer_id, z + 1, x * 2 + 1, y * 2 + 1)
+                            if im4:
+                                im.paste(im1, (0, 0))
+                                im.paste(im2, (256, 0))
+                                im.paste(im3, (0, 256))
+                                im.paste(im4, (256, 256))
+                                tile = im.resize((256, 256), Image.ANTIALIAS)
+
+            if real:
+                logger.info(f"{layer_id}/z{z}/x{x}/y{y} upscaling from top tile")
+                im = self.tile_image(
+                    layer_id,
+                    z - 1,
+                    int(x // 2),
+                    int(y // 2),
+                    trybetter=False,
+                    real=True,
+                )
+                if im:
+                    im = im.crop(
+                        (
+                            128 * (x % 2),
+                            128 * (y % 2),
+                            128 * (x % 2) + 128,
+                            128 * (y % 2) + 128,
+                        )
+                    )
+                    tile = im.resize((256, 256), Image.BILINEAR)
         return tile

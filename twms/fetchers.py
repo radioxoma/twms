@@ -170,12 +170,26 @@ def retry_opener(tries: int = 3, delay: int = 3, backoff: int = 2):
 
 class HttpSessionDirector:
     def __init__(self, headers: dict[str, str] = {}):
-        """Build opener with headers, cookie (i.e. session) and context manager support.
+        """Build HTTP opener with custom headers (session cookie) and context manager support.
 
         Args:
             headers: Replace all urllib headers. Useful to mock
             "User-Agent", "Referer", "Cookie".
             NB! "Connection: Keep-Alive" can't be replaced, as it not supported by urllib.
+
+        Example:
+            Read image and close the connection:
+
+                http_session = HttpSessionDirector(
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
+                        "Referer": "https://example.com",
+                        "Cookie": "cf_clearance=qwerty",
+                    }
+                )
+                with http_session.get(url) as resp:
+                    im = PIL.Image.open(resp)
+                    im.show()
         """
         self.cj = http.cookiejar.CookieJar()
         # self.cj = http.cookiejar.MozillaCookieJar(filename="cookies.txt")
@@ -185,23 +199,20 @@ class HttpSessionDirector:
             urllib.request.HTTPCookieProcessor(self.cj),
         )
         self.opener_director.addheaders = list(headers.items())  # Replace all headers
-        # self.opener_director.handlers  # Look for 'HTTPCookieProcessor.cookiejar' here
 
     @retry_opener()
     def get(
         self, *args, **kwargs
     ) -> http.client.HTTPResponse | urllib.error.HTTPError | None:
-        """Same as 'urllib.request.urlopen' but suppresses HTTP errors.
-
-        Read image and close the connection:
-
-            with http_session.get(url) as resp:
-                im = PIL.Image.open(resp)
-                im.show()
+        """Same as 'urllib.request.urlopen' but with logging and HTTP error suppression.
 
         Returns:
-            HTTPResponse or HTTPError, which are subclasses of io.BufferedIOBase
-                and have `.read()` and HTTP `.code` properties.
+            As HTTPError suppressed, method returns file-like
+            HTTPResponse or HTTPError (io.BufferedIOBase subclasses) which
+            holds body, HTTP status and response headers for further analysis.
+
+        Raises:
+            OSError subclasses, when fails to open URL several times.
         """
         try:
             return self.opener_director.open(*args, **kwargs)

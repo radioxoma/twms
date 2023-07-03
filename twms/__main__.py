@@ -15,9 +15,27 @@ import twms.api
 import twms.config
 import twms.twms
 
-# debug - tile file operations
-# info - tile fetching or constructing
-# warning - HTTP errors
+# https://stackoverflow.com/questions/384076/how-can-i-color-python-logging-output
+logging.addLevelName(
+    logging.WARNING, "\x1b[33;20m%s\033[1;0m" % logging.getLevelName(logging.WARNING)
+)
+logging.addLevelName(
+    logging.ERROR, "\033[1;41m%s\033[1;0m" % logging.getLevelName(logging.ERROR)
+)
+
+"""
+ 0 NOTSET
+10 DEBUG - tile file operations
+20 INFO - tile fetching or construction
+30 WARNING warning - HTTP errors
+40 ERROR and `exception()` Logs Traceback and Stack with `exc_info=exc_info`
+50 CRITICAL `and fatal()`
+
+Debug trace shall contain:
+  * Origin link (with headers, probably)
+  * TWMS link
+  * File cache link
+"""
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

@@ -82,7 +82,8 @@ class TileFile:
 
         Must check `needs_fetch()` or `exists()` before.
         """
-        logger.debug(f"File cache hit {self.path}")
+        # Locate file in file manager, calculate checksum, delete etc
+        logger.debug(f"Cache hit 'file://{self.path}'")
         return self.path
 
     def set(self, blob: bytes | None = None) -> None:
@@ -98,10 +99,11 @@ class TileFile:
             self.path_tne.unlink(missing_ok=True)  # Remove TNE-files only there
         else:
             # Empty file, no timestamp inside to save disk space
-            logger.info(f"TNE {self.path}")
+            logger.warning(f"TILE NOT EXISTS {self.path_tne}")
             self.path_tne.touch()
 
     def delete(self) -> None:
+        logger.info(f"Delete '{self.path}', '{self.path_tne}'")
         self.path.unlink(missing_ok=True)
         self.path_tne.unlink(missing_ok=True)
 
@@ -118,9 +120,10 @@ class TileFile:
         """
         if self.path_tne.exists():
             if self.ttl and self.ttl < (time.time() - self.path_tne.stat().st_mtime):
-                logger.info(f"TTL TNE reached: '{self.path}'")
+                logger.info(f"TTL TNE reached: '{self.path_tne}'")
                 return True
             else:
+                logger.info(f"TNE '{self.path_tne}")
                 return False
         # No else for TNE, try to check tile image
 
@@ -326,8 +329,10 @@ class TileFetcher:
                     resp_buf = io.BytesIO(resp_bytes)
                     # Just 404, as decent server would respond
                     if remote_resp.status == http.HTTPStatus.NOT_FOUND:
-                        logger.warning(f"{tile_id}: TNE - {remote_resp}")
                         tile.set()
+                        return None
+                    elif remote_resp.status == http.HTTPStatus.FORBIDDEN:
+                        logger.error(f"Check access rights to {tile}")
                         return None
                     # Sometimes tile missing, but server reports other code instead 404
                     if "dead_tile" in self.layer:
@@ -336,7 +341,7 @@ class TileFetcher:
                             and remote_resp.status
                             == self.layer["dead_tile"]["http_status"]
                         ):
-                            logger.info(f"{tile_id}: TNE - {remote_resp}")
+                            logger.warning(f"{tile_id}: TNE - {remote_resp}")
                             tile.set()
                             return None
 
@@ -349,7 +354,7 @@ class TileFetcher:
                             # Tile is recognized as empty
                             # An example http://ecn.t0.tiles.virtualearth.net/tiles/a120210103101222.jpeg?g=0
                             # SASPlanet writes empty files with '.tne' ext
-                            logger.info(f"{tile_id}: TNE - dead tile checksum")
+                            logger.warning(f"{tile_id}: TNE - dead tile checksum")
                             tile.set()
                             return None
 
@@ -374,7 +379,7 @@ class TileFetcher:
                                 tile.set(resp_bytes)
                             else:
                                 logger.warning(
-                                    f"{tile_id} mimetype mismatch 'Content-Type: {im.get_format_mimetype()}', converting to '{self.layer['mimetype']}'"
+                                    f"{tile_id}: converting '{im.get_format_mimetype()}' to '{self.layer['mimetype']}'"
                                 )
                                 tile.set(im_convert(im, self.layer["mimetype"]))
                             return im
@@ -400,6 +405,7 @@ class TileFetcher:
             except urllib.error.URLError as err:
                 # Nothing we can do: no connection, so cannot guess TNE or not
                 logger.error(f"{tile_id} URLError '{err}'")
+            logger.error(f"{tile_id}: tile fetch failed")
 
         # If fetching failed
         if tile.exists():
@@ -411,7 +417,7 @@ class TileFetcher:
                 logger.error(f"{tile_id}: failed to parse image from cache")
                 # tile.delete()  # Cached tile is broken - remove it
 
-        logger.error(f"{tile_id}: tile load failed")
+        logger.error(f"{tile_id}: no tile")
         return None
 
     def tms_google_sat(self, z: int, x: int, y: int) -> PIL.Image.Image:

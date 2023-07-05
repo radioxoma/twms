@@ -190,7 +190,7 @@ class TWMSMain:
                         if t in sec:
                             i2l[x, y] = (t[0], t[1], t[2], 0)
             if not im2.size == result_img.size:
-                im2 = im2.resize(result_img.size, Image.ANTIALIAS)
+                im2 = im2.resize(result_img.size, Image.LANCZOS)
             im2 = Image.composite(im2, result_img, im2.split()[3])  # imgs/(imgs+1.))
 
             if "noblend" in force:
@@ -321,7 +321,7 @@ class TWMSMain:
         if trans_needed:
             out = out.transform((W, H), Image.QUAD, tuple(quad), Image.BICUBIC)
         elif (W != out.size[0]) or (H != out.size[1]):
-            out = out.resize((W, H), Image.ANTIALIAS)
+            out = out.resize((W, H), Image.LANCZOS)
         return out
 
     @functools.lru_cache(maxsize=twms.config.ram_cache_tiles)
@@ -394,7 +394,7 @@ class TWMSMain:
                                 im.paste(im2, (256, 0))
                                 im.paste(im3, (0, 256))
                                 im.paste(im4, (256, 256))
-                                tile = im.resize((256, 256), Image.ANTIALIAS)
+                                tile = im.resize((256, 256), Image.LANCZOS)
 
             if real:
                 logger.info(f"{layer_id}/z{z}/x{x}/y{y} upscaling from top tile")

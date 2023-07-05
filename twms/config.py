@@ -199,16 +199,16 @@ layers: dict[str, dict[str, typing.Any]] = {
         "remote_url": "http://gisserver3.nca.by:8080/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&layers=prod:radr&propertyName=obj_name,elementtyp,elementnam,addr_label,geom&TILED=true&STYLES=addr_ks&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}",
         "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
     },
-    "geoby_mapserver": {
-        "name": "geo.by Belgeodesy Map",
-        "provider_url": "https://geo.by/navigation/map",  # ? https://geo.maps.by/
-        "prefix": "geoby_mapserver",
-        "mimetype": "image/png",
-        "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
-        "remote_url": "https://mapserver.geo.by/mapcache/?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=mapserver_tileset&STYLES=&FORMAT=image/png&TRANSPARENT=true&HEIGHT={height}&WIDTH={width}&SRS={proj}&BBOX={bbox}",
-        "headers": {"Referer": "https://geo.by/navigation/map"},
-        "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
-    },
+    # "geoby_mapserver": {
+    #     "name": "geo.by Belgeodesy Map",
+    #     "provider_url": "https://geo.by/navigation/map",  # ? https://geo.maps.by/
+    #     "prefix": "geoby_mapserver",
+    #     "mimetype": "image/png",
+    #     "bounds": (23.16722, 51.25930, 32.82244, 56.18162),  # Belarus
+    #     "remote_url": "https://mapserver.geo.by/mapcache/?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=mapserver_tileset&STYLES=&FORMAT=image/png&TRANSPARENT=true&HEIGHT={height}&WIDTH={width}&SRS={proj}&BBOX={bbox}",
+    #     "headers": {"Referer": "https://geo.by/navigation/map"},
+    #     "cache_ttl": 60 * 60 * 24 * 30,  # 1 month
+    # },
     # "landsat":  {
     #      "name": "Landsat from onearth.jpl.nasa.gov",
     #      "prefix": "landsat",
@@ -232,14 +232,14 @@ layers: dict[str, dict[str, typing.Any]] = {
     #      "prefix": "DGsat",
     #      # Could add "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/20867/38349"
     # },
-    "maxar_prem": {
-        "name": "Maxar Premuim",
-        "provider_url": "https://www.maxar.com/",
-        "prefix": "maxar_prem",
-        "max_zoom": 18,  # Looks like artificial restriction
-        # API key from JOSM
-        "remote_url": "https://services.digitalglobe.com/earthservice/tmsaccess/tms/1.0.0/DigitalGlobe:ImageryTileService@EPSG:3857@jpg/{z}/{x}/{-y}.jpg?connectId=fa014fbc-6cbe-4b6f-b0ca-fbfb8d1e5b7d&foo=premium",
-    },
+    # "maxar_prem": {
+    #     "name": "Maxar Premuim",
+    #     "provider_url": "https://www.maxar.com/",
+    #     "prefix": "maxar_prem",
+    #     "max_zoom": 18,  # Looks like artificial restriction
+    #     # API key from JOSM
+    #     "remote_url": "https://services.digitalglobe.com/earthservice/tmsaccess/tms/1.0.0/DigitalGlobe:ImageryTileService@EPSG:3857@jpg/{z}/{x}/{-y}.jpg?connectId=fa014fbc-6cbe-4b6f-b0ca-fbfb8d1e5b7d&foo=premium",
+    # },
     # "irs":  {
     #     "name": "Kosmosnimki.ru IRS Satellite",
     #     "prefix": "irs",

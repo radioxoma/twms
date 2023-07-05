@@ -78,7 +78,7 @@ class TileFile:
         return f"'{self.mimetype}' TTL: {self.ttl}, '{self.path}'"
 
     def get(self) -> pathlib.Path:
-        """Get tile.
+        """Get tile path.
 
         Must check `needs_fetch()` or `exists()` before.
         """
@@ -90,7 +90,7 @@ class TileFile:
         """Set image to cache and remove TNE.
 
         Args:
-            blob: Image data or Mone. None means create TNE file (tile not exists).
+            blob: Image data. Create TNE file is None (tile not exists).
         """
         logger.debug(f"Saving {self.path}")
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,7 +103,7 @@ class TileFile:
             self.path_tne.touch()
 
     def delete(self) -> None:
-        logger.info(f"Delete '{self.path}', '{self.path_tne}'")
+        logger.info(f"Deleting '{self.path}', '{self.path_tne}'")
         self.path.unlink(missing_ok=True)
         self.path_tne.unlink(missing_ok=True)
 
@@ -163,7 +163,7 @@ def retry_opener(tries: int = 3, delay: int = 3, backoff: int = 2):
                     time.sleep(mdelay)
                     mtries -= 1
                     mdelay *= backoff
-                except OSError:
+                else:
                     raise
 
         return wrapper
@@ -225,8 +225,8 @@ class HttpSessionDirector:
             # https://stackoverflow.com/questions/74680393/stop-urllib-request-from-raising-exceptions-on-http-errors
             logger.error(f"{resp}: '{args[0]}'")
             return resp
-        except (urllib.error.URLError, TimeoutError):  # OSError subclass
-            logger.exception(self.__class__.__name__)
+        else:  # urllib.error.URLError, TimeoutError
+            logger.exception(type(self).__name__)
             raise
 
 

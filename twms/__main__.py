@@ -4,7 +4,6 @@ import logging
 import mimetypes
 import os
 import re
-import sys
 import textwrap
 import urllib.parse
 from http import HTTPStatus
@@ -55,7 +54,6 @@ class GetHandler(BaseHTTPRequestHandler):
         josm/maps.xml
         any overview
         """
-        logger.info(f"GET {twms.config.service_url}{self.path}")
         if self.path.startswith("/wmts"):
             if self.path.startswith("/wmts/1.0.0/WMTSCapabilities.xml"):
                 status = HTTPStatus.OK
@@ -114,12 +112,12 @@ class GetHandler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def log_message(self, format, *args):
-        """Disable logger."""
-        pass
+        """Override logger."""
+        logger.info(format, *args)
 
     def log_error(self, format, *args):
-        """Declare, because we had disabled 'log_message'."""
-        sys.stderr.write(format % args)
+        """Override logger."""
+        logger.error(format, *args)
 
 
 def main():

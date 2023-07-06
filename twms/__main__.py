@@ -65,7 +65,6 @@ class GetHandler(BaseHTTPRequestHandler):
                 root, ext = os.path.splitext(self.path)
                 r_parts = root.split("/")
                 layer_id, z, x, y = r_parts[2], r_parts[3], r_parts[4], r_parts[5]
-                print(mimetypes.types_map[".webp"])
                 status, content_type, content = self.TWMS.tiles_handler(
                     layer_id, z, x, y, mimetypes.types_map[ext]
                 )

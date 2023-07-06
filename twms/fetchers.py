@@ -129,7 +129,7 @@ class TileFile:
 
         if self.path.exists():
             if self.ttl and self.ttl < (time.time() - self.path.stat().st_mtime):
-                logger.info(f"TTL tile reached: '{self.path}'")
+                logger.info(f"TTL reached: '{self.path}'")
                 return True
             else:
                 return False
@@ -154,17 +154,16 @@ def retry_opener(tries: int = 3, delay: int = 3, backoff: int = 2):
                 try:
                     return func(*args, **kwargs)
                 except urllib.error.HTTPError:
-                    # Don't afect HTTP error code handling
-                    raise
-                except (urllib.error.URLError, TimeoutError):
+                    raise  # Don't affect HTTP error code handling
+                except urllib.error.URLError as err:
                     if mtries == 0:
+                        logger.exception(func)
                         raise
-                    logger.debug(f"Retry '{args[1]}' in {mdelay} seconds...")
+                    # log "err.reason" and retry timeout
+                    logger.debug(f"{err}: retry in {mdelay} seconds... '{args[1]}'")
                     time.sleep(mdelay)
                     mtries -= 1
                     mdelay *= backoff
-                else:
-                    raise
 
         return wrapper
 
@@ -223,11 +222,8 @@ class HttpSessionDirector:
             # Could pass no-op "urllib.request.HTTPErrorProcessor" subclass into
             # build_opener() to get rid of error handling, but leaving for logging
             # https://stackoverflow.com/questions/74680393/stop-urllib-request-from-raising-exceptions-on-http-errors
-            logger.error(f"{resp}: '{args[0]}'")
+            logger.error(f"{resp}: '{args[0]}'")  # log with resp.msg aka err.reason
             return resp
-        else:  # urllib.error.URLError, TimeoutError
-            logger.exception(type(self).__name__)
-            raise
 
 
 class TileFetcher:
@@ -238,10 +234,10 @@ class TileFetcher:
         fetcher_names = ("tms", "tms_google_sat")
         if self.layer["fetch"] not in fetcher_names:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
+        self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
         self.http_session = HttpSessionDirector(
             headers=(twms.config.default_headers | self.layer["headers"])
         )
-        self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
         self.thread_pool = ThreadPoolExecutor(
             max_workers=twms.config.dl_threads_per_layer
         )
@@ -332,7 +328,6 @@ class TileFetcher:
                         tile.set()
                         return None
                     elif remote_resp.status == http.HTTPStatus.FORBIDDEN:
-                        logger.error(f"Check access rights to {tile}")
                         return None
                     # Sometimes tile missing, but server reports other code instead 404
                     if "dead_tile" in self.layer:
@@ -512,6 +507,8 @@ def tile_slippy_to_tms(z: int, x: int, y: int) -> tuple[int, int, int]:
 def im_convert(im: PIL.Image.Image, mimetype: str) -> bytes:
     """Convert Pillow image to requested mimetype."""
     # Exif-related code not documented, Pillow can change behavior
+    output_quality = 75
+    output_progressive = True
     exif = PIL.Image.Exif()
     exif[0x0131] = twms.config.wms_name  # ExifTags.TAGS['Software']
 
@@ -522,24 +519,24 @@ def im_convert(im: PIL.Image.Image, mimetype: str) -> bytes:
         im.save(
             img_buf,
             "JPEG",
-            quality=twms.config.output_quality,
-            progressive=twms.config.output_progressive,
+            quality=output_quality,
+            progressive=output_progressive,
             exif=exif,
         )
     elif mimetype == "image/png":
         im.save(
             img_buf,
             "PNG",
-            progressive=twms.config.output_progressive,
-            optimize=twms.config.output_optimize,
+            progressive=output_progressive,
+            optimize=False,
             exif=exif,
         )
     elif mimetype == "image/gif":
         im.save(
             img_buf,
             "GIF",
-            quality=twms.config.output_quality,
-            progressive=twms.config.output_progressive,
+            quality=output_quality,
+            progressive=output_progressive,
             exif=exif,
         )
     else:

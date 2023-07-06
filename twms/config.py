@@ -48,15 +48,8 @@ dzzby_headers = {
 tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 # tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_test/")
 
-# If server returns no tile (HTTP 404) or dead tile,
-# TWMS saves in cache empty "*.tne" file.
-# This is a timeout for a next attempt to fetch missing tile
 ram_cache_tiles = 2048  # Number of tiles in RAM cache
 dl_threads_per_layer = 5
-
-output_quality = 75  # JPEG output image quality
-output_progressive = True  # JPEG progressive codec
-output_optimize = False  # Optimize PNG images
 
 # WMS GetCapabilities
 default_layers = ""  # layer(s) to show when no layers given explicitly
@@ -91,8 +84,8 @@ layer_defaults = {
     # "remote_url"  # str Template URL. Should contain placeholders, e.g. {z}, {x}, {y}, {bbox},  {width}, {height}, {proj} for TMS/WMS, see fetchers.TileFetcher.tms.
     # "transform_tile_number": lambda z, x, y: (z, x, y),  # function that returns tuple that will be substituted into **remote_url**. If omitted, (z, x, y) tuple is used.
 }
-# Other WMTS configs https://github.com/bertt/wmts
 
+# Other WMTS configs https://github.com/bertt/wmts
 layers: dict[str, dict[str, typing.Any]] = {
     "yasat": {
         "name": "Yandex Satellite",

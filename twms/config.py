@@ -1,6 +1,8 @@
 """TWMS config file."""
 
 import os
+import pathlib
+import sqlite3
 import typing
 
 import twms
@@ -31,17 +33,23 @@ port = 8080
 service_url = f"http://{host}:{port}"
 service_wms_url = service_url + "/wms"
 service_wmts_url = service_url + "/wmts"
+cookie_db = "~/.mozilla/firefox/vhcqr5em.default-release/cookies.sqlite"
 
 # NB! "Connection: Keep-Alive" not supported by urllib
 default_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
 }
 
+con = sqlite3.connect(pathlib.Path(cookie_db).expanduser())
+cur = con.execute("SELECT name || '=' || value FROM moz_cookies WHERE host = '.dzz.by'")
+dzzby_cookie = cur.fetchone()[0]
+con.close()
+
 # Cloudflare cookie associated with User-Agent, IP
 dzzby_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
     "Referer": "https://www.dzz.by/izuchdzz/",
-    "Cookie": "cf_clearance=alottZPzGqElrxhiyTc6mbwC_TJiIITaOznUG3iDm00-1687965726-0-160",
+    "Cookie": dzzby_cookie,  # "cf_clearance=B0eHWBFh3WgYUrs1mqDb__L8k8bxjAAFvgpA0YKgNOw-1716240723-1.0.1.1-EHlNC4NumkNWEVc8JktBwZbTNMRbozFffcybEVDQW4lGYJBTP5UMI15R9ZOYcmD62POChdZwuwGVnLL67Qbdvg",
 }
 
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`

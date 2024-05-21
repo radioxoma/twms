@@ -27,29 +27,64 @@ class DefaultDict(dict):
         return self.defaults[key]
 
 
+def extract_cookie(db_fp: str | pathlib.Path, name: str, host: str) -> tuple:
+    """Return cookie with "expired" timestamp from Firefox database.
+
+    Args:
+        db_fp: Firefox cookie database path like
+            "~/.mozilla/firefox/aaaaaaaa.default-release/cookies.sqlite"
+
+    Returns:
+        Tuple: (expity_timestamp, cookie_str)
+    """
+    con = sqlite3.connect(db_fp)
+    cur = con.execute(
+        """
+        SELECT expiry, name || '=' || value AS cookie
+        FROM moz_cookies
+        WHERE host = :host AND name = :name
+        """,
+        dict(name=name, host=host),
+    )
+    return cur.fetchone()
+
+
+def get_latest_cookie(name: str, host: str) -> str:
+    """Lookup for a latest cookie from all Firefox profiles.
+
+    Args:
+        name: cookie name
+        host: cookie host
+    """
+    all_cookies = dict()
+    ff_profile_dir = pathlib.Path("~/.mozilla/firefox/").expanduser()
+    for ff_cookie_db_fp in ff_profile_dir.glob("*/cookies.sqlite"):
+        if cookie := extract_cookie(ff_cookie_db_fp, name=name, host=host):
+            all_cookies[cookie[0]] = cookie[1]
+    if all_cookies:
+        return all_cookies[max(all_cookies)]
+    else:
+        return ""
+
+
 wms_name = f"twms {twms.__version__}"
 host = "127.0.0.1"
 port = 8080
 service_url = f"http://{host}:{port}"
 service_wms_url = service_url + "/wms"
 service_wmts_url = service_url + "/wmts"
-cookie_db = "~/.mozilla/firefox/vhcqr5em.default-release/cookies.sqlite"
 
 # NB! "Connection: Keep-Alive" not supported by urllib
 default_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
 }
 
-con = sqlite3.connect(pathlib.Path(cookie_db).expanduser())
-cur = con.execute("SELECT name || '=' || value FROM moz_cookies WHERE host = '.dzz.by'")
-dzzby_cookie = cur.fetchone()[0]
-con.close()
 
 # Cloudflare cookie associated with User-Agent, IP
 dzzby_headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0",
     "Referer": "https://www.dzz.by/izuchdzz/",
-    "Cookie": dzzby_cookie,  # "cf_clearance=B0eHWBFh3WgYUrs1mqDb__L8k8bxjAAFvgpA0YKgNOw-1716240723-1.0.1.1-EHlNC4NumkNWEVc8JktBwZbTNMRbozFffcybEVDQW4lGYJBTP5UMI15R9ZOYcmD62POChdZwuwGVnLL67Qbdvg",
+    "Cookie": get_latest_cookie(name="cf_clearance", host=".dzz.by"),
 }
 
 # There may be more appropriate place for a cache, like `~/.cache/osm/tiles/`

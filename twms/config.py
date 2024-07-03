@@ -37,7 +37,8 @@ def extract_cookie(db_fp: str | pathlib.Path, name: str, host: str) -> tuple:
     Returns:
         Tuple: (expity_timestamp, cookie_str)
     """
-    con = sqlite3.connect(db_fp)
+    # Firefox locks db, so using immutable mode to read
+    con = sqlite3.connect(f"file:{db_fp}?immutable=1", uri=True)
     cur = con.execute(
         """
         SELECT expiry, name || '=' || value AS cookie
@@ -46,7 +47,9 @@ def extract_cookie(db_fp: str | pathlib.Path, name: str, host: str) -> tuple:
         """,
         dict(name=name, host=host),
     )
-    return cur.fetchone()
+    res = cur.fetchone()
+    con.close()
+    return res
 
 
 def get_latest_cookie(name: str, host: str) -> str:
@@ -175,6 +178,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "prefix": "sat",
         # "fetch": "tms_google_sat",
         "remote_url": "https://mt0.google.com/vt/lyrs=s@0&z={z}&x={x}&y={y}",
+        "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
     "Both": {
         "name": "Google Hybrid RU",

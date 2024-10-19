@@ -139,6 +139,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "prefix": "yasat",
         "proj": "EPSG:3395",  # WGS84 World mercator, ellipsoid
         "remote_url": "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
+        "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
     "yamapng": {
         "name": "Yandex Map",
@@ -157,6 +158,7 @@ layers: dict[str, dict[str, typing.Any]] = {
         "mimetype": "image/png",
         "overlay": True,
         "min_zoom": 1,
+        "max_zoom": 20,  # Small POI like fitness stations
         "remote_url": "https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
         "cache_ttl": 60 * 60 * 24 * 30,  # Month
     },
@@ -195,9 +197,10 @@ layers: dict[str, dict[str, typing.Any]] = {
         "name": "Bing Satellite",
         "provider_url": "https://www.bing.com/maps?style=h",
         "prefix": "vesat",
-        "min_zoom": 1,  # doesn't serve z0/x0/y0 (400 Bad Request for "https://ecn.t0.tiles.virtualearth.net/tiles/a.jpeg?g=0")
         "remote_url": "https://ecn.t0.tiles.virtualearth.net/tiles/a{q}.jpeg?g=0",
+        "min_zoom": 1,  # Don't serve z0/x0/y0 (400 Bad Request for "https://ecn.t0.tiles.virtualearth.net/tiles/a.jpeg?g=0")
         # "max_zoom": 19,
+        "cache_ttl": 60 * 60 * 24 * 30,  # Month
         # Check against known size in bytes and md5 hash
         "dead_tile": {
             "size": 1033,
